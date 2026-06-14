@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addMentee, login } from '../utils/db';
+// import { addMentee, login } from '../utils/db';
 
 const SignUp = ({ navigateTo }) => {
   const [step, setStep] = useState(1);

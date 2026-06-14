@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { login } from '../utils/db';
+// import { login } from '../utils/db';
 
 const Login = ({ navigateTo }) => {
   const [email, setEmail] = useState('');
