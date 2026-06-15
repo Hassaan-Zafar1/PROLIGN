@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MentorBridge chatbot icon</title>
+  <desc id="desc">A friendly headset robot inside a teal chat bubble.</desc>
+  <rect width="512" height="512" fill="#eef3f6"/>
+  <path fill="#49c0c8" d="M254 72c103 0 186 76 186 170 0 39-14 75-39 104-4 48 7 82 35 125-56-11-96-33-123-67-19 5-39 8-59 8-103 0-186-76-186-170S151 72 254 72Z"/>
+  <path fill="#020203" d="M151 273c-17 0-31-16-31-35s14-35 31-35h11v70h-11Zm210 0h-11v-70h11c17 0 31 16 31 35s-14 35-31 35Z"/>
+  <path fill="none" stroke="#020203" stroke-linecap="round" stroke-width="12" d="M150 215c6-66 49-111 105-111s100 45 106 111M151 264c0 52 28 82 86 82"/>
+  <rect x="152" y="158" width="214" height="184" rx="55" fill="#f8fafc"/>
+  <path fill="#e5e7eb" d="M325 158c27 16 41 40 41 74v55c0 35-21 55-57 55h-92c-26 0-47-7-61-21 20 7 45 10 74 10h58c42 0 64-22 64-64v-43c0-31-9-52-27-66Z"/>
+  <rect x="181" y="192" width="151" height="142" rx="44" fill="#020203"/>
+  <circle cx="207" cy="211" r="9" fill="#ffffff"/>
+  <circle cx="221" cy="251" r="29" fill="none" stroke="#21f3f2" stroke-width="10"/>
+  <circle cx="297" cy="251" r="29" fill="none" stroke="#21f3f2" stroke-width="10"/>
+  <circle cx="221" cy="251" r="6" fill="#21f3f2"/>
+  <circle cx="297" cy="251" r="6" fill="#21f3f2"/>
+  <path fill="none" stroke="#67edf2" stroke-linecap="round" stroke-width="10" d="M235 292c14 13 35 13 49 0"/>
+  <rect x="243" y="126" width="28" height="8" rx="4" fill="#020203"/>
+  <rect x="241" y="333" width="32" height="17" rx="8" fill="#020203"/>
+</svg>

@@ -95,7 +95,8 @@ const MentorRegistration = ({ navigateTo }) => {
   }
 
   return (
-    <div className="w-full relative">
+    <div className="w-full bg-surface px-4 py-10 md:px-10">
+      <div className="mx-auto max-w-6xl">
       <button
         type="button"
         onClick={() => navigateTo('home')}
@@ -104,16 +105,33 @@ const MentorRegistration = ({ navigateTo }) => {
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Home
       </button>
-      <div className="mb-12 max-w-2xl">
-        <h1 className="font-headline-xl text-4xl md:text-5xl font-bold text-primary mb-4">Join as a Mentor</h1>
-        <p className="text-on-surface-variant max-w-xl text-lg">
-          Share your wisdom and shape the next generation of industry leaders. Our application process ensures a high-quality environment for both mentors and mentees.
-        </p>
+      <div className="mb-10 grid grid-cols-1 gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+        <div>
+          <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-secondary-container px-4 py-2 text-sm font-bold text-on-secondary-container">
+            <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+            Mentor Application
+          </span>
+          <h1 className="font-headline-xl text-4xl md:text-5xl font-bold text-primary mb-4">Join as a Mentor</h1>
+          <p className="text-on-surface-variant max-w-xl text-lg">
+            Share your wisdom and shape the next generation of industry leaders. Our application process ensures a high-quality environment for both mentors and mentees.
+          </p>
+        </div>
+        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-5 natural-shadow">
+          <div className="flex items-start gap-4">
+            <span className="material-symbols-outlined rounded-lg bg-primary-fixed p-3 text-primary">verified_user</span>
+            <div>
+              <h2 className="font-headline-md text-xl font-bold text-on-surface">Curated mentor review</h2>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Credentials, expertise, availability, and pricing help admins approve the right mentors for the marketplace.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <form className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start" onSubmit={(e) => e.preventDefault()}>
+      <form className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch" onSubmit={(e) => e.preventDefault()}>
         {/* Left Column: Personal Information */}
-        <section className="space-y-6 bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10 natural-shadow">
+        <section className="space-y-6 bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10 natural-shadow h-full">
           <h2 className="font-headline-md text-2xl font-bold text-primary mb-6">Personal Identity</h2>
           <div className="space-y-4">
             <div className="group">
@@ -160,7 +178,7 @@ const MentorRegistration = ({ navigateTo }) => {
         </section>
 
         {/* Right Column: Professional Experience */}
-        <section className="space-y-6 bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10 natural-shadow">
+        <section className="space-y-6 bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10 natural-shadow h-full flex flex-col">
           <h2 className="font-headline-md text-2xl font-bold text-primary mb-6">Professional Credentials</h2>
           <div className="space-y-6">
             <div className="group">
@@ -234,7 +252,7 @@ const MentorRegistration = ({ navigateTo }) => {
               </div>
             </div>
           </div>
-          <div className="pt-6">
+          <div className="pt-6 mt-auto">
             <button 
               className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md text-lg" 
               onClick={handleSubmitApplication} 
@@ -288,7 +306,7 @@ const MentorRegistration = ({ navigateTo }) => {
           </div>
         </div>
       )}
-       
+      </div>
     </div>
   );
 };
