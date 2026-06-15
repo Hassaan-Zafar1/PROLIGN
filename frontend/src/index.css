@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #202a10;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #354024;
+  --color-on-primary-container: #9fac88;
+  --color-inverse-primary: #becca6;
+  --color-secondary: #5b6239;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #dce4b1;
+  --color-on-secondary-container: #5f663d;
+  --color-tertiary: #312403;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #493a16;
+  --color-on-tertiary-container: #baa477;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-background: #fff8f3;
+  --color-on-background: #211b0f;
+  --color-surface: #fff8f3;
+  --color-on-surface: #211b0f;
+  --color-surface-variant: #efe0cd;
+  --color-on-surface-variant: #45483f;
+  --color-surface-dim: #e6d8c5;
+  --color-surface-bright: #fff8f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fff2e1;
+  --color-surface-container: #faecd8;
+  --color-surface-container-high: #f5e6d3;
+  --color-surface-container-highest: #efe0cd;
+  --color-outline: #76786e;
+  --color-outline-variant: #c6c7bc;
+  --color-inverse-surface: #372f22;
+  --color-inverse-on-surface: #fdefdb;
+  --color-primary-fixed: #dae8c0;
+  --color-primary-fixed-dim: #becca6;
+  --color-on-primary-fixed: #151f06;
+  --color-on-primary-fixed-variant: #3f4b2e;
+  --color-secondary-fixed: #dfe7b4;
+  --color-secondary-fixed-dim: #c3cb9a;
+  --color-on-secondary-fixed: #181e00;
+  --color-on-secondary-fixed-variant: #434a24;
+  --color-tertiary-fixed: #f8e0ae;
+  --color-tertiary-fixed-dim: #dbc494;
+  --color-on-tertiary-fixed: #251a00;
+  --color-on-tertiary-fixed-variant: #544520;
+  --color-bone: #e5d7c4;
+
+  --font-headline-md: "Playfair Display", serif;
+  --font-headline-lg: "Playfair Display", serif;
+  --font-headline-xl: "Playfair Display", serif;
+  --font-headline-xl-mobile: "Playfair Display", serif;
+  --font-body-md: "Source Sans 3", sans-serif;
+  --font-label-sm: "Source Sans 3", sans-serif;
+  --font-caption: "Source Sans 3", sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-body-md);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Material Symbols Icon Alignment and Styling */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  color: var(--color-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.fill-icon {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-variant);
+  border-radius: 10px;
+}
+
+/* Ambient Shadows and Elevations */
+.natural-shadow {
+  box-shadow: 0 10px 30px -10px rgba(76, 61, 25, 0.08);
+}
+
+.natural-depth {
+  box-shadow: 0 4px 20px -2px rgba(76, 61, 25, 0.08);
+}
+
+.tonal-elevation {
+  background-color: var(--color-surface-variant);
+  box-shadow: 0 4px 6px -1px rgba(76, 61, 25, 0.05);
+  border: 1px solid rgba(91, 98, 57, 0.1);
+}
+
+.hero-gradient {
+  background: linear-gradient(180deg, var(--color-background) 0%, var(--color-surface-container) 100%);
+}
+
+.video-gradient {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0) 80%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.waveform-bar {
+  animation: waveform-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes waveform-pulse {
+  0%, 100% { height: 20px; }
+  50% { height: 80px; }
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: #76786e33;
+  border-radius: 10px;
+}
+
+.voice-active-ring {
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping-slow {
+  75%, 100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.glass-card {
+  background-color: rgba(207, 187, 153, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.moss-badge {
+  background-color: var(--color-secondary);
+  color: var(--color-surface);
+}
+
+.status-confirmed {
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.status-pending {
+  background-color: #CFBB99;
+  color: var(--color-on-background);
+}
