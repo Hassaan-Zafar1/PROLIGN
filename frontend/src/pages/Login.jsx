@@ -1,118 +1,184 @@
-import React, { useState } from 'react';
-// import { login } from '../utils/db';
+/**
+ * Login Page Component
+ * Unified login page for all user roles (mentee, mentor, admin)
+ */
 
-const Login = ({ navigateTo }) => {
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import TopNavBar from '../components/TopNavBar';
+import Footer from '../components/Footer';
+import { MOCK_USERS } from '../constants/mockData';
+
+export default function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      return;
-    }
-    
-    // Perform mock login
-    const user = login(email, password);
-    if (user) {
-      if (user.role === 'mentor') {
-        navigateTo('dashboard'); // mentor dashboard
-      } else if (user.role === 'admin') {
-        navigateTo('admindashboard');
-      } else {
-        navigateTo('dashboard'); // mentee dashboard
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const user = MOCK_USERS.find(
+        (u) => u.email === email && u.password === password
+      );
+
+      if (!user) {
+        setError('Invalid email or password');
+        setIsLoading(false);
+        return;
       }
-    } else {
-      setError('Invalid login credentials.');
+
+      localStorage.setItem('authToken', user.token);
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name
+        })
+      );
+
+      if (user.role === 'mentor') {
+        navigate('/mentor-dashboard');
+      } else if (user.role === 'mentee') {
+        navigate('/mentee-dashboard');
+      } else {
+        navigate('/admin-dashboard');
+      }
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-container-low px-4">
-      <div className="max-w-md w-full bg-white rounded-3xl natural-shadow p-8 border border-outline-variant">
-        <button
-          type="button"
-          onClick={() => navigateTo('home')}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors"
-        >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Home
-        </button>
-        <div className="text-center mb-8">
-          <span className="material-symbols-outlined text-primary text-5xl mb-4">school</span>
-          <h2 className="text-3xl font-headline-md font-bold text-on-surface">Welcome Back</h2>
-          <p className="text-on-surface-variant mt-2">Log in to continue to MentorBridge</p>
-        </div>
-        
-        {error && (
-          <div className="bg-error-container text-on-error-container p-4 rounded-xl mb-6 text-sm flex items-center space-x-2">
-            <span className="material-symbols-outlined">error</span>
-            <span>{error}</span>
-          </div>
-        )}
+    <div className="min-h-screen flex flex-col bg-surface">
+      <TopNavBar isHome={false} />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" />
-              <span className="text-sm text-on-surface-variant">Remember me</span>
-            </label>
-            <button type="button" onClick={() => navigateTo('help-center')} className="text-sm font-medium text-primary hover:text-primary-container transition-colors">
-              Forgot Password?
-            </button>
+      <main className="flex-grow flex items-center justify-center px-gutter py-loose">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-loose">
+            <h1 className="font-headline-xl text-headline-xl text-primary mb-4">
+              Sign In
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              Welcome back to MentorBridge. Enter your credentials to continue.
+            </p>
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary-container transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-          >
-            <span>Login</span>
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-          </button>
-        </form>
+          <div className="bg-surface-container-low p-base rounded-xl shadow-natural border border-outline-variant">
+            <form onSubmit={handleLogin} className="space-y-base">
+              {error && (
+                <div className="flex items-start gap-4 p-4 bg-error-container rounded-lg border border-error">
+                  <span className="material-symbols-outlined text-error flex-shrink-0">
+                    error
+                  </span>
+                  <p className="font-body-md text-body-md text-on-error-container">
+                    {error}
+                  </p>
+                </div>
+              )}
 
-        <div className="mt-8 text-center">
-          <p className="text-sm text-on-surface-variant">
-            Don't have an account?{' '}
-            <button onClick={() => navigateTo('signup')} className="font-medium text-primary hover:text-primary-container transition-colors">
-              Sign up
-            </button>
-          </p>
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-surface-dim border border-outline-variant rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary focus:outline-none"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full bg-surface-dim border border-outline-variant rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary focus:outline-none"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="text-right">
+                <a
+                  href="#"
+                  className="font-label-sm text-label-sm text-secondary hover:underline"
+                >
+                  Forgot Password?
+                </a>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </form>
+
+            <div className="relative my-base">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-outline-variant"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-surface-container-low text-on-surface-variant">
+                  or
+                </span>
+              </div>
+            </div>
+
+            <p className="text-center font-body-md text-body-md text-on-surface-variant">
+              Do not have an account?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/signup')}
+                className="text-secondary font-bold hover:underline"
+              >
+                Sign up
+              </button>
+              {' or '}
+              <button
+                type="button"
+                onClick={() => navigate('/mentor-registration')}
+                className="text-secondary font-bold hover:underline"
+              >
+                Join as Mentor
+              </button>
+            </p>
+          </div>
+
+          <div className="mt-8 p-4 bg-surface-container rounded-lg border border-outline-variant">
+            <p className="font-label-sm text-label-sm text-on-surface-variant mb-2 font-bold">
+              Demo Credentials:
+            </p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Mentee: mentee@example.com / password123
+            </p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Mentor: mentor@example.com / password123
+            </p>
+          </div>
         </div>
-        
-        <div className="mt-6 p-4 bg-surface-variant rounded-xl text-xs text-on-surface-variant text-left">
-          <strong>Demo Login Details:</strong><br />
-          Mentee: <code>mentee@mentorbridge.com</code> / <code>mentee123</code><br />
-          Mentor: <code>mentor@mentorbridge.com</code> / <code>mentor123</code><br />
-          Admin: <code>admin@mentorbridge.com</code> / Password: <code>password123</code>
-        </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
-};
-
-export default Login;
+}

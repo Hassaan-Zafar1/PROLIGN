@@ -1,210 +1,372 @@
-import React, { useState } from 'react';
-// import { addMentee, login } from '../utils/db';
+/**
+ * Mentee SignUp Page Component
+ * Registration page for mentees to create an account
+ * 
+ * Mock data templates: MENTEE_PROFILE_TEMPLATE, INDUSTRIES, EXPERIENCE_LEVELS from mockData.js
+ * 
+ * TODO: Replace with API POST /api/auth/register-mentee
+ * Expected request: { fullName, email, password, careerGoals, industry, experience, skills, budget }
+ * Expected response: { token, user: { id, email, role, name } }
+ */
 
-const SignUp = ({ navigateTo }) => {
-  const [step, setStep] = useState(1);
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import TopNavBar from '../components/TopNavBar';
+import Footer from '../components/Footer';
+import OTPModal from '../components/OTPModal';
+import SuccessModal from '../components/SuccessModal';
+import { INDUSTRIES, EXPERIENCE_LEVELS, EXPERTISE_OPTIONS } from '../constants/mockData';
+
+export default function SignUp() {
+  const navigate = useNavigate();
+
+  // Form State
   const [formData, setFormData] = useState({
-    name: '',
+    fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'mentee' // Default to mentee for this flow
+    careerGoals: '',
+    industry: '',
+    experience: 'junior',
+    skills: [],
+    budget: 0
   });
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [skillInput, setSkillInput] = useState('');
+  const [errors, setErrors] = useState({});
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Handle input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return; // Only allow single character
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    
-    // Auto-focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`);
-      if (nextInput) nextInput.focus();
+  // Add skill/tag
+  const addSkill = () => {
+    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skillInput.trim()]
+      }));
+      setSkillInput('');
     }
   };
 
-  const handleStep1Submit = (e) => {
-    e.preventDefault();
+  // Remove skill/tag
+  const removeSkill = (skill) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skill)
+    }));
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (!formData.password) newErrors.password = 'Password is required';
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+      newErrors.confirmPassword = 'Passwords do not match';
     }
-    setError('');
-    
-    // OTP verification disabled for now.
-    // Create mentee in DB immediately
-    addMentee({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-    });
-    
-    // Navigate to onboarding
-    navigateTo('onboarding');
+    if (!formData.careerGoals.trim()) newErrors.careerGoals = 'Career goals are required';
+    if (!formData.industry) newErrors.industry = 'Industry is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleStep2Submit = (e) => {
+  // Handle form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
-      setError("Please enter a 6-digit OTP.");
-      return;
+
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+
+    try {
+      // TODO: Replace with actual API call
+      // const response = await fetch('/api/auth/register-mentee', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData)
+      // });
+      // const data = await response.json();
+      // if (!response.ok) throw new Error(data.message);
+
+      // Mock registration - show OTP verification
+      setOtpOpen(true);
+    } catch (err) {
+      setErrors({ submit: err.message || 'Registration failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Create mentee in DB
-    addMentee({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-    });
-    
-    // Navigate to onboarding
-    navigateTo('onboarding');
+  };
+
+  // Handle OTP verification
+  const handleOTPVerify = (otpCode) => {
+    // TODO: Verify OTP with backend: POST /api/auth/verify-otp
+    // For now, just show success
+    setOtpOpen(false);
+    setSuccessOpen(true);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-container-low px-4">
-      <div className="max-w-md w-full bg-white rounded-3xl natural-shadow p-8 border border-outline-variant">
-        <button
-          type="button"
-          onClick={() => navigateTo('home')}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors"
-        >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Home
-        </button>
-        <div className="text-center mb-8">
-          <span className="material-symbols-outlined text-primary text-5xl mb-4">person_add</span>
-          <h2 className="text-3xl font-headline-md font-bold text-on-surface">
-            {step === 1 ? 'Create Account' : 'Verify Email'}
-          </h2>
-          <p className="text-on-surface-variant mt-2">
-            {step === 1 ? 'Join MentorBridge and accelerate your career.' : `We sent an OTP to ${formData.email}`}
+    <div className="min-h-screen flex flex-col bg-surface">
+      <TopNavBar isHome={false} />
+
+      <main className="flex-grow w-full max-w-container-max mx-auto px-gutter py-loose">
+        {/* Header */}
+        <div className="mb-loose max-w-2xl">
+          <h1 className="font-headline-xl text-headline-xl text-primary mb-4">
+            Join as a Mentee
+          </h1>
+          <p className="text-on-surface-variant max-w-xl">
+            Find the perfect mentor to guide your career journey. Complete your profile to get matched with industry experts.
           </p>
         </div>
 
-        {error && (
-          <div className="bg-error-container text-on-error-container p-4 rounded-xl mb-6 text-sm flex items-center space-x-2">
-            <span className="material-symbols-outlined">error</span>
-            <span>{error}</span>
-          </div>
-        )}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          {/* Left Column: Personal Information */}
+          <section className="space-y-base bg-surface-container-low p-base rounded-xl shadow-natural border border-outline-variant/10">
+            <h2 className="font-headline-md text-headline-md text-primary mb-tight">
+              Personal Information
+            </h2>
 
-        {step === 1 ? (
-          <form onSubmit={handleStep1Submit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Full Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-                placeholder="John Doe"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Email Address</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Confirm Password</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary-container transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-            >
-              <span>Continue</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleStep2Submit} className="space-y-8">
-            <div className="flex justify-between space-x-2">
-              {otp.map((digit, index) => (
+            <div className="space-y-4">
+              {/* Full Name */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Full Name
+                </label>
                 <input
-                  key={index}
-                  id={`otp-${index}`}
                   type="text"
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  className="w-12 h-14 text-center text-xl font-bold rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
-                  maxLength={1}
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  placeholder="John Doe"
+                  className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50"
                 />
-              ))}
+                {errors.fullName && (
+                  <p className="text-error text-caption mt-1">{errors.fullName}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="you@example.com"
+                  className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50"
+                />
+                {errors.email && (
+                  <p className="text-error text-caption mt-1">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Password Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="••••••••"
+                    className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50"
+                  />
+                  {errors.password && (
+                    <p className="text-error text-caption mt-1">{errors.password}</p>
+                  )}
+                </div>
+
+                <div className="group">
+                  <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="••••••••"
+                    className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50"
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-error text-caption mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
+            {/* Info box */}
+            <div className="pt-tight relative overflow-hidden rounded-lg">
+              <div className="flex items-center gap-4 text-on-surface-variant p-4 bg-surface-container-high rounded-lg">
+                <span className="material-symbols-outlined text-secondary flex-shrink-0">
+                  info
+                </span>
+                <p className="font-label-sm text-label-sm">
+                  Your profile information will be kept confidential and secure.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Right Column: Career Information */}
+          <section className="space-y-base bg-surface-container-low p-base rounded-xl shadow-natural border border-outline-variant/10">
+            <h2 className="font-headline-md text-headline-md text-primary mb-tight">
+              Career Profile
+            </h2>
+
+            <div className="space-y-6">
+              {/* Career Goals */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Career Goals
+                </label>
+                <textarea
+                  name="careerGoals"
+                  value={formData.careerGoals}
+                  onChange={handleInputChange}
+                  placeholder="Describe your short-term and long-term career aspirations..."
+                  rows="3"
+                  className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50 resize-none"
+                />
+                {errors.careerGoals && (
+                  <p className="text-error text-caption mt-1">{errors.careerGoals}</p>
+                )}
+              </div>
+
+              {/* Industry */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Industry
+                </label>
+                <select
+                  name="industry"
+                  value={formData.industry}
+                  onChange={handleInputChange}
+                  className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all"
+                >
+                  <option value="">Select an industry...</option>
+                  {/* TODO: Replace with API call: GET /api/industries */}
+                  {INDUSTRIES.map((industry) => (
+                    <option key={industry} value={industry}>
+                      {industry}
+                    </option>
+                  ))}
+                </select>
+                {errors.industry && (
+                  <p className="text-error text-caption mt-1">{errors.industry}</p>
+                )}
+              </div>
+
+              {/* Experience Level */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Experience Level
+                </label>
+                <select
+                  name="experience"
+                  value={formData.experience}
+                  onChange={handleInputChange}
+                  className="w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all"
+                >
+                  {/* TODO: Replace with API call: GET /api/experience-levels */}
+                  {EXPERIENCE_LEVELS.map((level) => (
+                    <option key={level.value} value={level.value}>
+                      {level.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Budget */}
+              <div className="group">
+                <label className="block font-label-sm text-label-sm text-on-surface mb-2">
+                  Monthly Budget (USD)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="budget"
+                    value={formData.budget}
+                    onChange={handleInputChange}
+                    placeholder="500"
+                    min="0"
+                    className="w-full bg-surface-dim border-none rounded-lg p-3 pl-8 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all"
+                  />
+                  <span className="absolute left-3 top-3 text-on-surface-variant font-bold">
+                    $
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary-container transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
+              disabled={isLoading}
+              className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] active:scale-[0.98] transition-all shadow-natural disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Verify & Continue</span>
-              <span className="material-symbols-outlined text-sm">check_circle</span>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
 
-            <div className="text-center">
-              <button 
-                type="button"
-                className="text-sm font-medium text-primary hover:text-primary-container transition-colors"
-                onClick={() => setOtp(['', '', '', '', '', ''])}
-              >
-                Resend OTP
-              </button>
-            </div>
-          </form>
-        )}
-
-        {step === 1 && (
-          <div className="mt-8 text-center">
-            <p className="text-sm text-on-surface-variant">
+            {/* Login Link */}
+            <p className="text-center font-body-md text-body-md text-on-surface-variant">
               Already have an account?{' '}
-              <button onClick={() => navigateTo('login')} className="font-medium text-primary hover:text-primary-container transition-colors">
-                Log in
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="text-secondary font-bold hover:underline"
+              >
+                Sign in here
               </button>
             </p>
-          </div>
-        )}
-      </div>
+          </section>
+        </form>
+      </main>
+
+      {/* OTP Modal */}
+      <OTPModal
+        isOpen={otpOpen}
+        email={formData.email}
+        onVerify={handleOTPVerify}
+        onClose={() => setOtpOpen(false)}
+        onResend={() => {
+          // TODO: API call to resend OTP
+          console.log('Resend OTP');
+        }}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successOpen}
+        title="Account Created Successfully!"
+        message="Welcome to MentorBridge! Your profile has been created. You can now browse mentors and book your first session."
+        onHome={() => navigate('/')}
+        onBrowse={() => navigate('/mentors')}
+      />
+
+      <Footer />
     </div>
   );
-};
-
-export default SignUp;
+}
