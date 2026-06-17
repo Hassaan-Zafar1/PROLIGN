@@ -98,7 +98,7 @@ const Login = ({ navigateTo }) => {
         <div className="mt-8 text-center">
           <p className="text-sm text-on-surface-variant">
             Don't have an account?{' '}
-            <button onClick={() => navigateTo('signup')} className="font-medium text-primary hover:text-primary-container transition-colors">
+            <button onClick={() => navigateTo('mentorRegistration')} className="font-medium text-primary hover:text-primary-container transition-colors">
               Sign up
             </button>
           </p>

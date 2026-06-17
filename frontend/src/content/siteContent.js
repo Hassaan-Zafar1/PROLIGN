@@ -14,7 +14,7 @@ const siteContentDefaults = {
     sections: [
       {
         id: 'introduction',
-        title: '1. Introduction',
+        title: 'Introduction',
         icon: 'article',
         paragraphs: [
           'Welcome to MentorBridge. These Terms of Service govern your access to and use of the website, mobile application, and connected services.',
@@ -23,7 +23,7 @@ const siteContentDefaults = {
       },
       {
         id: 'user-accounts',
-        title: '2. User Accounts',
+        title: 'User Accounts',
         icon: 'person',
         paragraphs: [
           'You are responsible for the accuracy of your account information and for keeping your credentials secure.',
@@ -32,7 +32,7 @@ const siteContentDefaults = {
       },
       {
         id: 'acceptable-use',
-        title: '3. Acceptable Use',
+        title: 'Acceptable Use',
         icon: 'verified_user',
         paragraphs: [
           'Use the service for lawful, respectful, and platform-aligned activity only. Harassment, impersonation, spam, scraping, and harmful conduct are not allowed.',
@@ -41,7 +41,7 @@ const siteContentDefaults = {
       },
       {
         id: 'sessions-payments',
-        title: '4. Sessions and Payments',
+        title: 'Sessions and Payments',
         icon: 'payments',
         paragraphs: [
           'Session bookings follow the cancellation and refund rules shown at checkout. Subscription fees, where applicable, are billed in advance and may be subject to taxes.',
@@ -50,7 +50,7 @@ const siteContentDefaults = {
       },
       {
         id: 'intellectual-property',
-        title: '5. Intellectual Property',
+        title: 'Intellectual Property',
         icon: 'copyright',
         paragraphs: [
           'The MentorBridge platform, including its design, branding, software, and original content, is protected by applicable intellectual property laws.',
@@ -59,7 +59,7 @@ const siteContentDefaults = {
       },
       {
         id: 'termination',
-        title: '6. Termination',
+        title: 'Termination',
         icon: 'logout',
         paragraphs: [
           'You may close your account at any time. We may suspend or terminate access if a user breaches these terms or presents a risk to the platform.',
@@ -88,7 +88,7 @@ const siteContentDefaults = {
     sections: [
       {
         id: 'information-we-collect',
-        title: '1. Information We Collect',
+        title: 'Information We Collect',
         icon: 'database',
         paragraphs: [
           'We collect the information you provide directly when you sign up, build your profile, book a session, message another user, or contact support.',
@@ -97,7 +97,7 @@ const siteContentDefaults = {
       },
       {
         id: 'how-we-use',
-        title: '2. How We Use Your Information',
+        title: 'How We Use Your Information',
         icon: 'hub',
         paragraphs: [
           'We use the data we collect to provide the service, match users, process transactions, send notifications, and improve the platform.',
@@ -106,7 +106,7 @@ const siteContentDefaults = {
       },
       {
         id: 'information-sharing',
-        title: '3. Information Sharing',
+        title: 'Information Sharing',
         icon: 'share',
         paragraphs: [
           'We do not sell personal data. We share information only when needed to run the service, when you ask us to, or when the law requires it.',
@@ -115,7 +115,7 @@ const siteContentDefaults = {
       },
       {
         id: 'data-security',
-        title: '4. Data Security',
+        title: 'Data Security',
         icon: 'shield',
         paragraphs: [
           'We use layered safeguards to protect data in transit and at rest, and we restrict internal access to what people need to do their jobs.',
@@ -124,7 +124,7 @@ const siteContentDefaults = {
       },
       {
         id: 'your-rights',
-        title: '5. Your Rights',
+        title: 'Your Rights',
         icon: 'gavel',
         paragraphs: [
           'Depending on where you live, you may have rights to access, correct, delete, or restrict your personal data, and in some cases to object to processing.',
@@ -133,7 +133,7 @@ const siteContentDefaults = {
       },
       {
         id: 'contact-us',
-        title: '6. Contact Us',
+        title: 'Contact Us',
         icon: 'mail',
         paragraphs: [
           'For privacy questions, contact privacy@mentorbridge.io or reach out through the Help Center if you need help navigating your account.',

@@ -118,7 +118,7 @@ const MentorRegistration = ({ navigateTo }) => {
         </div>
         <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-5 natural-shadow">
           <div className="flex items-start gap-4">
-            <span className="material-symbols-outlined rounded-lg bg-primary-fixed p-3 text-primary">verified_user</span>
+            <span className="material-symbols-outlined rounded-lg bg-primary-fixed p-3 text-on-primary-fixed">verified_user</span>
             <div>
               <h2 className="font-headline-md text-xl font-bold text-on-surface">Curated mentor review</h2>
               <p className="mt-1 text-sm text-on-surface-variant">

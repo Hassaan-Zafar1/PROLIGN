@@ -11,17 +11,33 @@ import {
   logout,
   saveSessions,
   updateBookingStatus,
+  updateSessionStatus,
+  getDB,
+  saveDB,
 } from '../utils/db';
 
+const useTheme = () => {
+  const [theme, setTheme] = useState(() => localStorage.getItem('mentorbridge-theme') || 'light');
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('mentorbridge-theme', next);
+      return next;
+    });
+  };
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+  return { theme, toggleTheme };
+};
+
 const normalizeView = (view) => {
-  if (view === 'mentors') return 'discovery';
-  if (view === 'goals') return 'analytics';
   return view || 'dashboard';
 };
 
 const navItems = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { id: 'discovery', icon: 'search', label: 'Discovery' },
   { id: 'sessions', icon: 'event_available', label: 'Sessions' },
   { id: 'analytics', icon: 'bar_chart', label: 'Analytics' },
   { id: 'settings', icon: 'settings', label: 'Settings' },
@@ -33,10 +49,38 @@ const goals = [
   { title: 'Communication', detail: 'Turn project work into crisp stories and examples.', progress: 72, icon: 'record_voice_over' },
 ];
 
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const cardClass = 'rounded-2xl border border-outline-variant/10 bg-surface-container shadow-sm';
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all active:scale-[0.98]';
 
+function EmptyState({ title, detail, action, onAction }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 text-center">
+      <span className="material-symbols-outlined mb-3 text-4xl text-secondary">add_circle</span>
+      <p className="font-headline-md text-xl font-bold text-on-background">{title}</p>
+      {detail && <p className="mt-2 max-w-md text-sm text-on-surface-variant">{detail}</p>}
+      {action && (
+        <button onClick={onAction} className="mt-4 text-sm font-semibold text-secondary hover:underline">
+          {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Modal({ children, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <button className="absolute inset-0" onClick={onClose} aria-label="Close modal" />
+      <div className="relative w-full max-w-lg rounded-3xl border border-outline-variant/15 bg-surface-container-lowest p-6 shadow-2xl sm:p-8">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' }) {
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,6 +95,11 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [ratingSaving, setRatingSaving] = useState(false);
   const [notesSession, setNotesSession] = useState(null);
   const [notesDraft, setNotesDraft] = useState('');
+  const [analyticsMode, setAnalyticsMode] = useState('year');
+  const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
+  const [analyticsMonth, setAnalyticsMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [analyticsRange, setAnalyticsRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
+  const [showBookMentorModal, setShowBookMentorModal] = useState(false);
 
   const loadData = () => {
     const currentUser = getCurrentUser();
@@ -141,6 +190,58 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const completedSessions = sessionGroups.past.length;
   const mentorshipHours = Math.max(0, completedSessions * 1.5 + sessionGroups.upcoming.length);
 
+  const analyticsDateRange = useMemo(() => {
+    const year = Number(analyticsYear);
+    if ((analyticsMode === 'year' || analyticsMode === 'month') && (!Number.isInteger(year) || year <= 2000)) {
+      return { error: 'Enter a valid year above 2000.' };
+    }
+    if (analyticsMode === 'year') {
+      return { from: new Date(year, 0, 1), to: new Date(year, 11, 31, 23, 59, 59), error: '' };
+    }
+    if (analyticsMode === 'month') {
+      return { from: new Date(year, Number(analyticsMonth) - 1, 1), to: new Date(year, Number(analyticsMonth), 0, 23, 59, 59), error: '' };
+    }
+    const from = new Date(analyticsRange.from);
+    const to = new Date(`${analyticsRange.to}T23:59:59`);
+    if (!analyticsRange.from || !analyticsRange.to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return { error: 'Choose both custom dates.' };
+    }
+    if (from > to) return { error: 'Start date must be before end date.' };
+    if (from.getFullYear() <= 2000 || to.getFullYear() <= 2000) return { error: 'Custom dates must be after year 2000.' };
+    return { from, to, error: '' };
+  }, [analyticsMode, analyticsMonth, analyticsRange, analyticsYear]);
+
+  const analyticsData = useMemo(() => {
+    if (analyticsDateRange.error) return [];
+    const pastSessions = sessionGroups.past.filter((session) => {
+      const date = parseSessionDate(session);
+      return date && date >= analyticsDateRange.from && date <= analyticsDateRange.to;
+    });
+
+    if (analyticsMode === 'year') {
+      return monthLabels.map((label, index) => ({
+        label,
+        value: pastSessions.filter((session) => parseSessionDate(session)?.getMonth() === index).length,
+      }));
+    }
+
+    if (analyticsMode === 'month') {
+      const days = new Date(Number(analyticsYear), Number(analyticsMonth), 0).getDate();
+      return Array.from({ length: days }, (_, index) => {
+        const day = index + 1;
+        return {
+          label: String(day),
+          value: pastSessions.filter((session) => parseSessionDate(session)?.getDate() === day).length,
+        };
+      });
+    }
+
+    return monthLabels.map((label, index) => ({
+      label,
+      value: pastSessions.filter((session) => parseSessionDate(session)?.getMonth() === index).length,
+    }));
+  }, [analyticsDateRange, analyticsMode, analyticsMonth, analyticsYear, sessionGroups.past]);
+
   const countdown = useMemo(() => {
     const date = featuredSession ? parseSessionDate(featuredSession) : null;
     if (!date) return { days: '00', hours: '00', minutes: '00' };
@@ -169,12 +270,35 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   };
 
   const handleBookMentor = (mentorId) => {
-    navigateTo('booking', mentorId ? { mentorId } : null);
+    if (!mentorId) {
+      setShowBookMentorModal(true);
+      return;
+    }
+    setShowBookMentorModal(false);
+    navigateTo('booking', { mentorId });
+  };
+
+  const handleViewMentor = (mentorId) => {
+    navigateTo('mentorProfile', { mentorId });
   };
 
   const handleJoinSession = (session) => {
     if (!session) return;
     navigateTo('video-interview', { sessionId: session.id });
+  };
+
+  const addNotification = (userId, message, type = 'info') => {
+    const db = getDB();
+    const newNotification = {
+      id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      userId,
+      message,
+      type,
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+    db.notifications = [...(db.notifications || []), newNotification];
+    saveDB(db);
   };
 
   const handleCancelSession = (session) => {
@@ -183,6 +307,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     if (!confirmed) return;
 
     cancelSession(session.id);
+    addNotification(session.mentorId, `${user?.name} cancelled the session on ${session.dateTime || session.date} at ${session.time}.`, 'cancellation');
 
     const matchingBooking = bookings.find(
       (booking) => booking.mentorId === session.mentorId && booking.menteeId === user?.id
@@ -191,6 +316,30 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       updateBookingStatus(matchingBooking.id, 'Cancelled');
     }
 
+    loadData();
+  };
+
+  const handleAcceptNewTiming = (session) => {
+    updateSessionStatus(session.id, 'Confirmed');
+    addNotification(session.mentorId, `${user?.name} accepted your proposed timing. The session is confirmed.`, 'info');
+    loadData();
+  };
+
+  const handleProposeNewTimeMentee = (session) => {
+    const newDate = prompt('Enter new date (YYYY-MM-DD):', session.dateTime?.split('T')[0] || session.date || '');
+    if (!newDate) return;
+    const newTime = prompt('Enter new time (e.g. 02:00 PM):', session.time || '');
+    if (!newTime) return;
+    const db = getDB();
+    const found = (db.sessions || []).find(s => s.id === session.id);
+    if (found) {
+      found.dateTime = newDate;
+      found.date = newDate;
+      found.time = newTime;
+      found.status = 'Rescheduled';
+    }
+    saveDB(db);
+    addNotification(session.mentorId, `${user?.name} proposed an alternative time: ${newDate} at ${newTime}.`, 'reschedule');
     loadData();
   };
 
@@ -247,6 +396,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     }
     if (normalized === 'pending') return 'bg-surface-dim text-on-surface-variant';
     if (normalized === 'completed') return 'bg-primary-fixed text-on-primary-fixed';
+    if (normalized === 'rescheduled') return 'bg-tertiary-container text-on-tertiary-container';
     return 'bg-error-container text-on-error-container';
   };
 
@@ -261,6 +411,30 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     </div>
   );
 
+  const renderLineChart = (data) => {
+    const width = 800;
+    const height = 220;
+    const maxValue = Math.max(1, ...data.map((item) => item.value || 0));
+    const step = data.length > 1 ? width / (data.length - 1) : width;
+    const yFor = (value) => height - 20 - ((value / maxValue) * 170);
+    const path = data.map((item, index) => `${index === 0 ? 'M' : 'L'}${index * step},${yFor(item.value || 0)}`).join(' ');
+
+    return (
+      <div className="h-72 w-full">
+        <svg className="h-full w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+          {[50, 100, 150].map((line) => <line key={line} x1="0" x2={width} y1={line} y2={line} stroke="#45483f" strokeOpacity="0.1" />)}
+          <path d={path} fill="none" stroke="#202a10" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          {data.map((item, index) => (
+            <circle key={`${item.label}-${index}`} cx={index * step} cy={yFor(item.value || 0)} r="4" fill="#202a10" />
+          ))}
+        </svg>
+        <div className="grid text-xs font-semibold text-on-surface-variant" style={{ gridTemplateColumns: `repeat(${Math.min(data.length || 1, 12)}, minmax(0, 1fr))` }}>
+          {data.filter((_, index) => data.length <= 12 || index % Math.ceil(data.length / 12) === 0).map((item, index) => <span key={`${item.label}-${index}`}>{item.label}</span>)}
+        </div>
+      </div>
+    );
+  };
+
   const Sidebar = ({ mobile = false }) => (
     <aside
       className={`flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl ${
@@ -271,7 +445,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         onClick={() => setView('dashboard')}
         className="mb-8 flex items-center gap-3 px-6 text-left"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-fixed text-on-primary-fixed">
           <span className="material-symbols-outlined fill-icon">architecture</span>
         </span>
         <span>
@@ -307,17 +481,17 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </button>
       </div>
 
-      <div className="space-y-1 border-t border-on-primary/10 pt-4">
+      <div className="space-y-1 border-t border-on-primary/10 pt-4 px-2">
         <button
-          onClick={() => navigateTo('help-center')}
-          className="mx-2 flex w-[calc(100%-1rem)] items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-primary-fixed-variant/20 hover:text-on-primary"
+          onClick={toggleTheme}
+          className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-primary-fixed-variant/20 hover:text-on-primary"
         >
-          <span className="material-symbols-outlined mr-3">help</span>
-          Help Center
+          <span className="material-symbols-outlined mr-3">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
         </button>
         <button
           onClick={handleLogout}
-          className="mx-2 flex w-[calc(100%-1rem)] items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-error/10 hover:text-error"
+          className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-error/10 hover:text-error"
         >
           <span className="material-symbols-outlined mr-3">logout</span>
           Logout
@@ -391,12 +565,20 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         {renderStars(mentor.rating || 5)}
         <div className="flex w-full items-center justify-between border-t border-outline-variant/20 pt-4">
           <span className="font-headline-md text-lg font-bold text-on-background">${mentor.hourlyRate || 120}/hr</span>
-          <button
-            onClick={() => handleBookMentor(mentor.id)}
-            className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}
-          >
-            Book
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleViewMentor(mentor.id)}
+              className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => handleBookMentor(mentor.id)}
+              className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}
+            >
+              Book
+            </button>
+          </div>
         </div>
       </div>
     </article>
@@ -407,6 +589,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     const isPending = session.statusLabel === 'pending';
     const isCompleted = session.statusLabel === 'completed';
     const isCancelled = ['cancelled', 'canceled'].includes(session.statusLabel);
+    const isRescheduled = session.statusLabel === 'rescheduled';
 
     return (
       <div className={`grid gap-4 border-b border-outline-variant/10 px-4 py-5 last:border-0 md:grid-cols-[1.3fr_1fr_auto_auto] md:items-center ${compact ? 'rounded-xl border bg-background' : ''}`}>
@@ -457,6 +640,16 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
               {session.isRated ? 'View Rating' : 'Rate'}
             </button>
           )}
+          {isRescheduled && (
+            <>
+              <button onClick={() => handleAcceptNewTiming(session)} className={`${buttonClass} bg-secondary text-on-secondary hover:opacity-90`}>
+                Accept
+              </button>
+              <button onClick={() => handleProposeNewTimeMentee(session)} className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}>
+                Propose New Time
+              </button>
+            </>
+          )}
           {isCancelled && (
             <button onClick={() => handleBookMentor(session.mentorId)} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
               Book Again
@@ -500,7 +693,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <h3 className="font-headline-md text-2xl font-bold text-on-background">Recommended Mentors</h3>
-          <button onClick={() => setView('discovery')} className="text-sm font-semibold text-secondary hover:underline">
+          <button onClick={() => handleBookMentor()} className="text-sm font-semibold text-secondary hover:underline">
             View All
           </button>
         </div>
@@ -518,7 +711,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             {sessionGroups.upcoming.length > 0 ? (
               sessionGroups.upcoming.slice(0, 3).map((session) => <SessionRow key={session.id} session={session} />)
             ) : (
-              <EmptyState title="No upcoming sessions" action="Browse Mentors" onAction={() => setView('discovery')} />
+              <EmptyState title="No upcoming sessions" action="Browse Mentors" onAction={() => handleBookMentor()} />
             )}
           </div>
         </section>
@@ -541,7 +734,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                   {session.isRated ? (
                     <span className="flex items-center gap-1 text-sm font-semibold text-on-tertiary-container">
                       <span className="material-symbols-outlined fill-icon text-sm">star</span>
-                      {session.rating || ratingScore}.0
+                      {session.rating || 5}.0
                     </span>
                   ) : (
                     <button onClick={() => openRatingModal(session)} className="text-sm font-semibold text-secondary hover:underline">
@@ -551,7 +744,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                 </div>
               ))
             ) : (
-              <EmptyState title="No completed sessions yet" action="Book Session" onAction={() => setView('discovery')} />
+              <EmptyState title="No completed sessions yet" action="Book Session" onAction={() => handleBookMentor()} />
             )}
             <button onClick={() => setView('sessions')} className="w-full rounded-lg border border-outline-variant/10 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest">
               View History
@@ -560,27 +753,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </section>
       </div>
     </div>
-  );
-
-  const renderDiscovery = () => (
-    <section className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-headline-lg text-4xl font-bold text-on-background">Discovery</h2>
-          <p className="mt-2 text-on-surface-variant">Find mentors matched to your goals, skills, and pace.</p>
-        </div>
-        <button onClick={() => handleBookMentor()} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Book New Session
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {filteredMentors.map((mentor) => (
-          <MentorCard key={mentor.id} mentor={mentor} />
-        ))}
-      </div>
-    </section>
   );
 
   const renderSessions = () => {
@@ -704,7 +876,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             {visibleSessions.length > 0 ? (
               visibleSessions.map((session) => <SessionRow key={session.id} session={session} />)
             ) : (
-              <EmptyState title="Need more guidance?" detail="Your network of mentors is growing. Schedule a follow-up." action="Browse Mentors" onAction={() => setView('discovery')} />
+              <EmptyState title="Need more guidance?" detail="Your network of mentors is growing. Schedule a follow-up." action="Browse Mentors" onAction={() => handleBookMentor()} />
             )}
           </div>
         </section>
@@ -716,39 +888,71 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     <section className="space-y-6">
       <div>
         <h2 className="font-headline-lg text-4xl font-bold text-on-background">Analytics</h2>
-        <p className="mt-2 text-on-surface-variant">Track your growth signals across sessions, goals, and mentor feedback.</p>
+        <p className="mt-2 text-on-surface-variant">Past session activity by year, month, or custom date range.</p>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {goals.map((goal) => (
-          <article key={goal.title} className={`${cardClass} p-6`}>
-            <div className="mb-4 flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-fixed text-on-primary-fixed">
-                <span className="material-symbols-outlined">{goal.icon}</span>
-              </span>
-              <div>
-                <h3 className="font-semibold text-on-surface">{goal.title}</h3>
-                <p className="text-xs text-on-surface-variant">{goal.progress}% complete</p>
-              </div>
-            </div>
-            <p className="mb-4 text-sm text-on-surface-variant">{goal.detail}</p>
-            <div className="h-2 overflow-hidden rounded-full bg-surface-container-highest">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${goal.progress}%` }} />
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {[
-          ['Upcoming', sessionGroups.upcoming.length, 'Scheduled mentor calls'],
-          ['Completed', sessionGroups.past.length, 'Finished growth milestones'],
-          ['Mentors', mentors.length, 'Approved mentors available'],
-        ].map(([label, value, detail]) => (
-          <div key={label} className={`${cardClass} p-6`}>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant">{label}</p>
-            <p className="mt-3 font-headline-xl text-4xl font-bold text-primary">{value}</p>
-            <p className="mt-2 text-sm text-on-surface-variant">{detail}</p>
+
+      <div className={`${cardClass} space-y-6 p-6`}>
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div>
+            <h3 className="font-headline-md text-2xl font-bold text-on-background">Past Sessions Graph</h3>
+            <p className="text-sm text-on-surface-variant">Only completed sessions are counted.</p>
           </div>
-        ))}
+          <div className="flex flex-wrap gap-2">
+            {['year', 'month', 'custom'].map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setAnalyticsMode(mode)}
+                className={`rounded-lg px-4 py-2 text-sm font-bold capitalize ${analyticsMode === mode ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {(analyticsMode === 'year' || analyticsMode === 'month') && (
+            <input
+              type="number"
+              min="2001"
+              value={analyticsYear}
+              onChange={(event) => setAnalyticsYear(event.target.value)}
+              className="rounded-lg border border-outline-variant/30 bg-surface p-3"
+              placeholder="Year above 2000"
+            />
+          )}
+          {analyticsMode === 'month' && (
+            <select
+              value={analyticsMonth}
+              onChange={(event) => setAnalyticsMonth(event.target.value)}
+              className="rounded-lg border border-outline-variant/30 bg-surface p-3"
+            >
+              {monthLabels.map((label, index) => <option key={label} value={String(index + 1).padStart(2, '0')}>{label}</option>)}
+            </select>
+          )}
+          {analyticsMode === 'custom' && (
+            <>
+              <input
+                type="date"
+                value={analyticsRange.from}
+                onChange={(event) => setAnalyticsRange({ ...analyticsRange, from: event.target.value })}
+                className="rounded-lg border border-outline-variant/30 bg-surface p-3"
+              />
+              <input
+                type="date"
+                value={analyticsRange.to}
+                onChange={(event) => setAnalyticsRange({ ...analyticsRange, to: event.target.value })}
+                className="rounded-lg border border-outline-variant/30 bg-surface p-3"
+              />
+            </>
+          )}
+        </div>
+
+        {analyticsDateRange.error ? (
+          <div className="rounded-lg bg-error-container p-4 text-sm font-bold text-on-error-container">{analyticsDateRange.error}</div>
+        ) : (
+          renderLineChart(analyticsData)
+        )}
       </div>
     </section>
   );
@@ -756,7 +960,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const renderSettings = () => <ProfileSettings compact onSaved={loadData} />;
 
   const renderContent = () => {
-    if (activeView === 'discovery') return renderDiscovery();
     if (activeView === 'sessions') return renderSessions();
     if (activeView === 'analytics') return renderAnalytics();
     if (activeView === 'settings') return renderSettings();
@@ -798,7 +1001,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           {renderContent()}
         </div>
 
-        <footer className="border-t border-outline-variant/10 bg-inverse-surface py-8 text-surface-dim lg:ml-0">
+        <footer className="border-t border-outline-variant/10 bg-inverse-surface py-8 text-surface-dim">
           <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-6 md:flex-row">
             <div className="text-center md:text-left">
               <span className="font-headline-md text-2xl font-bold text-surface-container-lowest">MentorBridge</span>
@@ -933,32 +1136,56 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           </form>
         </Modal>
       )}
-    </div>
-  );
-}
 
-function EmptyState({ title, detail, action, onAction }) {
-  return (
-    <div className="flex flex-col items-center justify-center p-8 text-center">
-      <span className="material-symbols-outlined mb-3 text-4xl text-secondary">add_circle</span>
-      <p className="font-headline-md text-xl font-bold text-on-background">{title}</p>
-      {detail && <p className="mt-2 max-w-md text-sm text-on-surface-variant">{detail}</p>}
-      {action && (
-        <button onClick={onAction} className="mt-4 text-sm font-semibold text-secondary hover:underline">
-          {action}
-        </button>
+      {showBookMentorModal && (
+        <Modal onClose={() => setShowBookMentorModal(false)}>
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">Book a session</p>
+                <h3 className="mt-2 font-headline-md text-2xl font-bold text-on-surface">Choose a mentor</h3>
+                <p className="mt-1 text-sm text-on-surface-variant">{mentors.length} mentor{mentors.length !== 1 ? 's' : ''} available</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBookMentorModal(false)}
+                className="material-symbols-outlined rounded-full p-2 text-on-surface-variant hover:bg-surface-container"
+              >
+                close
+              </button>
+            </div>
+            <div className="grid max-h-[60vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+              {mentors.map((mentor) => (
+                <div key={mentor.id} className="rounded-2xl border border-outline-variant/10 bg-surface-container p-4 transition-shadow hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <img
+                      alt={mentor.name}
+                      className="h-14 w-14 rounded-full border-2 border-surface-container-highest object-cover"
+                      src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate font-headline-md text-lg font-bold text-on-surface">{mentor.name}</h4>
+                      <p className="truncate text-sm text-on-surface-variant">{mentor.title || mentor.industry}</p>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-secondary">
+                        <span className="material-symbols-outlined fill-icon text-[14px]">star</span>
+                        <span className="font-semibold">{Number(mentor.rating || 5).toFixed(1)}</span>
+                        <span className="mx-1 text-outline-variant">·</span>
+                        <span className="font-semibold">${mentor.hourlyRate || 120}/hr</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleBookMentor(mentor.id)}
+                      className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary transition-opacity hover:opacity-90"
+                    >
+                      Book
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
       )}
-    </div>
-  );
-}
-
-function Modal({ children, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-      <button className="absolute inset-0" onClick={onClose} aria-label="Close modal" />
-      <div className="relative w-full max-w-lg rounded-3xl border border-outline-variant/15 bg-surface-container-lowest p-6 shadow-2xl sm:p-8">
-        {children}
-      </div>
     </div>
   );
 }

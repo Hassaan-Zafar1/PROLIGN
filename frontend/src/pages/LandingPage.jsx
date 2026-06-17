@@ -61,7 +61,7 @@ const LandingPage = ({ navigateTo }) => {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button 
-              onClick={() => navigateTo('signup')}
+              onClick={() => navigateTo('login')}
               className="w-full sm:w-auto bg-primary text-on-primary px-8 py-4 rounded-xl font-headline-md text-xl hover:scale-[1.02] active:scale-95 transition-all natural-shadow"
             >
               Get Started as Mentee
@@ -171,7 +171,7 @@ const LandingPage = ({ navigateTo }) => {
         <div className="max-w-7xl mx-auto bg-primary rounded-3xl p-12 md:p-24 text-center relative overflow-hidden natural-shadow">
           <h2 className="font-headline-lg text-3xl md:text-5xl font-bold text-on-primary mb-8 relative z-10">Ready to build your bridge?</h2>
           <button 
-            onClick={() => navigateTo('signup')}
+            onClick={() => navigateTo('login')}
             className="bg-on-primary text-primary px-12 py-4 rounded-xl font-headline-md text-xl hover:bg-surface-dim transition-colors relative z-10 natural-shadow font-bold"
           >
             Join Today

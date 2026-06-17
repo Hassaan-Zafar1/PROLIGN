@@ -145,7 +145,7 @@ export default function Pricing({ navigateTo }) {
               </ul>
 
               <button
-                onClick={() => navigateTo('signup')}
+                onClick={() => navigateTo('login')}
                 className={`w-full rounded-2xl py-3.5 text-sm font-semibold transition-opacity hover:opacity-90 ${
                   tier.highlighted ? 'bg-surface-container-lowest text-primary' : 'bg-primary text-on-primary'
                 }`}

@@ -23,25 +23,6 @@ const INITIAL_DATA = {
       status: "approved",
       createdAt: "2025-07-12T10:00:00Z"
     },
-     {
-      id: "u1",
-      name: "Dr. Emily Chen",
-      role: "mentor",
-      email: "mentee@mentorbridge.com",
-      password: "mentee123",
-      title: "Senior AI Researcher",
-      company: "TechNexus",
-      industry: "Artificial Intelligence",
-      skills: ["Machine Learning", "Python", "Data Science", "Deep Learning"],
-      rating: 4.9,
-      reviews: 124,
-      hourlyRate: 150,
-      avatar: "https://i.pravatar.cc/150?u=emily",
-      availability: ["Monday 10:00 AM", "Wednesday 2:00 PM"],
-      bio: "Passionate about AI ethics and mentoring the next generation of data scientists.",
-      status: "approved",
-      createdAt: "2025-08-03T10:00:00Z"
-    },
     {
       id: "u2",
       name: "James Wilson",
@@ -399,6 +380,16 @@ export const getDB = () => {
   }
 
   let metadataUpdated = false;
+  const seenIds = new Set();
+  db.users = db.users.map((user) => {
+    if (seenIds.has(user.id)) {
+      metadataUpdated = true;
+      return { ...user, id: `${user.role || 'user'}-${Date.now()}-${Math.random().toString(16).slice(2)}` };
+    }
+    seenIds.add(user.id);
+    return user;
+  });
+
   db.users.forEach((user, index) => {
     if (!user.createdAt) {
       const monthOffset = index % 12;
@@ -511,15 +502,80 @@ export const getBookingsForUser = (userId) => {
 
 export const createBooking = (bookingData) => {
   const db = getDB();
+  const mentor = db.users.find((user) => user.id === bookingData.mentorId);
+  const mentee = db.users.find((user) => user.id === bookingData.menteeId);
   const newBooking = {
     ...bookingData,
     id: `b${Date.now()}`,
-    status: "scheduled",
-    paymentStatus: "paid"
+    status: "Pending",
+    paymentStatus: "paid",
+    createdAt: new Date().toISOString()
   };
   db.bookings.push(newBooking);
+
+  if (!db.sessions) db.sessions = [];
+  db.sessions.push({
+    id: `s${Date.now()}`,
+    bookingId: newBooking.id,
+    menteeId: bookingData.menteeId,
+    mentorId: bookingData.mentorId,
+    menteeName: mentee?.name || 'Mentee',
+    menteeAvatar: mentee?.avatar || '',
+    dateTime: bookingData.date,
+    time: bookingData.time,
+    type: bookingData.sessionType || bookingData.type || 'Mentorship Session',
+    topic: bookingData.sessionType || bookingData.type || 'Mentorship Session',
+    notes: bookingData.notes || '',
+    amount: bookingData.amount || mentor?.hourlyRate || 0,
+    status: 'Pending',
+    paymentStatus: 'paid',
+    createdAt: new Date().toISOString(),
+    isRated: false
+  });
+
+  if (!db.notifications) db.notifications = [];
+  const bookingMessage = `${mentee?.name || 'A mentee'} booked ${mentor?.name || 'a mentor'} for ${bookingData.sessionType || 'a mentorship session'} on ${bookingData.date} at ${bookingData.time}.`;
+  db.notifications.unshift({
+    id: `n${Date.now()}`,
+    title: 'New Booking Request',
+    message: bookingMessage,
+    timestamp: new Date().toISOString(),
+    read: false,
+    type: 'booking',
+    userId: bookingData.mentorId
+  }, {
+    id: `n${Date.now() + 1}`,
+    title: 'Booking Submitted',
+    message: `Your booking with ${mentor?.name || 'your mentor'} is pending approval for ${bookingData.date} at ${bookingData.time}.`,
+    timestamp: new Date().toISOString(),
+    read: false,
+    type: 'booking',
+    userId: bookingData.menteeId
+  });
   saveDB(db);
   return newBooking;
+};
+
+export const getMentorAvailability = (mentorId) => {
+  const mentor = getUserById(mentorId);
+  return mentor?.availabilitySlots || {};
+};
+
+export const updateMentorAvailability = (mentorId, date, times) => {
+  const db = getDB();
+  const mentor = db.users.find((user) => user.id === mentorId);
+  if (mentor) {
+    mentor.availabilitySlots = mentor.availabilitySlots || {};
+    const cleanedTimes = [...new Set((times || []).filter(Boolean))];
+    if (cleanedTimes.length > 0) {
+      mentor.availabilitySlots[date] = cleanedTimes;
+    } else {
+      delete mentor.availabilitySlots[date];
+    }
+    if (db.currentUser?.id === mentorId) db.currentUser = mentor;
+    saveDB(db);
+  }
+  return { success: true };
 };
 
 export const updateBookingStatus = (bookingId, status) => {
@@ -527,6 +583,8 @@ export const updateBookingStatus = (bookingId, status) => {
   const index = db.bookings.findIndex(b => b.id === bookingId);
   if (index !== -1) {
     db.bookings[index].status = status;
+    const session = (db.sessions || []).find((item) => item.bookingId === bookingId);
+    if (session) session.status = status;
     saveDB(db);
   }
 };
@@ -541,6 +599,20 @@ export const saveSessions = (sessions) => {
   const db = getDB();
   db.sessions = sessions;
   saveDB(db);
+};
+
+export const updateSessionStatus = (sessionId, status) => {
+  const db = getDB();
+  const session = (db.sessions || []).find((item) => item.id === sessionId);
+  if (session) {
+    session.status = status;
+    if (session.bookingId) {
+      const booking = (db.bookings || []).find((item) => item.id === session.bookingId);
+      if (booking) booking.status = status;
+    }
+    saveDB(db);
+  }
+  return { success: true };
 };
 
 export const getMentors = () => {

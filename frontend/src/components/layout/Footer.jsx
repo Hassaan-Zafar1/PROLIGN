@@ -42,7 +42,7 @@ const Footer = ({ navigateTo }) => {
             <h4 className="font-semibold mb-4 text-secondary-container">Platform</h4>
             <ul className="space-y-2 text-sm text-on-primary/80">
               <li><button onClick={() => navigateTo('discovery')} className="hover:text-white transition-colors cursor-pointer text-left w-full">Find Mentors</button></li>
-              <li><button onClick={() => navigateTo('signup')} className="hover:text-white transition-colors cursor-pointer text-left w-full">Become a Mentor</button></li>
+              <li><button onClick={() => navigateTo('mentorRegistration')} className="hover:text-white transition-colors cursor-pointer text-left w-full">Become a Mentor</button></li>
               <li><button onClick={() => navigateTo('how-it-works')} className="hover:text-white transition-colors cursor-pointer text-left w-full">How it Works</button></li>
               <li><button onClick={() => navigateTo('pricing')} className="hover:text-white transition-colors cursor-pointer text-left w-full">Pricing</button></li>
             </ul>
