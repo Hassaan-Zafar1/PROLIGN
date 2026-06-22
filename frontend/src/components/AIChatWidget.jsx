@@ -11,7 +11,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
     {
       id: 1,
       sender: 'ai',
-      text: "Hello! I'm your MentorBridge AI assistant. I can help you refine your resume, practice for interviews, or explore new career paths. What's on your mind today?",
+      text: "Hello! I'm your ProLign AI assistant. I can help you refine your resume, practice for interviews, or explore new career paths. What's on your mind today?",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -95,10 +95,10 @@ const AIChatWidget = ({ isOpen, onClose }) => {
         <div className="px-5 py-4 border-b border-outline-variant/10 bg-surface-container flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
-              <img src="/chatbot-icon.svg" alt="MentorBridge AI" className="h-full w-full object-cover" />
+              <img src="/chatbot-icon.svg" alt="ProLign AI" className="h-full w-full object-cover" />
             </div>
             <div>
-              <h2 className="font-headline-md text-lg text-primary font-bold leading-tight">MentorBridge AI</h2>
+              <h2 className="font-headline-md text-lg text-primary font-bold leading-tight">ProLign AI</h2>
               <p className="text-[11px] text-on-surface-variant font-semibold">Wisdom Engine</p>
             </div>
           </div>
@@ -132,7 +132,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
                       {msg.sender === 'user' ? (
                         <span className="material-symbols-outlined text-primary text-[18px]">person</span>
                       ) : (
-                        <img src="/chatbot-icon.svg" alt="MentorBridge AI" className="h-full w-full object-cover" />
+                        <img src="/chatbot-icon.svg" alt="ProLign AI" className="h-full w-full object-cover" />
                       )}
                     </div>
                     <div className={`flex flex-col gap-1.5 max-w-[85%] ${msg.sender === 'user' ? 'items-end' : ''}`}>
@@ -169,7 +169,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 py-2 pl-2 custom-scrollbar resize-none font-body-md text-sm outline-none" 
-                  placeholder="Message MentorBridge AI..." 
+                  placeholder="Message ProLign AI..." 
                   rows="1"
                   style={{ height: 'auto', maxHeight: '120px' }}
                 ></textarea>

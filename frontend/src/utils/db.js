@@ -8,7 +8,7 @@ const INITIAL_DATA = {
       id: "u1",
       name: "Dr. Emily Chen",
       role: "mentor",
-      email: "mentor@mentorbridge.com",
+      email: "mentor@prolign.com",
       password: "mentor123",
       title: "Senior AI Researcher",
       company: "TechNexus",
@@ -151,7 +151,7 @@ const INITIAL_DATA = {
       id: "mentee1",
       name: "Sarah Jenkins",
       role: "mentee",
-      email: "mentee@mentorbridge.com",
+      email: "mentee@prolign.com",
       password: "mentee123",
       title: "Computer Science Student",
       skills: ["JavaScript", "React"],
@@ -171,7 +171,7 @@ const INITIAL_DATA = {
       id: "admin1",
       name: "System Admin",
       role: "admin",
-      email: "admin@mentorbridge.com",
+      email: "admin@prolign.com",
       password: "password123",
       avatar: "https://i.pravatar.cc/150?u=admin",
       createdAt: "2025-06-01T10:00:00Z"
@@ -269,7 +269,7 @@ const INITIAL_DATA = {
       name: "David K.",
       role: "Frontend Engineer",
       company: "TechNova",
-      quote: "MentorBridge transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
+      quote: "ProLign transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
       avatar: "https://i.pravatar.cc/150?u=david",
       published: true
     },
@@ -281,35 +281,44 @@ const INITIAL_DATA = {
       quote: "My mentor helped me navigate the transition from engineering to product management seamlessly. The flexible scheduling was a lifesaver.",
       avatar: "https://i.pravatar.cc/150?u=elena",
       published: true
+    },
+    {
+      id: "t3",
+      name: "Marcus T.",
+      role: "Data Scientist",
+      company: "Analytix Labs",
+      quote: "The AI matching was spot-on. My mentor\u2019s guidance on machine learning pipelines saved me months of trial and error. I landed my dream role within weeks.",
+      avatar: "https://i.pravatar.cc/150?u=marcus",
+      published: true
     }
   ],
   currentUser: null // Will store the ID of the currently logged in user
 };
 
 export const initDB = () => {
-  if (!localStorage.getItem("mentorBridgeDB")) {
+  if (!localStorage.getItem("prolignDB")) {
     const initialDB = { ...INITIAL_DATA, siteContent: getStoredSiteContent() };
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(initialDB));
+    localStorage.setItem("prolignDB", JSON.stringify(initialDB));
     saveStoredSiteContent(initialDB.siteContent);
   }
 };
 
 export const getDB = () => {
-  const dbStr = localStorage.getItem("mentorBridgeDB");
+  const dbStr = localStorage.getItem("prolignDB");
   let db = dbStr ? JSON.parse(dbStr) : INITIAL_DATA;
   
   // Migration: ensure admin user exists in existing DBs
   if (!db.users.find(u => u.id === "admin1")) {
     const adminUser = INITIAL_DATA.users.find(u => u.id === "admin1");
     if (adminUser) db.users.push(adminUser);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   // Migration: ensure default seeded credentials stay valid
   const credentialSeeds = [
-    { id: 'admin1', email: 'admin@mentorbridge.com', password: 'password123' },
-    { id: 'u1', email: 'mentor@mentorbridge.com', password: 'mentor123' },
-    { id: 'mentee1', email: 'mentee@mentorbridge.com', password: 'mentee123' },
+    { id: 'admin1', email: 'admin@prolign.com', password: 'password123' },
+    { id: 'u1', email: 'mentor@prolign.com', password: 'mentor123' },
+    { id: 'mentee1', email: 'mentee@prolign.com', password: 'mentee123' },
   ];
   let credentialsUpdated = false;
   credentialSeeds.forEach((seed) => {
@@ -321,32 +330,32 @@ export const getDB = () => {
     }
   });
   if (credentialsUpdated) {
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure new mock mentors exist
   const newMentors = INITIAL_DATA.users.filter(u => u.role === 'mentor' && !db.users.find(existing => existing.id === u.id));
   if (newMentors.length > 0) {
     db.users.push(...newMentors);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure sessions exist
   if (!db.sessions) {
     db.sessions = INITIAL_DATA.sessions;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   const missingSessions = INITIAL_DATA.sessions.filter(
     (session) => !db.sessions.find((existingSession) => existingSession.id === session.id)
   );
   if (missingSessions.length > 0) {
     db.sessions.push(...missingSessions);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.bookings) {
     db.bookings = INITIAL_DATA.bookings;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   const newBookings = INITIAL_DATA.bookings.filter(
@@ -354,29 +363,37 @@ export const getDB = () => {
   );
   if (newBookings.length > 0) {
     db.bookings.push(...newBookings);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.reviews) {
     db.reviews = INITIAL_DATA.reviews;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure notifications exist
   if (!db.notifications) {
     db.notifications = INITIAL_DATA.notifications;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure testimonials exist
   if (!db.testimonials) {
     db.testimonials = INITIAL_DATA.testimonials;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
+  }
+
+  const missingTestimonials = INITIAL_DATA.testimonials.filter(
+    (t) => !db.testimonials.find((existing) => existing.id === t.id)
+  );
+  if (missingTestimonials.length > 0) {
+    db.testimonials.push(...missingTestimonials);
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.siteContent) {
     db.siteContent = getDefaultSiteContent();
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   let metadataUpdated = false;
@@ -411,7 +428,7 @@ export const getDB = () => {
   });
 
   if (metadataUpdated) {
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   saveStoredSiteContent(db.siteContent);
@@ -420,7 +437,7 @@ export const getDB = () => {
 };
 
 export const saveDB = (db) => {
-  localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+  localStorage.setItem("prolignDB", JSON.stringify(db));
   saveStoredSiteContent(db.siteContent || getDefaultSiteContent());
 };
 
