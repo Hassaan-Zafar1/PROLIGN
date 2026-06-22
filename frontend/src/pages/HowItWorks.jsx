@@ -157,7 +157,7 @@ export default function HowItWorks({ navigateTo }) {
             Join thousands of professionals who have already accelerated their careers with MentorBridge.
           </p>
           <button
-            onClick={() => navigateTo('signup')}
+            onClick={() => navigateTo('login')}
             className="inline-flex items-center gap-2 bg-primary text-on-primary px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-opacity cursor-pointer"
           >
             Get Started for Free

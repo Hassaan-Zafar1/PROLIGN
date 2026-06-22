@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TopNavBar from './components/layout/TopNavBar';
 import SideNavBar from './components/layout/SideNavBar';
 import Footer from './components/layout/Footer';
 import Login from './pages/Login';
-import SignUp from './pages/SignUp';
 import MenteeOnboarding from './pages/MenteeOnboarding';
 import MentorRegistration from './pages/MentorRegistration';
 import LandingPage from './pages/LandingPage';
@@ -42,6 +41,14 @@ function App() {
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('mentorbridge-theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('mentorbridge-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
 
   const navigateTo = (page, params = null) => {
     setCurrentRoute({ page, params });
@@ -54,8 +61,6 @@ function App() {
     switch (currentRoute.page) {
       case 'login':
         return <Login navigateTo={navigateTo} />;
-      case 'signup':
-        return <SignUp navigateTo={navigateTo} />;
       case 'mentorRegistration':
         return <MentorRegistration navigateTo={navigateTo} />;
       case 'onboarding':
@@ -136,7 +141,7 @@ function App() {
 
   const user = getCurrentUser();
   const menteeDashboardPages = ['dashboard', 'sessions', 'settings', 'analytics', 'mentee-dashboard'];
-  const hideNavigation = ['login', 'signup', 'mentorRegistration', 'admindashboard', 'video-interview'].includes(currentRoute.page) ||
+  const hideNavigation = ['login', 'onboarding', 'mentorRegistration', 'admindashboard', 'video-interview', 'booking'].includes(currentRoute.page) ||
                          currentRoute.page === 'dashboard' ||
                          (user?.role === 'mentee' && menteeDashboardPages.includes(currentRoute.page));
 
@@ -155,6 +160,8 @@ function App() {
           currentPage={currentRoute.page} 
           toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
           isMobileMenuOpen={isMobileMenuOpen}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
       
@@ -165,6 +172,8 @@ function App() {
             currentPage={currentRoute.page} 
             isOpen={isMobileMenuOpen} 
             onClose={() => setIsMobileMenuOpen(false)}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
         )}
         

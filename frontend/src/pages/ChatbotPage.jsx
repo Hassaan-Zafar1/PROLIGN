@@ -98,9 +98,9 @@ export default function ChatbotPage({ onNavigate }) {
           {messages.map((m, idx) => (
             <div key={idx} className={`flex gap-4 items-start ${m.sender === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-sm ${
-                m.sender === 'user' ? 'bg-primary-fixed text-primary' : 'bg-surface-container border border-outline-variant/30'
+                m.sender === 'user' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container border border-outline-variant/30'
               }`}>
-                <span className={`material-symbols-outlined text-[20px] ${m.sender === 'user' ? 'text-primary' : 'text-secondary'}`}>
+                <span className={`material-symbols-outlined text-[20px] ${m.sender === 'user' ? 'text-on-primary-fixed' : 'text-secondary'}`}>
                   {m.sender === 'user' ? 'person' : 'auto_awesome'}
                 </span>
               </div>
