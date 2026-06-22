@@ -17,12 +17,12 @@ import {
 } from '../utils/db';
 
 const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('mentorbridge-theme') || 'light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
   const toggleTheme = () => {
     setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('mentorbridge-theme', next);
+      localStorage.setItem('prolign-theme', next);
       return next;
     });
   };
@@ -449,7 +449,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <span className="material-symbols-outlined fill-icon">architecture</span>
         </span>
         <span>
-          <span className="block font-headline-md text-xl font-bold leading-none text-on-primary">MentorBridge</span>
+          <span className="block font-headline-md text-xl font-bold leading-none text-on-primary">ProLign</span>
           <span className="mt-1 block text-xs font-semibold text-primary-fixed-dim opacity-80">Modern Mentorship</span>
         </span>
       </button>
@@ -1004,8 +1004,8 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         <footer className="border-t border-outline-variant/10 bg-inverse-surface py-8 text-surface-dim">
           <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-6 md:flex-row">
             <div className="text-center md:text-left">
-              <span className="font-headline-md text-2xl font-bold text-surface-container-lowest">MentorBridge</span>
-              <p className="mt-2 text-sm">(c) 2024 MentorBridge. All rights reserved.</p>
+              <span className="font-headline-md text-2xl font-bold text-surface-container-lowest">ProLign</span>
+              <p className="mt-2 text-sm">(c) 2024 ProLign. All rights reserved.</p>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-sm font-semibold">
               <button onClick={() => navigateTo('privacy')} className="hover:text-primary-fixed">Privacy Policy</button>

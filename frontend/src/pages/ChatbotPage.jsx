@@ -19,7 +19,7 @@ const KNOWLEDGE_BASE = [
 export default function ChatbotPage({ onNavigate }) {
   const user = getCurrentUser();
   const [messages, setMessages] = useState([
-    { sender: "ai", text: "Hello! I am your MentorBridge AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
+    { sender: "ai", text: "Hello! I am your ProLign AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -87,7 +87,7 @@ export default function ChatbotPage({ onNavigate }) {
               smart_toy
             </span>
             <div>
-              <h2 className="font-headline-md text-base font-bold text-on-primary">MentorBridge AI Assistant</h2>
+              <h2 className="font-headline-md text-base font-bold text-on-primary">ProLign AI Assistant</h2>
               <p className="text-[10px] text-primary-fixed-dim uppercase tracking-widest mt-1">RAG Career preparedness bot online</p>
             </div>
           </div>

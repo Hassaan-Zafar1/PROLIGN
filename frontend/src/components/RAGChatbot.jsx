@@ -16,18 +16,18 @@ const KNOWLEDGE_BASE = [
   },
   {
     topic: "platform booking and payments",
-    content: "To book a session on MentorBridge: Go to the 'Find Mentors' tab, filter by domain/rate, select a mentor, choose a date/time from their calendar, write your session goals, and enter card details on the secure Stripe payment modal. A 5% platform fee is added automatically."
+    content: "To book a session on ProLign: Go to the 'Find Mentors' tab, filter by domain/rate, select a mentor, choose a date/time from their calendar, write your session goals, and enter card details on the secure Stripe payment modal. A 5% platform fee is added automatically."
   },
   {
     topic: "video sessions and rating",
-    content: "MentorBridge sessions are conducted in real-time via Jitsi Meet. To join, click the 'Join Call' button on your dashboard. Ensure camera and microphone permissions are enabled. After the call concludes, you will automatically see a pop-up prompting you to rate your mentor from 1 to 5 stars and add reviews."
+    content: "ProLign sessions are conducted in real-time via Jitsi Meet. To join, click the 'Join Call' button on your dashboard. Ensure camera and microphone permissions are enabled. After the call concludes, you will automatically see a pop-up prompting you to rate your mentor from 1 to 5 stars and add reviews."
   }
 ];
 
 export default function RAGChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { sender: "ai", text: "Hello! I am your MentorBridge AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
+    { sender: "ai", text: "Hello! I am your ProLign AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);

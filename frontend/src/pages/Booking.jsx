@@ -33,6 +33,8 @@ export default function Booking({ navigateTo, params }) {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sessionTypeOpen, setSessionTypeOpen] = useState(false);
+  const [timeSlotOpen, setTimeSlotOpen] = useState(false);
 
   useEffect(() => {
     const mentorId = params?.mentorId || 'u1';
@@ -248,151 +250,195 @@ export default function Booking({ navigateTo, params }) {
     </div>
   );
 
-  const renderStep1 = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="font-headline-md text-2xl font-bold text-on-background">Choose Session Type</h3>
-        <p className="mt-1 text-sm text-on-surface-variant">Pick the format that best fits your goals.</p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {sessionTypes.map((type) => {
-          const isSelected = sessionType === type.value;
-          return (
-            <button
-              key={type.value}
-              type="button"
-              onClick={() => setSessionType(type.value)}
-              className={`group flex flex-col items-start gap-3 rounded-2xl border-2 p-5 text-left transition-all ${
-                isSelected
-                  ? 'border-secondary bg-secondary-container/40 shadow-sm'
-                  : 'border-outline-variant/20 bg-surface-container-low hover:border-secondary/40 hover:bg-surface-container'
-              }`}
-            >
-              <span
-                className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                  isSelected ? 'bg-secondary text-on-secondary' : 'bg-surface-variant text-on-surface-variant'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[22px]">{type.icon}</span>
-              </span>
-              <div>
-                <p className={`text-sm font-bold ${isSelected ? 'text-secondary' : 'text-on-surface'}`}>
-                  {type.value.split('(')[0].trim()}
-                </p>
-                <p className="text-xs text-on-surface-variant">{type.desc}</p>
-              </div>
-              <span className="text-xs font-semibold text-on-surface-variant">{type.value.match(/\(([^)]+)\)/)?.[1]}</span>
-            </button>
-          );
-        })}
-      </div>
+  const renderStep1 = () => {
+    const selectedType = sessionTypes.find(t => t.value === sessionType);
 
-      <div>
-        <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Session Notes</label>
-        <textarea
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          className="w-full resize-none rounded-2xl border border-outline-variant/20 bg-surface-container-low px-5 py-4 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-secondary/30"
-          placeholder="Tell your mentor what you'd like to focus on, questions you have, or specific goals for this session..."
-          rows={4}
-        />
-        <p className="mt-2 text-xs font-semibold text-on-surface-variant">Sharing specific goals helps your mentor prepare effectively.</p>
-      </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="font-headline-md text-2xl font-bold text-on-background">Pick Date & Time</h3>
-        <p className="mt-1 text-sm text-on-surface-variant">Choose from {mentor.name}'s available slots.</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant"
-            >
-              <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-            </button>
-            <span className="font-headline-md text-lg font-bold text-on-surface">
-              {monthLabels[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}
-            </span>
-            <button
-              type="button"
-              onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant"
-            >
-              <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-on-surface-variant">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (
-              <span key={d} className="py-2">{d}</span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {calendarDays.map((day) => {
-              const isSelected = day.toDateString() === selectedDateObj.toDateString();
-              const isPast = day < new Date(new Date().toDateString());
-              const isAvailable = hasAvailableSlot(day) && !isPast;
-              const isToday = day.toDateString() === new Date().toDateString();
-              return (
-                <button
-                  key={dateKey(day)}
-                  type="button"
-                  onClick={() => isAvailable && setSelectedDateObj(day)}
-                  disabled={!isAvailable}
-                  className={`relative flex h-10 w-full items-center justify-center rounded-full text-sm font-semibold transition-all ${
-                    isSelected
-                      ? 'bg-primary text-on-primary shadow-sm'
-                      : isAvailable
-                      ? 'cursor-pointer text-on-surface hover:bg-secondary-container/60'
-                      : 'cursor-not-allowed text-on-surface-variant/30'
-                  }`}
-                >
-                  {day.getDate()}
-                  {isToday && !isSelected && (
-                    <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-4 text-xs font-semibold text-on-surface-variant">Unavailable dates are dimmed.</p>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Choose Session Type</h3>
+          <p className="mt-1 text-sm text-on-surface-variant">Pick the format that best fits your goals.</p>
         </div>
 
-        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-          <h4 className="mb-4 font-headline-md text-lg font-bold text-on-surface">
-            {selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {availableTimes.length > 0 ? (
-              availableTimes.map((time) => {
-                const isSelected = selectedTime === time;
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setSessionTypeOpen(!sessionTypeOpen)}
+            className="w-full flex items-center gap-4 rounded-2xl border-2 border-secondary bg-secondary-container/20 p-4 text-left transition-all hover:bg-secondary-container/30"
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-on-secondary">
+              <span className="material-symbols-outlined text-[24px]">{selectedType.icon}</span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-on-surface">{selectedType.value.split('(')[0].trim()}</p>
+              <p className="text-xs text-on-surface-variant truncate">{selectedType.desc}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-on-surface-variant">{selectedType.value.match(/\(([^)]+)\)/)?.[1]}</span>
+              <span className={`material-symbols-outlined text-on-surface-variant transition-transform ${sessionTypeOpen ? 'rotate-180' : ''}`}>expand_more</span>
+            </div>
+          </button>
+
+          {sessionTypeOpen && (
+            <div className="absolute z-20 mt-2 w-full rounded-2xl border border-outline-variant/20 bg-surface shadow-xl p-2 space-y-1">
+              {sessionTypes.map((type) => {
+                const isSelected = sessionType === type.value;
                 return (
                   <button
-                    key={time}
+                    key={type.value}
                     type="button"
-                    onClick={() => setSelectedTime(time)}
-                    className={`rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
-                      isSelected
-                        ? 'bg-primary text-on-primary shadow-sm'
-                        : 'border border-outline-variant/20 bg-surface-container text-on-surface hover:border-secondary/40 hover:bg-surface-container-high'
+                    onClick={() => { setSessionType(type.value); setSessionTypeOpen(false); }}
+                    className={`w-full flex items-center gap-4 rounded-xl p-3 text-left transition-all ${
+                      isSelected ? 'bg-secondary-container/40 border border-secondary/20' : 'hover:bg-surface-container'
                     }`}
                   >
-                    {time}
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      isSelected ? 'bg-secondary text-on-secondary' : 'bg-surface-variant text-on-surface-variant'
+                    }`}>
+                      <span className="material-symbols-outlined text-[20px]">{type.icon}</span>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold ${isSelected ? 'text-secondary' : 'text-on-surface'}`}>{type.value.split('(')[0].trim()}</p>
+                      <p className="text-xs text-on-surface-variant truncate">{type.desc}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-on-surface-variant shrink-0">{type.value.match(/\(([^)]+)\)/)?.[1]}</span>
                   </button>
                 );
-              })
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Session Notes</label>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            className="w-full resize-none rounded-2xl border border-outline-variant/20 bg-surface-container-low px-5 py-4 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-secondary/30"
+            placeholder="Tell your mentor what you'd like to focus on, questions you have, or specific goals for this session..."
+            rows={3}
+          />
+          <p className="mt-2 text-xs font-semibold text-on-surface-variant">Sharing specific goals helps your mentor prepare effectively.</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStep2 = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Pick Date & Time</h3>
+          <p className="mt-1 text-sm text-on-surface-variant">Choose from {mentor.name}'s available slots.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant"
+              >
+                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+              </button>
+              <span className="font-headline-md text-lg font-bold text-on-surface">
+                {monthLabels[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}
+              </span>
+              <button
+                type="button"
+                onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant"
+              >
+                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-on-surface-variant">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (
+                <span key={d} className="py-2">{d}</span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {calendarDays.map((day) => {
+                const isSelected = day.toDateString() === selectedDateObj.toDateString();
+                const isPast = day < new Date(new Date().toDateString());
+                const isAvailable = hasAvailableSlot(day) && !isPast;
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <button
+                    key={dateKey(day)}
+                    type="button"
+                    onClick={() => isAvailable && setSelectedDateObj(day)}
+                    disabled={!isAvailable}
+                    className={`relative flex h-10 w-full items-center justify-center rounded-full text-sm font-semibold transition-all ${
+                      isSelected
+                        ? 'bg-primary text-on-primary shadow-sm'
+                        : isAvailable
+                        ? 'cursor-pointer text-on-surface hover:bg-secondary-container/60'
+                        : 'cursor-not-allowed text-on-surface-variant/30'
+                    }`}
+                  >
+                    {day.getDate()}
+                    {isToday && !isSelected && (
+                      <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs font-semibold text-on-surface-variant">Unavailable dates are dimmed.</p>
+          </div>
+
+          <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
+            <h4 className="mb-4 font-headline-md text-lg font-bold text-on-surface">
+              {selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </h4>
+
+            {/* Time Slot Dropdown */}
+            {availableTimes.length > 0 ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTimeSlotOpen(!timeSlotOpen)}
+                  className="w-full flex items-center justify-between gap-3 rounded-xl border-2 border-secondary bg-secondary-container/20 p-4 text-left transition-all hover:bg-secondary-container/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-secondary text-2xl">schedule</span>
+                    <div>
+                      <p className="font-bold text-on-surface">{selectedTime || 'Select a time'}</p>
+                      <p className="text-xs text-on-surface-variant">{availableTimes.length} slot{availableTimes.length > 1 ? 's' : ''} available</p>
+                    </div>
+                  </div>
+                  <span className={`material-symbols-outlined text-on-surface-variant transition-transform ${timeSlotOpen ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+
+                {timeSlotOpen && (
+                  <div className="absolute z-20 mt-2 w-full rounded-2xl border border-outline-variant/20 bg-surface shadow-xl p-2 max-h-56 overflow-y-auto">
+                    {availableTimes.map((time) => {
+                      const isSelected = selectedTime === time;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => { setSelectedTime(time); setTimeSlotOpen(false); }}
+                          className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
+                            isSelected ? 'bg-secondary-container/40 border border-secondary/20' : 'hover:bg-surface-container'
+                          }`}
+                        >
+                          <span className={`material-symbols-outlined text-lg ${isSelected ? 'text-secondary' : 'text-on-surface-variant'}`}>schedule</span>
+                          <span className={`text-sm font-semibold ${isSelected ? 'text-secondary' : 'text-on-surface'}`}>{time}</span>
+                          {isSelected && <span className="ml-auto material-symbols-outlined text-secondary text-lg">check</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex w-full flex-col items-center py-8 text-center">
                 <span className="material-symbols-outlined mb-3 text-3xl text-outline-variant">event_busy</span>
@@ -400,15 +446,15 @@ export default function Booking({ navigateTo, params }) {
                 <p className="text-xs text-on-surface-variant">Choose another date from the calendar.</p>
               </div>
             )}
+            <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[16px]">info</span>
+              Availability is set by the mentor.
+            </p>
           </div>
-          <p className="mt-4 flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
-            <span className="material-symbols-outlined text-[16px]">info</span>
-            Availability is set by the mentor.
-          </p>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderStep3 = () => (
     <div className="space-y-6">
@@ -475,8 +521,8 @@ export default function Booking({ navigateTo, params }) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-6">
+    <div className="mx-auto w-full max-w-3xl px-4 h-[calc(100vh-64px)] overflow-hidden flex flex-col py-8">
+      <div className="flex-shrink-0">
         <button
           onClick={() => navigateTo('dashboard')}
           className="mb-6 inline-flex items-center gap-1 text-sm font-semibold text-secondary hover:underline"
@@ -491,31 +537,33 @@ export default function Booking({ navigateTo, params }) {
       {renderMentorSummary()}
       {renderStepIndicator()}
 
-      <div className="rounded-3xl border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm sm:p-8">
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
+      <div className="flex-1 overflow-y-auto">
+        <div className="rounded-3xl border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm sm:p-8">
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
 
-        <div className="mt-8 flex items-center justify-between border-t border-outline-variant/10 pt-6">
-          <button
-            type="button"
-            onClick={step === 1 ? () => navigateTo('dashboard') : handlePrevStep}
-            className="inline-flex items-center gap-1 rounded-xl px-5 py-3 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            {step === 1 ? 'Back to Dashboard' : 'Back'}
-          </button>
-
-          {step < 3 && (
+          <div className="mt-8 flex items-center justify-between border-t border-outline-variant/10 pt-6">
             <button
               type="button"
-              onClick={handleNextStep}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={step === 1 ? () => navigateTo('dashboard') : handlePrevStep}
+              className="inline-flex items-center gap-1 rounded-xl px-5 py-3 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
             >
-              Continue
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+              {step === 1 ? 'Back to Dashboard' : 'Back'}
             </button>
-          )}
+
+            {step < 3 && (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Continue
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

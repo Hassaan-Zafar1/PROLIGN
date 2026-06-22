@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { getCurrentUser, logout } from '../../utils/db';
 //landing page navbar
 const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen, theme, toggleTheme }) => {
@@ -9,8 +9,7 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
     { id: 'home', label: 'Home' },
     { id: 'discovery', label: 'Find Mentors' },
     { id: 'how-it-works', label: 'How it Works' },
-    { id: 'resources', label: 'Resources' },
-    
+    { id: 'help-center', label: 'Help Center' },
   ];
 
   const handleNavigate = (page) => {
@@ -38,7 +37,7 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
               </button>
             )}
             <span className="material-symbols-outlined text-primary text-3xl mr-2">school</span>
-            <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">MentorBridge</span>
+            <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">ProLign</span>
           </div>
 
           <div className="hidden md:flex items-center space-x-8">

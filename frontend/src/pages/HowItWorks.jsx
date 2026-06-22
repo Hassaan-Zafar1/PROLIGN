@@ -68,10 +68,10 @@ export default function HowItWorks({ navigateTo }) {
             Platform Overview
           </span>
           <h1 className="font-headline-lg text-4xl md:text-5xl font-bold text-on-surface mb-6">
-            How MentorBridge Works
+            How ProLign Works
           </h1>
           <p className="font-body-md text-on-surface-variant text-lg leading-relaxed max-w-2xl mx-auto">
-            MentorBridge connects ambitious professionals with world-class mentors through an intelligent, human-centred platform designed to make meaningful growth effortless.
+            ProLign connects ambitious professionals with world-class mentors through an intelligent, human-centred platform designed to make meaningful growth effortless.
           </p>
         </div>
       </section>
@@ -154,10 +154,10 @@ export default function HowItWorks({ navigateTo }) {
             Ready to Start Your Journey?
           </h2>
           <p className="text-on-primary-container/80 text-base mb-8 leading-relaxed">
-            Join thousands of professionals who have already accelerated their careers with MentorBridge.
+            Join thousands of professionals who have already accelerated their careers with ProLign.
           </p>
           <button
-            onClick={() => navigateTo('login')}
+            onClick={() => navigateTo('menteeRegistration')}
             className="inline-flex items-center gap-2 bg-primary text-on-primary px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-opacity cursor-pointer"
           >
             Get Started for Free
