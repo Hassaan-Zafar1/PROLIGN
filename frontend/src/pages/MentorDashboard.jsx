@@ -42,7 +42,7 @@ const getAvailableSlots = (dateStr) => {
 };
 
 const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('mentorbridge-theme') || 'light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -50,7 +50,7 @@ const useTheme = () => {
     setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('mentorbridge-theme', next);
+      localStorage.setItem('prolign-theme', next);
       return next;
     });
   };
@@ -61,6 +61,7 @@ const MentorDashboard = ({ navigateTo }) => {
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -439,12 +440,14 @@ const MentorDashboard = ({ navigateTo }) => {
     { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
-  const renderSidebar = () => (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-primary dark:bg-primary-container text-on-primary flex flex-col py-6 shadow-lg z-50">
-      <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
+  const renderSidebar = ({ mobile = false } = {}) => (
+    <aside className={`flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl ${
+      mobile ? '' : 'hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex'
+    }`}>
+      <div className="px-6 mb-8 cursor-pointer" onClick={() => { setActiveView('dashboard'); if (mobile) setMobileMenuOpen(false); }}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
-          MentorBridge
+          ProLign
         </h1>
         <p className="font-label-sm text-sm font-semibold opacity-70 mt-1">Mentor Portal</p>
       </div>
@@ -453,7 +456,7 @@ const MentorDashboard = ({ navigateTo }) => {
         {navItems.map(item => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => { setActiveView(item.id); if (mobile) setMobileMenuOpen(false); }}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
                 ? 'bg-secondary-container text-on-secondary-container scale-95' 
@@ -529,8 +532,8 @@ const MentorDashboard = ({ navigateTo }) => {
             No upcoming sessions scheduled.
           </div>
         ) : (
-          <div className="bg-surface-container-low rounded-2xl overflow-hidden border border-outline-variant/10 natural-shadow">
-            <table className="w-full text-left">
+          <div className="bg-surface-container-low rounded-2xl overflow-x-auto border border-outline-variant/10 natural-shadow">
+            <table className="w-full text-left min-w-[600px]">
               <thead className="bg-surface-container border-b border-outline-variant/10">
                 <tr>
                   <th className="px-6 py-4 font-label-sm text-sm font-semibold text-on-surface-variant">Mentee</th>
@@ -616,7 +619,8 @@ const MentorDashboard = ({ navigateTo }) => {
 
       <div className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
         <h4 className="font-bold text-on-surface text-lg mb-6">Recent Transactions</h4>
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left min-w-[500px]">
           <thead className="border-b border-outline-variant/20">
             <tr>
               <th className="pb-3 text-xs uppercase text-on-surface-variant">Date</th>
@@ -641,6 +645,7 @@ const MentorDashboard = ({ navigateTo }) => {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );
@@ -1033,7 +1038,8 @@ const MentorDashboard = ({ navigateTo }) => {
                 ))}
               </div>
             </div>
-            <table className="w-full text-left">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[500px]">
               <thead className="bg-surface-container-low border-b border-outline-variant/10">
                 <tr>
                   <th className="px-4 py-3 text-xs uppercase font-bold text-on-surface-variant">Mentee</th>
@@ -1065,6 +1071,7 @@ const MentorDashboard = ({ navigateTo }) => {
                 ))}
               </tbody>
             </table>
+            </div>
              {visibleSessions.length === 0 && <p className="py-8 text-center text-sm text-on-surface-variant">No {sessionTab} sessions.</p>}
           </section>
 
@@ -1107,15 +1114,37 @@ const MentorDashboard = ({ navigateTo }) => {
   };
 
   return (
-    <div className="flex bg-surface min-h-screen font-body-md w-full">
+    <div className="min-h-screen bg-surface font-body-md">
       {renderSidebar()}
-      
-      <main className="ml-64 w-full bg-surface">
-        <div className="mx-auto w-full max-w-[1440px] p-6 lg:p-8">
-        <header className="flex justify-between items-center mb-8 relative">
-          <div>
-            <h2 className="font-headline-lg text-4xl font-bold text-on-surface capitalize">{activeView.replace('-', ' ')}</h2>
-            <p className="text-on-surface-variant text-base mt-1">Manage your mentorship practice and impact.</p>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close dashboard menu"
+          />
+          <div className="relative h-full w-64">
+            {renderSidebar({ mobile: true })}
+          </div>
+        </div>
+      )}
+
+      <main className="min-h-screen lg:pl-64 bg-surface">
+        <div className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8 pb-28">
+        <header className="flex justify-between items-center mb-6 gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container text-on-surface lg:hidden"
+              aria-label="Open dashboard menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div>
+              <h2 className="font-headline-lg text-2xl sm:text-4xl font-bold text-on-surface capitalize">{activeView.replace('-', ' ')}</h2>
+              <p className="text-on-surface-variant text-sm sm:text-base mt-0.5">Manage your mentorship practice and impact.</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             
@@ -1168,6 +1197,23 @@ const MentorDashboard = ({ navigateTo }) => {
         {renderContent()}
         </div>
       </main>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+        <div className="grid grid-cols-5 gap-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { setActiveView(item.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className={`flex flex-col items-center rounded-xl px-1 py-2 text-[11px] font-semibold ${
+                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[22px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {showRescheduleModal && rescheduleTarget && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-6 natural-shadow">

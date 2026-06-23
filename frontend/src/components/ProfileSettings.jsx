@@ -102,6 +102,7 @@ const makeInitialForm = (user) => ({
   preferredCategories: splitList(user?.preferredCategories || user?.mentorshipCategories),
   preferredLevel: user?.preferredLevel || 'Beginner',
   preferredMentorType: user?.preferredMentorType || 'Industry Expert',
+  preferredSessionDuration: user?.preferredSessionDuration || '60 min',
   learningInterests: splitList(user?.learningInterests || user?.preferredCategories),
   sessionTypes: splitList(user?.sessionTypes || user?.mentorshipTypes),
   languages: splitList(user?.languages || user?.language || 'English'),
@@ -224,6 +225,7 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
       mentorshipCategories: toList(form.preferredCategories),
       preferredLevel: form.preferredLevel,
       preferredMentorType: form.preferredMentorType,
+      preferredSessionDuration: form.preferredSessionDuration,
       learningInterests: toList(form.learningInterests),
       sessionTypes: toList(form.sessionTypes),
       mentorshipTypes: toList(form.sessionTypes),
@@ -490,6 +492,15 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
             <TextArea label="Career Goals" field="careerGoals" rows={4} span="md:col-span-2" placeholder="Where are you trying to go next?" />
             <Field label="Skills To Learn" field="skillsToLearn" placeholder="React, Data Structures, Communication" />
             <Field label="Preferred Industries" field="preferredIndustries" placeholder="Software, AI, Product, Finance" />
+            <div className="space-y-3 md:col-span-2">
+              <Field label="Resume / CV URL" field="resumeUrl" placeholder="https://..." />
+              <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" onChange={handleResumeFile} className="hidden" />
+              <button type="button" onClick={() => resumeInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-lg bg-surface-container px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high">
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                Upload Resume/CV
+              </button>
+              {form.resumeName && <p className="text-sm font-semibold text-on-surface-variant">Selected: {form.resumeName}</p>}
+            </div>
           </div>
         );
       case 'mentorPreferences':
@@ -527,6 +538,14 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
                   <option>Career Coach</option>
                   <option>Technical Mentor</option>
                   <option>Peer Mentor</option>
+                </select>
+              </Field>
+              <Field label="Preferred Session Duration" field="preferredSessionDuration">
+                <select value={form.preferredSessionDuration || '60 min'} onChange={(event) => setField('preferredSessionDuration', event.target.value)} className="w-full rounded-lg border border-outline-variant/25 bg-surface px-3 py-3 outline-none focus:ring-2 focus:ring-secondary/30">
+                  <option>30 min</option>
+                  <option>45 min</option>
+                  <option>60 min</option>
+                  <option>90 min</option>
                 </select>
               </Field>
               <Field label="Languages" field="languages" placeholder="English, Urdu" />
@@ -575,7 +594,7 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
       case 'adminNotifications':
         return (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Toggle label="New Registrations" detail="Notify me when new users join MentorBridge." field="notifyNewRegistrations" />
+            <Toggle label="New Registrations" detail="Notify me when new users join ProLign." field="notifyNewRegistrations" />
             <Toggle label="Mentor Applications" detail="Notify me when a mentor submits or updates an application." field="notifyMentorApplications" />
             <Toggle label="Platform Announcements" field="emailAnnouncements" />
             <Toggle label="Push Notifications" field="pushEnabled" />

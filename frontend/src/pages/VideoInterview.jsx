@@ -71,7 +71,7 @@ export default function VideoInterview({ onNavigate, sessionId }) {
       {/* Header */}
       <header className="flex justify-between items-center px-6 h-16 bg-[#1a1a1a] border-b border-white/10 z-50 shrink-0">
         <div className="flex items-center gap-4">
-          <h1 onClick={() => onNavigate('dashboard')} className="font-headline-md text-2xl text-bone cursor-pointer hover:text-white transition-colors">MentorBridge</h1>
+          <h1 onClick={() => onNavigate('dashboard')} className="font-headline-md text-2xl text-bone cursor-pointer hover:text-white transition-colors">ProLign</h1>
           <div className="h-4 w-[1px] bg-white/20"></div>
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 bg-error rounded-full animate-pulse"></span>

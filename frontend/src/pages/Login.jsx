@@ -30,7 +30,7 @@ const Login = ({ navigateTo }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface-container-low px-4">
-      <div className="max-w-md w-full bg-white rounded-3xl natural-shadow p-8 border border-outline-variant">
+      <div className="max-w-md w-full bg-surface rounded-3xl natural-shadow p-8 border border-outline-variant">
         <button
           type="button"
           onClick={() => navigateTo('home')}
@@ -42,7 +42,7 @@ const Login = ({ navigateTo }) => {
         <div className="text-center mb-8">
           <span className="material-symbols-outlined text-primary text-5xl mb-4">school</span>
           <h2 className="text-3xl font-headline-md font-bold text-on-surface">Welcome Back</h2>
-          <p className="text-on-surface-variant mt-2">Log in to continue to MentorBridge</p>
+          <p className="text-on-surface-variant mt-2">Log in to continue to ProLign</p>
         </div>
         
         {error && (
@@ -106,9 +106,9 @@ const Login = ({ navigateTo }) => {
         
         <div className="mt-6 p-4 bg-surface-variant rounded-xl text-xs text-on-surface-variant text-left">
           <strong>Demo Login Details:</strong><br />
-          Mentee: <code>mentee@mentorbridge.com</code> / <code>mentee123</code><br />
-          Mentor: <code>mentor@mentorbridge.com</code> / <code>mentor123</code><br />
-          Admin: <code>admin@mentorbridge.com</code> / Password: <code>password123</code>
+          Mentee: <code>mentee@prolign.com</code> / <code>mentee123</code><br />
+          Mentor: <code>mentor@prolign.com</code> / <code>mentor123</code><br />
+          Admin: <code>admin@prolign.com</code> / Password: <code>password123</code>
         </div>
       </div>
     </div>
