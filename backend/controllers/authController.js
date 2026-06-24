@@ -32,6 +32,7 @@ function setRefreshCookie(res, token) {
 
 export async function register(req, res, next) {
   try {
+    console.log("📩 Register hit with body:", req.body);
     const { email, password, role } = req.body;
 
     if (!email || !password || !role) {
@@ -96,6 +97,8 @@ export async function register(req, res, next) {
 
 export async function verifyEmail(req, res, next) {
   try {
+    console.log("📩 Verify OTP hit with body:", req.body); // ← temp debug
+
     const { userId, otp } = req.body;
 
     if (!userId || !otp) {
@@ -111,15 +114,20 @@ export async function verifyEmail(req, res, next) {
       return res.status(400).json({ success: false, message: result.message });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("+refreshTokens");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Save hashed refresh token
-    user.refreshToken = crypto
+    // ✅ Push to array instead of setting single field
+    const hashedRefresh = crypto
       .createHash("sha256")
       .update(refreshToken)
       .digest("hex");
+    user.refreshTokens.push(hashedRefresh);
     await user.save();
 
     setRefreshCookie(res, refreshToken);
@@ -182,7 +190,7 @@ export async function login(req, res, next) {
       });
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email }).select("+password +refreshTokens");
     if (!user || !(await user.comparePassword(password))) {
       await logAudit({
         actorId: new mongoose.Types.ObjectId(), // System or null
@@ -214,10 +222,9 @@ export async function login(req, res, next) {
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    user.refreshToken = crypto
-      .createHash("sha256")
-      .update(refreshToken)
-      .digest("hex");
+    // ✅ Correct — matches your schema
+    const hashedRefresh = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    user.refreshTokens.push(hashedRefresh);
     user.lastLoginAt = new Date();
     await user.save();
 
@@ -270,8 +277,8 @@ export async function refreshToken(req, res, next) {
 
     const user = await User.findOne({
       _id: decoded.id,
-      refreshToken: hashedToken,
-    });
+      refreshTokens: hashedToken,
+    }).select("+refreshTokens");
 
     if (!user) {
       return res.status(401).json({
@@ -309,7 +316,7 @@ export async function logout(req, res, next) {
 
     if (token) {
       const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET).id;
-      await User.findByIdAndUpdate(decoded, { refreshToken: null });
+      await User.findByIdAndUpdate(decoded, { $pull: { refreshTokens: hashedToken } });
     }
 
     res.clearCookie("refreshToken");
@@ -388,7 +395,7 @@ export async function resetPassword(req, res, next) {
     user.password = newPassword; // Pre-save hook will hash it
     user.passwordResetToken = undefined;
     user.passwordResetExpiresAt = undefined;
-    user.refreshToken = null; // Force re-login after reset
+    user.refreshTokens = []; // Force re-login after reset
     await user.save();
 
     res.clearCookie("refreshToken");
@@ -428,7 +435,7 @@ export async function getMe(req, res, next) {
 
 export async function googleCallback(req, res, next) {
   try {
-    const user = req.user; // Attached by Passport
+    const user = await User.findById(req.user._id).select("+refreshTokens"); // Attached by Passport
 
     const accessToken = generateAccessToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);

@@ -22,22 +22,21 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
 import Chatbot from './pages/Chatbot';
+import OTPVerification from './pages/OTPVerification';
 import AIChatWidget from './components/AIChatWidget';
 import { useAuth } from './context/AuthContext';
 import { tokenManager } from './utils/tokenManager';
 
 const getRouteForUser = (user) => {
-  if (user?.role === 'mentor') return 'dashboard';
+  if (user?.role === 'mentor') return 'mentor-dashboard';
   if (user?.role === 'admin') return 'admindashboard';
-  if (user?.role === 'mentee') return 'dashboard';
+  if (user?.role === 'mentee') return 'mentee-dashboard';
   return 'home';
 };
 
 function App() {
   const { user, loading, login } = useAuth();
-  const [currentRoute, setCurrentRoute] = useState(() => {
-    return { page: user ? getRouteForUser(user) : 'home', params: null };
-  });
+  const [currentRoute, setCurrentRoute] = useState({ page: 'home', params: null });
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
@@ -47,30 +46,25 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const role = params.get('role');
+    const isProfileComplete = params.get('isProfileComplete');
 
     if (token && role) {
-      // Store token
       tokenManager.setAccessToken(token);
-      
-      // Create a basic user object from the token and role
-      const userData = { role, isEmailVerified: true };
-      tokenManager.setUser(userData);
-      
-      // Login the user
+      const userData = { role, isEmailVerified: true, isProfileComplete: isProfileComplete === 'true' };
       login(userData, token);
-      
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [login]);
 
-  // Update route when user changes
+  // Redirect based on auth state — but never override verify-otp page
   useEffect(() => {
     if (!loading) {
-      setCurrentRoute((prev) => ({
-        page: user ? getRouteForUser(user) : 'home',
-        params: prev.params,
-      }));
+      // ✅ Don't override if we're on the OTP page
+      if (currentRoute.page === 'verify-otp') return;
+
+      if (user) {
+        setCurrentRoute({ page: getRouteForUser(user), params: null });
+      }
     }
   }, [user, loading]);
 
@@ -79,7 +73,7 @@ function App() {
     localStorage.setItem('prolign-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const navigateTo = (page, params = null) => {
     setCurrentRoute({ page, params });
@@ -87,7 +81,6 @@ function App() {
     window.scrollTo(0, 0);
   };
 
-  // Render current page based on state
   const renderPage = () => {
     switch (currentRoute.page) {
       case 'login':
@@ -96,6 +89,8 @@ function App() {
         return <MentorRegistration navigateTo={navigateTo} />;
       case 'menteeRegistration':
         return <MenteeRegistration navigateTo={navigateTo} />;
+      case 'verify-otp':
+        return <OTPVerification navigateTo={navigateTo} params={currentRoute.params} />;
       case 'onboarding':
         return <MenteeOnboarding navigateTo={navigateTo} />;
       case 'home':
@@ -103,24 +98,20 @@ function App() {
       case 'landing':
         return <LandingPage navigateTo={navigateTo} />;
       case 'dashboard': {
-        if (user?.role === 'admin') {
-          return <AdminDashboard navigateTo={navigateTo} />;
-        }
-        if (user?.role === 'mentor') {
-          return <MentorDashboard navigateTo={navigateTo} />;
-        }
+        if (user?.role === 'admin') return <AdminDashboard navigateTo={navigateTo} />;
+        if (user?.role === 'mentor') return <MentorDashboard navigateTo={navigateTo} />;
         return <MenteeDashboard navigateTo={navigateTo} initialView="dashboard" />;
       }
-      case 'discovery':
-        return <MentorDiscovery navigateTo={navigateTo} />;
-      case 'admindashboard':
-        return <AdminDashboard navigateTo={navigateTo} />;
-      case 'admin':
-        return <AdminDashboard navigateTo={navigateTo} />;
       case 'mentor-dashboard':
         return <MentorDashboard navigateTo={navigateTo} />;
       case 'mentee-dashboard':
         return <MenteeDashboard navigateTo={navigateTo} initialView="dashboard" />;
+      case 'admindashboard':
+        return <AdminDashboard navigateTo={navigateTo} />;
+      case 'admin':
+        return <AdminDashboard navigateTo={navigateTo} />;
+      case 'discovery':
+        return <MentorDiscovery navigateTo={navigateTo} />;
       case 'mentorProfile':
         return <MentorProfile navigateTo={navigateTo} params={currentRoute.params} />;
       case 'booking':
@@ -133,79 +124,84 @@ function App() {
         return user?.role === 'mentee'
           ? <MenteeDashboard navigateTo={navigateTo} initialView="analytics" />
           : <Analytics navigateTo={navigateTo} />;
-      case 'sessions': {
-        if (user?.role === 'mentee') {
-          return <MenteeDashboard navigateTo={navigateTo} initialView="sessions" />;
-        }
-        return <MentorDashboard navigateTo={navigateTo} />;
-      }
+      case 'sessions':
+        return user?.role === 'mentee'
+          ? <MenteeDashboard navigateTo={navigateTo} initialView="sessions" />
+          : <MentorDashboard navigateTo={navigateTo} />;
       case 'video-interview':
         return <VideoInterview onNavigate={navigateTo} sessionId={currentRoute.params?.sessionId} />;
       case 'how-it-works':
         return <HowItWorks navigateTo={navigateTo} />;
       case 'help-center':
-        return <HelpCenter navigateTo={navigateTo} />;
       case 'helpcenter':
-        return <HelpCenter navigateTo={navigateTo} />;
       case 'contact':
+      case 'community':
         return <HelpCenter navigateTo={navigateTo} />;
       case 'terms':
         return <TermsOfService navigateTo={navigateTo} />;
       case 'privacy':
         return <PrivacyPolicy navigateTo={navigateTo} />;
       case 'cookies':
-        return <CookiePolicy navigateTo={navigateTo} />;
       case 'cookie-policy':
         return <CookiePolicy navigateTo={navigateTo} />;
       case 'chatbot':
         return <Chatbot navigateTo={navigateTo} />;
-      case 'community':
-        return <HelpCenter navigateTo={navigateTo} />;
       default:
         return <LandingPage navigateTo={navigateTo} />;
     }
   };
 
-  const menteeDashboardPages = ['dashboard', 'sessions', 'settings', 'analytics', 'mentee-dashboard'];
-  const hideNavigation = ['login', 'onboarding', 'mentorRegistration', 'menteeRegistration', 'admindashboard', 'video-interview', 'booking'].includes(currentRoute.page) ||
-                         currentRoute.page === 'dashboard' ||
-                         (user?.role === 'mentee' && menteeDashboardPages.includes(currentRoute.page));
+  const hideNavPages = [
+    'login', 'onboarding', 'mentorRegistration', 'menteeRegistration',
+    'admindashboard', 'video-interview', 'booking', 'verify-otp',
+    'mentor-dashboard', 'mentee-dashboard', 'dashboard'
+  ];
+  const hideNavigation = hideNavPages.includes(currentRoute.page) ||
+    (user?.role === 'mentee' && ['sessions', 'settings', 'analytics'].includes(currentRoute.page));
 
   const noSidebarPages = ['mentorProfile'];
   const showSidebar = !hideNavigation && !!user && !noSidebarPages.includes(currentRoute.page);
 
-  const fullWidthPages = ['home', 'how-it-works', 'help-center', 'terms', 'privacy', 'cookies', 'community', 'discovery', 'mentorProfile', 'booking'];
+  const fullWidthPages = ['home', 'landing', 'how-it-works', 'help-center', 'helpcenter',
+    'terms', 'privacy', 'cookies', 'cookie-policy', 'community', 'discovery', 'mentorProfile', 'booking'];
   const isFullWidthPage = fullWidthPages.includes(currentRoute.page);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-surface">
+        <div className="flex flex-col items-center gap-4">
+          <span className="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span>
+          <p className="text-on-surface-variant font-medium">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-on-background font-body-md">
       {!hideNavigation && (
-        <TopNavBar 
-          navigateTo={navigateTo} 
-          currentPage={currentRoute.page} 
-          toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+        <TopNavBar
+          navigateTo={navigateTo}
+          currentPage={currentRoute.page}
+          toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}
           theme={theme}
           toggleTheme={toggleTheme}
         />
       )}
-      
+
       <div className="flex flex-1 w-full relative">
         {showSidebar && (
-          <SideNavBar 
-            navigateTo={navigateTo} 
-            currentPage={currentRoute.page} 
-            isOpen={isMobileMenuOpen} 
+          <SideNavBar
+            navigateTo={navigateTo}
+            currentPage={currentRoute.page}
+            isOpen={isMobileMenuOpen}
             onClose={() => setIsMobileMenuOpen(false)}
             theme={theme}
             toggleTheme={toggleTheme}
           />
         )}
-        
+
         <main className={`flex-1 w-full ${
           !hideNavigation && !isFullWidthPage ? 'p-4 md:p-8 max-w-7xl mx-auto' : ''
         }`}>
@@ -216,7 +212,7 @@ function App() {
       {!hideNavigation && <Footer navigateTo={navigateTo} />}
 
       {currentRoute.page !== 'video-interview' && (
-        <button 
+        <button
           onClick={() => setIsChatbotOpen(true)}
           className="fixed bottom-8 right-8 z-[60] flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-on-secondary shadow-xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95 group"
           title="Chat with ProLign AI"
