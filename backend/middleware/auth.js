@@ -70,3 +70,16 @@ export function requireEmailVerified(req, res, next) {
   }
   next();
 }
+// Extract IP from request - add this to auth.js
+export function extractClientInfo(req, res, next) {
+  // Get IP address (handles proxies)
+  req.ip = req.headers['x-forwarded-for']?.split(',')[0].trim() 
+    || req.connection.remoteAddress 
+    || req.socket.remoteAddress
+    || null;
+  
+  // Get user agent
+  req.userAgent = req.get('user-agent') || null;
+  
+  next();
+}

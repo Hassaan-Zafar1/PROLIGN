@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import { env } from "../config/env.js";
 import { generateAndSaveOTP, verifyOTP, clearOTP } from "../services/otpService.js";
 import { sendOTPEmail, sendPasswordResetEmail } from "../services/emailService.js";
-
+import { logAudit } from "../services/auditLogService.js";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateAccessToken(userId, role) {
@@ -71,6 +71,16 @@ export async function register(req, res, next) {
     const user = await User.create({ email, password, role });
     const otp = await generateAndSaveOTP(user._id);
     await sendOTPEmail(email, otp);
+
+    await logAudit({
+      actorId: user._id,
+      actorRole: role,
+      action: "user_registered",
+      targetId: user._id,
+      targetType: "user",
+      after: { email, role },
+      request: req,
+    });
 
     res.status(201).json({
       success: true,
@@ -174,6 +184,15 @@ export async function login(req, res, next) {
 
     const user = await User.findOne({ email }).select("+password");
     if (!user || !(await user.comparePassword(password))) {
+      await logAudit({
+        actorId: new mongoose.Types.ObjectId(), // System or null
+        actorRole: "system",
+        action: "user_login",
+        targetId: null,
+        targetType: "none",
+        before: { email, success: false },
+        request: req,
+      });
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
@@ -201,6 +220,16 @@ export async function login(req, res, next) {
       .digest("hex");
     user.lastLoginAt = new Date();
     await user.save();
+
+    await logAudit({
+      actorId: user._id,
+      actorRole: user.role,
+      action: "user_login",
+      targetId: user._id,
+      targetType: "user",
+      after: { email, role: user.role, timestamp: new Date() },
+      request: req,
+    });
 
     setRefreshCookie(res, refreshToken);
 
@@ -367,6 +396,16 @@ export async function resetPassword(req, res, next) {
       success: true,
       message: "Password reset successful. Please log in.",
     });
+    // After password is successfully reset:
+await logAudit({
+  actorId: user._id,
+  actorRole: user.role,
+  action: "password_reset_confirmed",
+  targetId: user._id,
+  targetType: "user",
+  after: { email: user.email, resetAt: new Date() },
+  request: req,
+});
   } catch (error) {
     next(error);
   }

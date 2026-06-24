@@ -23,7 +23,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
 import Chatbot from './pages/Chatbot';
 import AIChatWidget from './components/AIChatWidget';
-import { initDB, getCurrentUser } from './utils/db';
+import { useAuth } from './context/AuthContext';
+import { tokenManager } from './utils/tokenManager';
 
 const getRouteForUser = (user) => {
   if (user?.role === 'mentor') return 'dashboard';
@@ -33,14 +34,45 @@ const getRouteForUser = (user) => {
 };
 
 function App() {
+  const { user, loading, login } = useAuth();
   const [currentRoute, setCurrentRoute] = useState(() => {
-    initDB();
-    const user = getCurrentUser();
     return { page: user ? getRouteForUser(user) : 'home', params: null };
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
+
+  // Handle Google OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const role = params.get('role');
+
+    if (token && role) {
+      // Store token
+      tokenManager.setAccessToken(token);
+      
+      // Create a basic user object from the token and role
+      const userData = { role, isEmailVerified: true };
+      tokenManager.setUser(userData);
+      
+      // Login the user
+      login(userData, token);
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [login]);
+
+  // Update route when user changes
+  useEffect(() => {
+    if (!loading) {
+      setCurrentRoute((prev) => ({
+        page: user ? getRouteForUser(user) : 'home',
+        params: prev.params,
+      }));
+    }
+  }, [user, loading]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -51,7 +83,7 @@ function App() {
 
   const navigateTo = (page, params = null) => {
     setCurrentRoute({ page, params });
-    setIsMobileMenuOpen(false); // Close mobile menu on navigation
+    setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
   };
 
@@ -71,11 +103,10 @@ function App() {
       case 'landing':
         return <LandingPage navigateTo={navigateTo} />;
       case 'dashboard': {
-        const currentUser = getCurrentUser();
-        if (currentUser?.role === 'admin') {
+        if (user?.role === 'admin') {
           return <AdminDashboard navigateTo={navigateTo} />;
         }
-        if (currentUser?.role === 'mentor') {
+        if (user?.role === 'mentor') {
           return <MentorDashboard navigateTo={navigateTo} />;
         }
         return <MenteeDashboard navigateTo={navigateTo} initialView="dashboard" />;
@@ -95,16 +126,15 @@ function App() {
       case 'booking':
         return <Booking navigateTo={navigateTo} params={currentRoute.params} />;
       case 'settings':
-        return getCurrentUser()?.role === 'mentee'
+        return user?.role === 'mentee'
           ? <MenteeDashboard navigateTo={navigateTo} initialView="settings" />
           : <Settings navigateTo={navigateTo} />;
       case 'analytics':
-        return getCurrentUser()?.role === 'mentee'
+        return user?.role === 'mentee'
           ? <MenteeDashboard navigateTo={navigateTo} initialView="analytics" />
           : <Analytics navigateTo={navigateTo} />;
       case 'sessions': {
-        const currentUser = getCurrentUser();
-        if (currentUser?.role === 'mentee') {
+        if (user?.role === 'mentee') {
           return <MenteeDashboard navigateTo={navigateTo} initialView="sessions" />;
         }
         return <MentorDashboard navigateTo={navigateTo} />;
@@ -136,20 +166,20 @@ function App() {
     }
   };
 
-  const user = getCurrentUser();
   const menteeDashboardPages = ['dashboard', 'sessions', 'settings', 'analytics', 'mentee-dashboard'];
   const hideNavigation = ['login', 'onboarding', 'mentorRegistration', 'menteeRegistration', 'admindashboard', 'video-interview', 'booking'].includes(currentRoute.page) ||
                          currentRoute.page === 'dashboard' ||
                          (user?.role === 'mentee' && menteeDashboardPages.includes(currentRoute.page));
 
-  // Pages with their own sidebar (no app-level side menu needed)
   const noSidebarPages = ['mentorProfile'];
-  // Pages where sidebar is shown (logged-in state with non-full-screen pages)
   const showSidebar = !hideNavigation && !!user && !noSidebarPages.includes(currentRoute.page);
 
-  // Pages that manage their own full-width layout (no padding)
   const fullWidthPages = ['home', 'how-it-works', 'help-center', 'terms', 'privacy', 'cookies', 'community', 'discovery', 'mentorProfile', 'booking'];
   const isFullWidthPage = fullWidthPages.includes(currentRoute.page);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-on-background font-body-md">
@@ -185,7 +215,6 @@ function App() {
 
       {!hideNavigation && <Footer navigateTo={navigateTo} />}
 
-      {/* Global AI Chatbot FAB — visible on every page except full-screen video */}
       {currentRoute.page !== 'video-interview' && (
         <button 
           onClick={() => setIsChatbotOpen(true)}

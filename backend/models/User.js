@@ -104,10 +104,9 @@ userSchema.index({ linkedinUrl: 1 }, { sparse: true });
 userSchema.index({ googleId: 1 }, { sparse: true });
 
 // ── Pre-save: Hash password ───────────────────────────────────────────────────
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password") || !this.password) return next();
+userSchema.pre("save", async function () {
+  if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 // ── Instance Methods ──────────────────────────────────────────────────────────

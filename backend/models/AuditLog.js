@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const auditLogSchema = new Schema(
@@ -13,6 +13,11 @@ const auditLogSchema = new Schema(
     action: {
       type: String,
       enum: [
+        "user_registered",
+        "user_login",
+        "user_logout",
+        "password_reset_requested",
+        "password_reset_confirmed",
         "mentor_approved",
         "mentor_rejected",
         "user_banned",
@@ -23,17 +28,16 @@ const auditLogSchema = new Schema(
         "review_moderated",
         "review_flagged",
         "admin_login",
-        "password_reset",
         "profile_updated",
       ],
       required: true,
     },
 
-    targetId:   { type: Schema.Types.ObjectId, required: true },
+    targetId:   { type: Schema.Types.ObjectId, default: null },
     targetType: {
       type: String,
-      enum: ["user", "session", "payment", "review", "mentor_profile"],
-      required: true,
+      enum: ["user", "session", "payment", "review", "mentor_profile", "none"],
+      default: "user",
     },
 
     before: { type: Schema.Types.Mixed, default: null }, // field values before change
@@ -54,5 +58,5 @@ auditLogSchema.index({ action: 1 });
 // TTL: auto-delete audit logs older than 1 year
 auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 31536000 });
 
-module.exports =
-  mongoose.models.AuditLog || mongoose.model("AuditLog", auditLogSchema);
+const AuditLog = mongoose.models.AuditLog || mongoose.model("AuditLog", auditLogSchema);
+export default AuditLog;

@@ -1,31 +1,47 @@
 import React, { useState } from 'react';
-import { login } from '../utils/db';
+import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/authService';
 
 const Login = ({ navigateTo }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    
     if (!email || !password) {
       setError('Please enter both email and password.');
       return;
     }
-    
-    // Perform mock login
-    const user = login(email, password);
-    if (user) {
-      if (user.role === 'mentor') {
-        navigateTo('dashboard'); // mentor dashboard
-      } else if (user.role === 'admin') {
-        navigateTo('admindashboard');
+
+    setLoading(true);
+
+    try {
+      const response = await authService.login(email, password);
+
+      // If email not verified, redirect to OTP verification
+      if (response.userId) {
+        // Store userId in sessionStorage for OTP page
+        sessionStorage.setItem('otpUserId', response.userId);
+        navigateTo('verify-otp');
       } else {
-        navigateTo('dashboard'); // mentee dashboard
+        // Email is verified, log in user
+        login(response.user, response.accessToken);
+        navigateTo('dashboard');
       }
-    } else {
-      setError('Invalid login credentials.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid login credentials.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    authService.googleLogin();
   };
 
   return (
@@ -62,6 +78,7 @@ const Login = ({ navigateTo }) => {
               className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
               placeholder="you@example.com"
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -73,32 +90,59 @@ const Login = ({ navigateTo }) => {
               className="w-full px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-surface-bright"
               placeholder="••••••••"
               required
+              disabled={loading}
             />
           </div>
           
           <div className="flex items-center justify-between">
             <label className="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary" />
+              <input 
+                type="checkbox" 
+                className="w-4 h-4 rounded text-primary border-outline-variant focus:ring-primary"
+                disabled={loading}
+              />
               <span className="text-sm text-on-surface-variant">Remember me</span>
             </label>
-            <button type="button" onClick={() => navigateTo('help-center')} className="text-sm font-medium text-primary hover:text-primary-container transition-colors">
+            <button 
+              type="button" 
+              onClick={() => navigateTo('help-center')} 
+              className="text-sm font-medium text-primary hover:text-primary-container transition-colors"
+              disabled={loading}
+            >
               Forgot Password?
             </button>
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary-container transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
+            disabled={loading}
+            className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary-container transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Login</span>
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            <span>{loading ? 'Logging in...' : 'Login'}</span>
+            {!loading && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
           </button>
         </form>
+
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full py-3 px-4 bg-surface-bright text-on-surface rounded-xl font-medium border border-outline-variant hover:bg-surface transition-colors shadow-sm flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-lg">account_circle</span>
+            <span>Login with Google</span>
+          </button>
+        </div>
 
         <div className="mt-8 text-center">
           <p className="text-sm text-on-surface-variant">
             Don't have an account?{' '}
-            <button onClick={() => navigateTo('mentorRegistration')} className="font-medium text-primary hover:text-primary-container transition-colors">
+            <button 
+              onClick={() => navigateTo('mentorRegistration')} 
+              className="font-medium text-primary hover:text-primary-container transition-colors"
+              disabled={loading}
+            >
               Sign up
             </button>
           </p>
