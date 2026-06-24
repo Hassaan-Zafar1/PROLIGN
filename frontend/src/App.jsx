@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TopNavBar from './components/layout/TopNavBar';
 import SideNavBar from './components/layout/SideNavBar';
 import Footer from './components/layout/Footer';
 import Login from './pages/Login';
-import SignUp from './pages/SignUp';
 import MenteeOnboarding from './pages/MenteeOnboarding';
 import MentorRegistration from './pages/MentorRegistration';
+import MenteeRegistration from './pages/MenteeRegistration';
 import LandingPage from './pages/LandingPage';
 import MenteeDashboard from './pages/MenteeDashboard';
 import MentorDashboard from './pages/MentorDashboard';
@@ -17,8 +17,6 @@ import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
 import VideoInterview from './pages/VideoInterview';
 import HowItWorks from './pages/HowItWorks';
-import Pricing from './pages/Pricing';
-import Resources from './pages/Resources';
 import HelpCenter from './pages/HelpCenter';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -42,6 +40,14 @@ function App() {
   });
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('prolign-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
 
   const navigateTo = (page, params = null) => {
     setCurrentRoute({ page, params });
@@ -54,10 +60,10 @@ function App() {
     switch (currentRoute.page) {
       case 'login':
         return <Login navigateTo={navigateTo} />;
-      case 'signup':
-        return <SignUp navigateTo={navigateTo} />;
       case 'mentorRegistration':
         return <MentorRegistration navigateTo={navigateTo} />;
+      case 'menteeRegistration':
+        return <MenteeRegistration navigateTo={navigateTo} />;
       case 'onboarding':
         return <MenteeOnboarding navigateTo={navigateTo} />;
       case 'home':
@@ -107,10 +113,6 @@ function App() {
         return <VideoInterview onNavigate={navigateTo} sessionId={currentRoute.params?.sessionId} />;
       case 'how-it-works':
         return <HowItWorks navigateTo={navigateTo} />;
-      case 'pricing':
-        return <Pricing navigateTo={navigateTo} />;
-      case 'resources':
-        return <Resources navigateTo={navigateTo} />;
       case 'help-center':
         return <HelpCenter navigateTo={navigateTo} />;
       case 'helpcenter':
@@ -128,7 +130,7 @@ function App() {
       case 'chatbot':
         return <Chatbot navigateTo={navigateTo} />;
       case 'community':
-        return <Resources navigateTo={navigateTo} />;
+        return <HelpCenter navigateTo={navigateTo} />;
       default:
         return <LandingPage navigateTo={navigateTo} />;
     }
@@ -136,15 +138,17 @@ function App() {
 
   const user = getCurrentUser();
   const menteeDashboardPages = ['dashboard', 'sessions', 'settings', 'analytics', 'mentee-dashboard'];
-  const hideNavigation = ['login', 'signup', 'mentorRegistration', 'admindashboard', 'video-interview'].includes(currentRoute.page) ||
+  const hideNavigation = ['login', 'onboarding', 'mentorRegistration', 'menteeRegistration', 'admindashboard', 'video-interview', 'booking'].includes(currentRoute.page) ||
                          currentRoute.page === 'dashboard' ||
                          (user?.role === 'mentee' && menteeDashboardPages.includes(currentRoute.page));
 
+  // Pages with their own sidebar (no app-level side menu needed)
+  const noSidebarPages = ['mentorProfile'];
   // Pages where sidebar is shown (logged-in state with non-full-screen pages)
-  const showSidebar = !hideNavigation && !!user;
+  const showSidebar = !hideNavigation && !!user && !noSidebarPages.includes(currentRoute.page);
 
   // Pages that manage their own full-width layout (no padding)
-  const fullWidthPages = ['home', 'how-it-works', 'pricing', 'resources', 'help-center', 'terms', 'privacy', 'cookies', 'community', 'discovery', 'mentorProfile', 'booking'];
+  const fullWidthPages = ['home', 'how-it-works', 'help-center', 'terms', 'privacy', 'cookies', 'community', 'discovery', 'mentorProfile', 'booking'];
   const isFullWidthPage = fullWidthPages.includes(currentRoute.page);
 
   return (
@@ -155,6 +159,8 @@ function App() {
           currentPage={currentRoute.page} 
           toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
           isMobileMenuOpen={isMobileMenuOpen}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
       
@@ -165,6 +171,8 @@ function App() {
             currentPage={currentRoute.page} 
             isOpen={isMobileMenuOpen} 
             onClose={() => setIsMobileMenuOpen(false)}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
         )}
         
@@ -182,13 +190,13 @@ function App() {
         <button 
           onClick={() => setIsChatbotOpen(true)}
           className="fixed bottom-8 right-8 z-[60] flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-on-secondary shadow-xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95 group"
-          title="Chat with MentorBridge AI"
+          title="Chat with ProLign AI"
         >
           <span className="absolute inset-0 rounded-full bg-secondary/30 animate-ping"></span>
           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-error text-[10px] font-bold text-on-error">AI</span>
           <img
             src="/chatbot-icon.svg"
-            alt="MentorBridge AI"
+            alt="ProLign AI"
             className="relative h-12 w-12 rounded-full object-cover transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6"
           />
         </button>

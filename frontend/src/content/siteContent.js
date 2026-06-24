@@ -5,25 +5,25 @@ const siteContentDefaults = {
       icon: 'gavel',
       title: 'Terms of Service',
       summary:
-        'These terms explain how MentorBridge works, what you can expect from the platform, and the responsibilities that apply to every member.',
+        'These terms explain how ProLign works, what you can expect from the platform, and the responsibilities that apply to every member.',
       updatedLabel: 'Last updated',
       updatedAt: 'June 1, 2026',
     },
     overview:
-      'MentorBridge exists to create a high-trust learning environment. By using the service, you agree to follow these terms and the related policies that keep the platform safe, respectful, and useful for everyone.',
+      'ProLign exists to create a high-trust learning environment. By using the service, you agree to follow these terms and the related policies that keep the platform safe, respectful, and useful for everyone.',
     sections: [
       {
         id: 'introduction',
-        title: '1. Introduction',
+        title: 'Introduction',
         icon: 'article',
         paragraphs: [
-          'Welcome to MentorBridge. These Terms of Service govern your access to and use of the website, mobile application, and connected services.',
+          'Welcome to ProLign. These Terms of Service govern your access to and use of the website, mobile application, and connected services.',
           'We may update these terms from time to time. Material updates are communicated through the platform so you always know what changed before the new version goes live.',
         ],
       },
       {
         id: 'user-accounts',
-        title: '2. User Accounts',
+        title: 'User Accounts',
         icon: 'person',
         paragraphs: [
           'You are responsible for the accuracy of your account information and for keeping your credentials secure.',
@@ -32,7 +32,7 @@ const siteContentDefaults = {
       },
       {
         id: 'acceptable-use',
-        title: '3. Acceptable Use',
+        title: 'Acceptable Use',
         icon: 'verified_user',
         paragraphs: [
           'Use the service for lawful, respectful, and platform-aligned activity only. Harassment, impersonation, spam, scraping, and harmful conduct are not allowed.',
@@ -41,25 +41,25 @@ const siteContentDefaults = {
       },
       {
         id: 'sessions-payments',
-        title: '4. Sessions and Payments',
+        title: 'Sessions and Payments',
         icon: 'payments',
         paragraphs: [
           'Session bookings follow the cancellation and refund rules shown at checkout. Subscription fees, where applicable, are billed in advance and may be subject to taxes.',
-          'MentorBridge acts as a marketplace facilitator and may adjust service fees with reasonable advance notice to active mentors.',
+          'ProLign acts as a marketplace facilitator and may adjust service fees with reasonable advance notice to active mentors.',
         ],
       },
       {
         id: 'intellectual-property',
-        title: '5. Intellectual Property',
+        title: 'Intellectual Property',
         icon: 'copyright',
         paragraphs: [
-          'The MentorBridge platform, including its design, branding, software, and original content, is protected by applicable intellectual property laws.',
-          'You retain ownership of the content you create, but you grant MentorBridge a limited licence to display and process that content so the service can operate correctly.',
+          'The ProLign platform, including its design, branding, software, and original content, is protected by applicable intellectual property laws.',
+          'You retain ownership of the content you create, but you grant ProLign a limited licence to display and process that content so the service can operate correctly.',
         ],
       },
       {
         id: 'termination',
-        title: '6. Termination',
+        title: 'Termination',
         icon: 'logout',
         paragraphs: [
           'You may close your account at any time. We may suspend or terminate access if a user breaches these terms or presents a risk to the platform.',
@@ -69,7 +69,7 @@ const siteContentDefaults = {
     ],
     footer: {
       label: 'Need help understanding these terms?',
-      email: 'legal@mentorbridge.io',
+      email: 'legal@prolign.io',
       helpRoute: 'help-center',
     },
   },
@@ -79,7 +79,7 @@ const siteContentDefaults = {
       icon: 'privacy_tip',
       title: 'Privacy Policy',
       summary:
-        'See what information MentorBridge collects, how it is used, and the rights you have over your personal data.',
+        'See what information ProLign collects, how it is used, and the rights you have over your personal data.',
       updatedLabel: 'Last updated',
       updatedAt: 'June 1, 2026',
     },
@@ -88,7 +88,7 @@ const siteContentDefaults = {
     sections: [
       {
         id: 'information-we-collect',
-        title: '1. Information We Collect',
+        title: 'Information We Collect',
         icon: 'database',
         paragraphs: [
           'We collect the information you provide directly when you sign up, build your profile, book a session, message another user, or contact support.',
@@ -97,7 +97,7 @@ const siteContentDefaults = {
       },
       {
         id: 'how-we-use',
-        title: '2. How We Use Your Information',
+        title: 'How We Use Your Information',
         icon: 'hub',
         paragraphs: [
           'We use the data we collect to provide the service, match users, process transactions, send notifications, and improve the platform.',
@@ -106,7 +106,7 @@ const siteContentDefaults = {
       },
       {
         id: 'information-sharing',
-        title: '3. Information Sharing',
+        title: 'Information Sharing',
         icon: 'share',
         paragraphs: [
           'We do not sell personal data. We share information only when needed to run the service, when you ask us to, or when the law requires it.',
@@ -115,7 +115,7 @@ const siteContentDefaults = {
       },
       {
         id: 'data-security',
-        title: '4. Data Security',
+        title: 'Data Security',
         icon: 'shield',
         paragraphs: [
           'We use layered safeguards to protect data in transit and at rest, and we restrict internal access to what people need to do their jobs.',
@@ -124,7 +124,7 @@ const siteContentDefaults = {
       },
       {
         id: 'your-rights',
-        title: '5. Your Rights',
+        title: 'Your Rights',
         icon: 'gavel',
         paragraphs: [
           'Depending on where you live, you may have rights to access, correct, delete, or restrict your personal data, and in some cases to object to processing.',
@@ -133,17 +133,17 @@ const siteContentDefaults = {
       },
       {
         id: 'contact-us',
-        title: '6. Contact Us',
+        title: 'Contact Us',
         icon: 'mail',
         paragraphs: [
-          'For privacy questions, contact privacy@mentorbridge.io or reach out through the Help Center if you need help navigating your account.',
+          'For privacy questions, contact privacy@prolign.io or reach out through the Help Center if you need help navigating your account.',
           'If you are not satisfied with our response, you can also escalate to the relevant data protection authority in your region.',
         ],
       },
     ],
     footer: {
       label: 'Need to review related policies?',
-      email: 'privacy@mentorbridge.io',
+      email: 'privacy@prolign.io',
       links: [
         { label: 'Cookie Policy', route: 'cookies' },
         { label: 'Terms of Service', route: 'terms' },
@@ -156,7 +156,7 @@ const siteContentDefaults = {
       icon: 'cookie',
       title: 'Cookie Policy',
       summary:
-        'Understand the cookies and tracking technologies used to keep MentorBridge secure, personalized, and measurable.',
+        'Understand the cookies and tracking technologies used to keep ProLign secure, personalized, and measurable.',
       updatedLabel: 'Last updated',
       updatedAt: 'June 1, 2026',
     },
@@ -207,7 +207,7 @@ const siteContentDefaults = {
         icon: 'cookie',
         paragraphs: [
           'Cookies are small text files stored on your device when you visit a website. They help websites remember who you are and how you prefer to use the service.',
-          'First-party cookies come from MentorBridge. Third-party cookies may come from analytics or service providers that help us deliver the platform.',
+          'First-party cookies come from ProLign. Third-party cookies may come from analytics or service providers that help us deliver the platform.',
         ],
       },
       {
@@ -233,7 +233,7 @@ const siteContentDefaults = {
         title: 'Contact',
         icon: 'mail',
         paragraphs: [
-          'Questions about cookie usage can be sent to privacy@mentorbridge.io.',
+          'Questions about cookie usage can be sent to privacy@prolign.io.',
           'If you want to change your cookie choices, use the privacy controls in your account or contact support.',
         ],
       },
@@ -363,7 +363,7 @@ const siteContentDefaults = {
     ],
     faqs: [
       {
-        q: 'How do I find a mentor on MentorBridge?',
+        q: 'How do I find a mentor on ProLign?',
         a: 'After creating your profile, the platform suggests compatible mentors based on your goals, skills, and preferences. You can also browse the mentor directory and filter by expertise and availability.',
       },
       {
@@ -379,7 +379,7 @@ const siteContentDefaults = {
         a: 'Refund eligibility depends on the plan and timing. Review the pricing and checkout terms or contact support for account-specific help.',
       },
       {
-        q: 'Is my data secure on MentorBridge?',
+        q: 'Is my data secure on ProLign?',
         a: 'We use standard safeguards, access controls, and privacy practices to protect data and reduce risk across the platform.',
       },
       {
@@ -391,15 +391,15 @@ const siteContentDefaults = {
       title: 'Still need help?',
       description:
         'Our support team can help with account questions, bookings, and platform issues.',
-      email: 'support@mentorbridge.io',
+      email: 'support@prolign.io',
       ctaLabel: 'Contact Support',
       ctaRoute: 'help-center',
     },
   },
 };
 
-const SITE_CONTENT_STORAGE_KEY = 'mentorBridgeSiteContent';
-const DB_STORAGE_KEY = 'mentorBridgeDB';
+const SITE_CONTENT_STORAGE_KEY = 'prolignSiteContent';
+const DB_STORAGE_KEY = 'prolignDB';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 

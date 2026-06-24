@@ -19,6 +19,22 @@ import { getPublishedSiteContent, savePublishedSiteContent } from '../content/si
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const useTheme = () => {
+  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('prolign-theme', next);
+      return next;
+    });
+  };
+  return { theme, toggleTheme };
+};
+
 const emptyMemberForm = {
   role: 'mentee',
   name: '',
@@ -33,8 +49,10 @@ const emptyMemberForm = {
 };
 
 const AdminDashboard = ({ navigateTo }) => {
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mentors, setMentors] = useState([]);
   const [mentees, setMentees] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -46,7 +64,13 @@ const AdminDashboard = ({ navigateTo }) => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [memberForm, setMemberForm] = useState(emptyMemberForm);
   const [revenueRange, setRevenueRange] = useState('year');
-  const [customRange, setCustomRange] = useState({ from: '2026-01-01', to: '2026-06-30' });
+  const [revenueYear, setRevenueYear] = useState(String(new Date().getFullYear()));
+  const [revenueMonth, setRevenueMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [customRange, setCustomRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
+  const [analyticsRange, setAnalyticsRange] = useState('year');
+  const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
+  const [analyticsMonth, setAnalyticsMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [analyticsCustomRange, setAnalyticsCustomRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
   const [profileForm, setProfileForm] = useState({ name: '', email: '', avatar: '', password: '', newPassword: '', confirmPassword: '' });
   const [profileStatus, setProfileStatus] = useState('');
   const [testimonialForm, setTestimonialForm] = useState({ name: '', role: '', company: '', quote: '', avatar: '' });
@@ -126,29 +150,74 @@ const AdminDashboard = ({ navigateTo }) => {
   const unreadNotifs = notifications.filter((notification) => !notification.read);
   const totalRevenue = bookings.reduce((sum, booking) => sum + Number(booking.amount || 0), 0);
 
+  const getDateRange = (mode, year, month, range) => {
+    const yearNumber = Number(year);
+    if ((mode === 'year' || mode === 'month') && (!Number.isInteger(yearNumber) || yearNumber <= 2000)) {
+      return { error: 'Enter a valid year above 2000.' };
+    }
+    if (mode === 'year') return { from: new Date(yearNumber, 0, 1), to: new Date(yearNumber, 11, 31, 23, 59, 59), error: '' };
+    if (mode === 'month') return { from: new Date(yearNumber, Number(month) - 1, 1), to: new Date(yearNumber, Number(month), 0, 23, 59, 59), error: '' };
+    const from = new Date(range.from);
+    const to = new Date(`${range.to}T23:59:59`);
+    if (!range.from || !range.to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return { error: 'Choose both custom dates.' };
+    if (from > to) return { error: 'Start date must be before end date.' };
+    if (from.getFullYear() <= 2000 || to.getFullYear() <= 2000) return { error: 'Custom dates must be after year 2000.' };
+    return { from, to, error: '' };
+  };
+
+  const analyticsDateRange = useMemo(
+    () => getDateRange(analyticsRange, analyticsYear, analyticsMonth, analyticsCustomRange),
+    [analyticsCustomRange, analyticsMonth, analyticsRange, analyticsYear]
+  );
+
+  const revenueDateRange = useMemo(
+    () => getDateRange(revenueRange, revenueYear, revenueMonth, customRange),
+    [customRange, revenueMonth, revenueRange, revenueYear]
+  );
+
   const registrationsByMonth = useMemo(() => {
-    const now = new Date();
-    return monthLabels.map((label, index) => {
-      const mentorCount = mentors.filter((member) => {
+    if (analyticsDateRange.error) return [];
+    if (analyticsRange === 'year') {
+      return monthLabels.map((label, index) => {
+        const mentorCount = mentors.filter((member) => {
+          const date = new Date(member.createdAt || 0);
+          return date.getFullYear() === Number(analyticsYear) && date.getMonth() === index;
+        }).length;
+        const menteeCount = mentees.filter((member) => {
+          const date = new Date(member.createdAt || 0);
+          return date.getFullYear() === Number(analyticsYear) && date.getMonth() === index;
+        }).length;
+        return { label, mentors: mentorCount, mentees: menteeCount };
+      });
+    }
+    if (analyticsRange === 'month') {
+      const days = new Date(Number(analyticsYear), Number(analyticsMonth), 0).getDate();
+      return Array.from({ length: days }, (_, index) => {
+        const day = index + 1;
+        const inDay = (member) => {
+          const date = new Date(member.createdAt || 0);
+          return date.getFullYear() === Number(analyticsYear) && date.getMonth() === Number(analyticsMonth) - 1 && date.getDate() === day;
+        };
+        return { label: String(day), mentors: mentors.filter(inDay).length, mentees: mentees.filter(inDay).length };
+      });
+    }
+    return monthLabels.map((label, index) => ({
+      label,
+      mentors: mentors.filter((member) => {
         const date = new Date(member.createdAt || 0);
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === index;
-      }).length;
-      const menteeCount = mentees.filter((member) => {
+        return date >= analyticsDateRange.from && date <= analyticsDateRange.to && date.getMonth() === index;
+      }).length,
+      mentees: mentees.filter((member) => {
         const date = new Date(member.createdAt || 0);
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === index;
-      }).length;
-      return { label, mentors: mentorCount, mentees: menteeCount };
-    });
-  }, [mentors, mentees]);
+        return date >= analyticsDateRange.from && date <= analyticsDateRange.to && date.getMonth() === index;
+      }).length,
+    }));
+  }, [analyticsDateRange, analyticsMonth, analyticsRange, analyticsYear, mentors, mentees]);
 
   const revenueData = useMemo(() => {
-    const now = new Date();
-    const from = revenueRange === 'month'
-      ? new Date(now.getFullYear(), now.getMonth(), 1)
-      : revenueRange === 'custom'
-        ? new Date(customRange.from)
-        : new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const to = revenueRange === 'custom' ? new Date(`${customRange.to}T23:59:59`) : now;
+    if (revenueDateRange.error) return [];
+    const from = revenueDateRange.from;
+    const to = revenueDateRange.to;
 
     const filtered = bookings.filter((booking) => {
       const date = new Date(booking.createdAt || booking.date || 0);
@@ -156,7 +225,7 @@ const AdminDashboard = ({ navigateTo }) => {
     });
 
     if (revenueRange === 'month') {
-      const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const days = new Date(Number(revenueYear), Number(revenueMonth), 0).getDate();
       return Array.from({ length: days }, (_, index) => {
         const day = index + 1;
         return {
@@ -186,7 +255,7 @@ const AdminDashboard = ({ navigateTo }) => {
         })
         .reduce((sum, booking) => sum + Number(booking.amount || 0), 0),
     }));
-  }, [bookings, customRange, revenueRange]);
+  }, [bookings, revenueDateRange, revenueMonth, revenueRange, revenueYear]);
 
   const handleLogout = () => {
     logout();
@@ -214,10 +283,48 @@ const AdminDashboard = ({ navigateTo }) => {
   };
 
   const handleDeleteMember = (id) => {
+    const member = allMembers.find((item) => item.id === id);
+    if (!window.confirm(`Delete ${member?.name || 'this user'}? This action cannot be undone.`)) return;
     deleteUser(id);
     setSelectedMember(null);
     refreshData();
   };
+
+  const downloadCsv = (name, rows) => {
+    const blob = new Blob([rows.map((row) => row.join(',')).join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${name}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderRangeControls = (mode, setMode, year, setYear, month, setMonth, range, setRange, error, onDownload) => (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {['year', 'month', 'custom'].map((rangeMode) => (
+          <button key={rangeMode} onClick={() => setMode(rangeMode)} className={`rounded-full px-4 py-2 text-sm font-bold capitalize transition-colors ${mode === rangeMode ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-variant'}`}>{rangeMode}</button>
+        ))}
+        <button onClick={onDownload} className="rounded-full bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Download CSV</button>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {(mode === 'year' || mode === 'month') && <input type="number" min="2001" value={year} onChange={(event) => setYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" />}
+        {mode === 'month' && (
+          <select value={month} onChange={(event) => setMonth(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3">
+            {monthLabels.map((label, index) => <option key={label} value={String(index + 1).padStart(2, '0')}>{label}</option>)}
+          </select>
+        )}
+        {mode === 'custom' && (
+          <>
+            <input type="date" value={range.from} onChange={(event) => setRange({ ...range, from: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
+            <input type="date" value={range.to} onChange={(event) => setRange({ ...range, to: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
+          </>
+        )}
+      </div>
+      {error && <p className="text-sm font-bold text-error">{error}</p>}
+    </div>
+  );
 
   const handleProfileSave = (event) => {
     event.preventDefault();
@@ -309,17 +416,19 @@ const AdminDashboard = ({ navigateTo }) => {
     );
   };
 
-  const renderSidebar = () => (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col bg-primary py-6 text-on-primary shadow-lg">
-      <button className="mb-8 px-6 text-left" onClick={() => setActiveView('dashboard')}>
-        <h1 className="font-headline-md text-2xl font-bold text-on-primary">MentorBridge</h1>
+  const renderSidebar = ({ mobile = false } = {}) => (
+    <aside className={`flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl ${
+      mobile ? '' : 'hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex'
+    }`}>
+      <button className="mb-8 px-6 text-left" onClick={() => { setActiveView('dashboard'); if (mobile) setMobileMenuOpen(false); }}>
+        <h1 className="font-headline-md text-2xl font-bold text-on-primary">ProLign</h1>
         <p className="text-sm font-semibold text-primary-fixed-dim">Modern Mentorship Admin</p>
       </button>
       <nav className="flex-1 space-y-2 overflow-y-auto px-2">
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => { setActiveView(item.id); if (mobile) setMobileMenuOpen(false); }}
             className={`group flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all ${
               activeView === item.id ? 'scale-[0.98] bg-secondary-container text-on-secondary-container' : 'text-primary-fixed-dim hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}
@@ -329,9 +438,13 @@ const AdminDashboard = ({ navigateTo }) => {
           </button>
         ))}
       </nav>
-      <div className="mx-6 border-t border-on-primary/10 pt-4">
-        <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-2 py-2 text-left text-sm text-primary-fixed-dim transition-colors hover:text-on-primary">
-          <span className="material-symbols-outlined mr-2 scale-75">logout</span>
+      <div className="mx-2 border-t border-on-primary/10 pt-4 space-y-1">
+        <button onClick={toggleTheme} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-primary-fixed-variant/20 hover:text-on-primary">
+          <span className="material-symbols-outlined mr-3">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+          {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+        </button>
+        <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-error/10 hover:text-error">
+          <span className="material-symbols-outlined mr-3">logout</span>
           Logout
         </button>
       </div>
@@ -348,7 +461,7 @@ const AdminDashboard = ({ navigateTo }) => {
           ['person_add', 'User Signups', allMembers.length],
         ].map(([icon, label, value]) => (
           <div key={label} className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-6 natural-shadow">
-            <span className="material-symbols-outlined mb-4 rounded-lg bg-primary-fixed p-2 text-primary">{icon}</span>
+            <span className="material-symbols-outlined mb-4 rounded-lg bg-primary-fixed p-2 text-on-primary-fixed">{icon}</span>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-on-surface-variant">{label}</h3>
             <p className="mt-1 font-headline-md text-3xl font-bold text-on-surface">{Number(value).toLocaleString()}</p>
           </div>
@@ -358,12 +471,26 @@ const AdminDashboard = ({ navigateTo }) => {
         <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
             <h3 className="font-headline-md text-2xl font-bold text-on-surface">Past Registration Analytics</h3>
-            <p className="text-sm text-on-surface-variant">Mentor and mentee registrations across this year.</p>
+            <p className="text-sm text-on-surface-variant">Mentor and mentee registrations by year, month, or custom date range.</p>
           </div>
           <div className="flex gap-4 text-xs font-bold text-on-surface-variant">
             <span><span className="mr-2 inline-block h-2 w-6 rounded-full bg-primary"></span>Mentors</span>
             <span><span className="mr-2 inline-block h-2 w-6 rounded-full bg-secondary"></span>Mentees</span>
           </div>
+        </div>
+        <div className="mb-6">
+          {renderRangeControls(
+            analyticsRange,
+            setAnalyticsRange,
+            analyticsYear,
+            setAnalyticsYear,
+            analyticsMonth,
+            setAnalyticsMonth,
+            analyticsCustomRange,
+            setAnalyticsCustomRange,
+            analyticsDateRange.error,
+            () => downloadCsv('registration-analytics', [['Label', 'Mentors', 'Mentees'], ...registrationsByMonth.map((item) => [item.label, item.mentors, item.mentees])])
+          )}
         </div>
         {renderLineChart(registrationsByMonth, 'stacked')}
       </div>
@@ -444,6 +571,7 @@ const AdminDashboard = ({ navigateTo }) => {
                 </div>
               </div>
               <div className="flex gap-2">
+                <button onClick={() => setSelectedMember(mentor)} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface-variant">Preview</button>
                 <button onClick={() => setShowRejectModal(mentor.id)} className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container">Reject</button>
                 <button onClick={() => { approveMentor(mentor.id); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
               </div>
@@ -477,19 +605,26 @@ const AdminDashboard = ({ navigateTo }) => {
             <h3 className="font-headline-md text-2xl font-bold text-on-surface">Revenue Analytics</h3>
             <p className="text-sm text-on-surface-variant">View last year, current month, or a custom date range.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {['year', 'month', 'custom'].map((range) => (
-              <button key={range} onClick={() => setRevenueRange(range)} className={`rounded-full px-4 py-2 text-sm font-bold capitalize transition-colors ${revenueRange === range ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant hover:bg-surface-variant'}`}>{range}</button>
-            ))}
-          </div>
         </div>
-        {revenueRange === 'custom' && (
-          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <input type="date" value={customRange.from} onChange={(event) => setCustomRange({ ...customRange, from: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
-            <input type="date" value={customRange.to} onChange={(event) => setCustomRange({ ...customRange, to: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
-          </div>
+        <div className="mb-6">
+          {renderRangeControls(
+            revenueRange,
+            setRevenueRange,
+            revenueYear,
+            setRevenueYear,
+            revenueMonth,
+            setRevenueMonth,
+            customRange,
+            setCustomRange,
+            revenueDateRange.error,
+            () => downloadCsv('earning-analytics', [['Label', 'Revenue'], ...revenueData.map((item) => [item.label, item.value])])
+          )}
+        </div>
+        {revenueDateRange.error ? (
+          <div className="rounded-lg bg-error-container p-4 text-sm font-bold text-on-error-container">{revenueDateRange.error}</div>
+        ) : (
+          renderLineChart(revenueData)
         )}
-        {renderLineChart(revenueData)}
       </div>
     </section>
   );
@@ -579,13 +714,37 @@ const AdminDashboard = ({ navigateTo }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-surface font-body-md">
+    <div className="min-h-screen bg-surface font-body-md">
       {renderSidebar()}
-      <main className="ml-64 w-full bg-surface p-8">
-        <header className="relative mb-12 flex items-center justify-between">
-          <div>
-            <h2 className="font-headline-lg text-4xl font-bold capitalize text-on-surface">{activeView.replace('-', ' ')}</h2>
-            <p className="mt-1 text-on-surface-variant">Manage platform operations, members, and metrics.</p>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close dashboard menu"
+          />
+          <div className="relative h-full w-64">
+            {renderSidebar({ mobile: true })}
+          </div>
+        </div>
+      )}
+
+      <main className="min-h-screen lg:pl-64 w-full bg-surface">
+        <div className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8 pb-28">
+        <header className="relative mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container text-on-surface lg:hidden"
+              aria-label="Open dashboard menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div>
+              <h2 className="font-headline-lg text-2xl sm:text-4xl font-bold capitalize text-on-surface">{activeView.replace('-', ' ')}</h2>
+              <p className="mt-0.5 text-sm sm:text-base text-on-surface-variant">Manage platform operations, members, and metrics.</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -604,7 +763,10 @@ const AdminDashboard = ({ navigateTo }) => {
                       <div key={item.id} className={`border-b border-outline-variant/5 p-4 ${!item.read ? 'bg-primary/5' : ''}`}>
                         <div className="mb-1 flex justify-between gap-3">
                           <span className="text-sm font-bold text-on-surface">{item.title}</span>
-                          <button onClick={() => { deleteNotification(item.id); refreshData(); }} className="text-xs font-bold text-error">Delete</button>
+                          <div className="flex gap-2">
+                            {!item.read && <button onClick={() => { markNotificationRead(item.id); refreshData(); }} className="text-xs font-bold text-secondary">Read</button>}
+                            <button onClick={() => { deleteNotification(item.id); refreshData(); }} className="text-xs font-bold text-error">Delete</button>
+                          </div>
                         </div>
                         <p className="text-xs text-on-surface-variant">{item.message}</p>
                       </div>
@@ -621,7 +783,25 @@ const AdminDashboard = ({ navigateTo }) => {
         </header>
 
         {renderContent()}
+        </div>
       </main>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+        <div className="grid grid-cols-7 gap-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { setActiveView(item.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className={`flex flex-col items-center rounded-xl px-1 py-2 text-[10px] font-semibold ${
+                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[20px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
+              <span className="leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {selectedMember && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">

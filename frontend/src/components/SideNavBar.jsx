@@ -40,7 +40,7 @@ export default function SideNavBar({ currentTab, onNavigate, onLogout }) {
             <span className="material-symbols-outlined text-primary font-bold">architecture</span>
           </div>
           <div>
-            <h1 className="font-headline-md text-sm font-bold text-on-primary leading-none">MentorBridge</h1>
+            <h1 className="font-headline-md text-sm font-bold text-on-primary leading-none">ProLign</h1>
             <p className="font-label-sm text-[10px] text-primary-fixed-dim opacity-80 mt-1 uppercase tracking-wider">{user.role} Dashboard</p>
           </div>
         </div>

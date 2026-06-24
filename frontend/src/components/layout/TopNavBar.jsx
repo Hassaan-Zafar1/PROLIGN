@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { getCurrentUser, logout } from '../../utils/db';
 //landing page navbar
-const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen }) => {
+const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen, theme, toggleTheme }) => {
   const user = getCurrentUser();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
 
@@ -9,8 +9,7 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
     { id: 'home', label: 'Home' },
     { id: 'discovery', label: 'Find Mentors' },
     { id: 'how-it-works', label: 'How it Works' },
-    { id: 'resources', label: 'Resources' },
-    
+    { id: 'help-center', label: 'Help Center' },
   ];
 
   const handleNavigate = (page) => {
@@ -24,7 +23,7 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-outline-variant shadow-sm w-full">
+    <nav className="sticky top-0 z-50 bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant shadow-sm w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleNavigate('home')}>
@@ -38,7 +37,7 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
               </button>
             )}
             <span className="material-symbols-outlined text-primary text-3xl mr-2">school</span>
-            <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">MentorBridge</span>
+            <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">ProLign</span>
           </div>
 
           <div className="hidden md:flex items-center space-x-8">
@@ -51,6 +50,14 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
                 {link.label}
               </button>
             ))}
+
+            <button
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors"
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              <span className="material-symbols-outlined">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+            </button>
             
             {user ? (
               <div className="flex items-center space-x-4 ml-4 pl-4 border-l border-outline-variant">
@@ -80,7 +87,14 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
             )}
           </div>
 
-          <div className="relative md:hidden">
+          <div className="flex items-center gap-1 md:hidden">
+            <button
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors"
+              title={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            >
+              <span className="material-symbols-outlined">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+            </button>
             <button
               type="button"
               onClick={() => setIsNavMenuOpen((open) => !open)}

@@ -32,7 +32,7 @@ export default function Footer({ onNavigate }) {
             onClick={() => onNavigate('home')}
             className="font-headline-md text-xl font-bold text-surface-container-lowest mb-2 cursor-pointer hover:opacity-80"
           >
-            MentorBridge
+            ProLign
           </div>
           <p className="font-body-md text-sm text-surface-dim max-w-xs text-center md:text-left">
             Cultivating meaningful connections for professional growth and wisdom.
@@ -79,7 +79,7 @@ export default function Footer({ onNavigate }) {
             ))}
           </div>
           <div className="font-label-sm text-sm text-surface-dim">
-            &copy; 2026 MentorBridge. All rights reserved.
+            &copy; 2026 ProLign. All rights reserved.
           </div>
         </div>
       </div>

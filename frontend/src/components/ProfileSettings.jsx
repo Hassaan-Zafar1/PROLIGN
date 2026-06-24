@@ -102,6 +102,7 @@ const makeInitialForm = (user) => ({
   preferredCategories: splitList(user?.preferredCategories || user?.mentorshipCategories),
   preferredLevel: user?.preferredLevel || 'Beginner',
   preferredMentorType: user?.preferredMentorType || 'Industry Expert',
+  preferredSessionDuration: user?.preferredSessionDuration || '60 min',
   learningInterests: splitList(user?.learningInterests || user?.preferredCategories),
   sessionTypes: splitList(user?.sessionTypes || user?.mentorshipTypes),
   languages: splitList(user?.languages || user?.language || 'English'),
@@ -131,6 +132,8 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
   const [activeSection, setActiveSection] = useState('personal');
   const [status, setStatus] = useState('');
   const [form, setForm] = useState(() => makeInitialForm(user));
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
   const photoInputRef = useRef(null);
   const resumeInputRef = useRef(null);
 
@@ -222,6 +225,7 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
       mentorshipCategories: toList(form.preferredCategories),
       preferredLevel: form.preferredLevel,
       preferredMentorType: form.preferredMentorType,
+      preferredSessionDuration: form.preferredSessionDuration,
       learningInterests: toList(form.learningInterests),
       sessionTypes: toList(form.sessionTypes),
       mentorshipTypes: toList(form.sessionTypes),
@@ -290,13 +294,22 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
     showStatus('Account marked for deactivation. Save changes to apply.');
   };
 
-  const deleteAccount = () => {
-    const confirmed = window.confirm(role === 'admin' ? 'Remove this admin account? Make sure ownership is transferred first.' : 'Delete your account permanently? This cannot be undone.');
-    if (!confirmed) return;
+  const confirmDelete = () => {
+    if (deleteInput !== user.name) return;
     deleteUser(user.id);
     logout();
     setUser(null);
     onAccountClosed?.();
+  };
+
+  const openDeleteModal = () => {
+    setDeleteInput('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteClick = () => {
+    if (!user) return;
+    openDeleteModal();
   };
 
   const Field = ({ label, field, type = 'text', placeholder = '', children, span = '' }) => (
@@ -479,6 +492,15 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
             <TextArea label="Career Goals" field="careerGoals" rows={4} span="md:col-span-2" placeholder="Where are you trying to go next?" />
             <Field label="Skills To Learn" field="skillsToLearn" placeholder="React, Data Structures, Communication" />
             <Field label="Preferred Industries" field="preferredIndustries" placeholder="Software, AI, Product, Finance" />
+            <div className="space-y-3 md:col-span-2">
+              <Field label="Resume / CV URL" field="resumeUrl" placeholder="https://..." />
+              <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" onChange={handleResumeFile} className="hidden" />
+              <button type="button" onClick={() => resumeInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-lg bg-surface-container px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high">
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                Upload Resume/CV
+              </button>
+              {form.resumeName && <p className="text-sm font-semibold text-on-surface-variant">Selected: {form.resumeName}</p>}
+            </div>
           </div>
         );
       case 'mentorPreferences':
@@ -516,6 +538,14 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
                   <option>Career Coach</option>
                   <option>Technical Mentor</option>
                   <option>Peer Mentor</option>
+                </select>
+              </Field>
+              <Field label="Preferred Session Duration" field="preferredSessionDuration">
+                <select value={form.preferredSessionDuration || '60 min'} onChange={(event) => setField('preferredSessionDuration', event.target.value)} className="w-full rounded-lg border border-outline-variant/25 bg-surface px-3 py-3 outline-none focus:ring-2 focus:ring-secondary/30">
+                  <option>30 min</option>
+                  <option>45 min</option>
+                  <option>60 min</option>
+                  <option>90 min</option>
                 </select>
               </Field>
               <Field label="Languages" field="languages" placeholder="English, Urdu" />
@@ -564,7 +594,7 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
       case 'adminNotifications':
         return (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Toggle label="New Registrations" detail="Notify me when new users join MentorBridge." field="notifyNewRegistrations" />
+            <Toggle label="New Registrations" detail="Notify me when new users join ProLign." field="notifyNewRegistrations" />
             <Toggle label="Mentor Applications" detail="Notify me when a mentor submits or updates an application." field="notifyMentorApplications" />
             <Toggle label="Platform Announcements" field="emailAnnouncements" />
             <Toggle label="Push Notifications" field="pushEnabled" />
@@ -623,28 +653,62 @@ const ProfileSettings = ({ compact = false, onSaved, onAccountClosed }) => {
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             )}
-            {role === 'admin' && (
-              <button type="button" className="flex w-full items-center justify-between rounded-lg bg-surface-container-low p-4 text-left text-on-surface transition-colors hover:bg-surface-container">
-                <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined">manage_accounts</span>
-                  <span>
-                    <span className="block font-bold">Transfer Ownership</span>
-                    <span className="text-sm text-on-surface-variant">Confirm another admin owns platform operations before removing this account.</span>
-                  </span>
-                </span>
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
-            )}
-            <button type="button" onClick={deleteAccount} className="flex w-full items-center justify-between rounded-lg bg-error-container p-4 text-left text-on-error-container transition-opacity hover:opacity-90">
+            <button type="button" onClick={handleDeleteClick} className="flex w-full items-center justify-between rounded-lg bg-error-container p-4 text-left text-on-error-container transition-opacity hover:opacity-90">
               <span className="flex items-center gap-3">
                 <span className="material-symbols-outlined">delete</span>
                 <span>
-                  <span className="block font-bold">{role === 'admin' ? 'Remove Account' : 'Delete Account'}</span>
+                  <span className="block font-bold">Delete Account</span>
                   <span className="text-sm opacity-80">Permanently remove this account, bookings, and sessions.</span>
                 </span>
               </span>
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
+
+            {showDeleteModal && (
+              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-3xl border border-outline-variant/15 bg-surface-container-lowest p-8 shadow-2xl">
+                  <div className="mb-6 text-center">
+                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error-container text-on-error-container">
+                      <span className="material-symbols-outlined text-3xl">warning</span>
+                    </span>
+                    <h3 className="mt-4 font-headline-md text-2xl font-bold text-on-surface">Are you sure?</h3>
+                    <p className="mt-2 text-sm text-on-surface-variant">
+                      This action is permanent and cannot be undone. All your data, bookings, and sessions will be removed.
+                    </p>
+                  </div>
+
+                  <div className="mb-6 space-y-3">
+                    <p className="text-sm font-semibold text-on-surface">
+                      Type <strong className="text-error">{user?.name}</strong> to confirm deletion:
+                    </p>
+                    <input
+                      value={deleteInput}
+                      onChange={(event) => setDeleteInput(event.target.value)}
+                      className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-error/30"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={confirmDelete}
+                      disabled={deleteInput !== user?.name}
+                      className="w-full rounded-2xl bg-error py-3.5 font-bold text-on-error shadow-md transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Yes, Delete My Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(false)}
+                      className="w-full rounded-2xl border border-outline-variant/20 bg-surface-container py-3.5 font-bold text-on-surface transition-colors hover:bg-surface-container-high"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       default:

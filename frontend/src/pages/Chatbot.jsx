@@ -6,7 +6,7 @@ const Chatbot = ({ navigateTo }) => {
     {
       id: 1,
       sender: 'ai',
-      text: "Hello! I'm your MentorBridge AI assistant. I can help you refine your resume, practice for interviews, or explore new career paths. What's on your mind today?",
+      text: "Hello! I'm your ProLign AI assistant. I can help you refine your resume, practice for interviews, or explore new career paths. What's on your mind today?",
       time: "10:00 AM"
     },
     {
@@ -100,7 +100,7 @@ const Chatbot = ({ navigateTo }) => {
               <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
                 <span className="material-symbols-outlined text-secondary text-[20px] fill-icon">smart_toy</span>
               </div>
-              <h1 className="font-headline-md text-2xl text-primary font-bold">MentorBridge AI</h1>
+              <h1 className="font-headline-md text-2xl text-primary font-bold">ProLign AI</h1>
             </div>
             <button className="material-symbols-outlined text-outline hover:text-primary transition-colors">info</button>
           </div>
@@ -166,7 +166,7 @@ const Chatbot = ({ navigateTo }) => {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 py-2 custom-scrollbar resize-none font-body-md outline-none" 
-                placeholder="Message MentorBridge AI..." 
+                placeholder="Message ProLign AI..." 
                 rows="1"
                 style={{ height: 'auto', maxHeight: '150px' }}
               ></textarea>
@@ -180,7 +180,7 @@ const Chatbot = ({ navigateTo }) => {
                 </button>
               </div>
             </div>
-            <p className="text-center text-[10px] text-on-surface-variant/40 mt-3 uppercase tracking-widest font-bold">Powered by MentorBridge Wisdom Engine</p>
+            <p className="text-center text-[10px] text-on-surface-variant/40 mt-3 uppercase tracking-widest font-bold">Powered by ProLign Wisdom Engine</p>
           </div>
         </div>
       </main>

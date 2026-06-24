@@ -20,7 +20,7 @@ export default function TopNavBar({ currentTab, onNavigate, onLogout }) {
             className="font-headline-md text-2xl font-bold text-primary cursor-pointer hover:opacity-80 transition-opacity"
             id="nav-logo"
           >
-            MentorBridge
+            ProLign
           </span>
           
           <nav className="hidden md:flex gap-6 items-center">

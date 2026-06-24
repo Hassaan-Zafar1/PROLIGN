@@ -19,7 +19,7 @@ const KNOWLEDGE_BASE = [
 export default function ChatbotPage({ onNavigate }) {
   const user = getCurrentUser();
   const [messages, setMessages] = useState([
-    { sender: "ai", text: "Hello! I am your MentorBridge AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
+    { sender: "ai", text: "Hello! I am your ProLign AI Career Assistant. Ask me anything about placement prep, resumes, system design, or platform usage!", time: "Now" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -87,7 +87,7 @@ export default function ChatbotPage({ onNavigate }) {
               smart_toy
             </span>
             <div>
-              <h2 className="font-headline-md text-base font-bold text-on-primary">MentorBridge AI Assistant</h2>
+              <h2 className="font-headline-md text-base font-bold text-on-primary">ProLign AI Assistant</h2>
               <p className="text-[10px] text-primary-fixed-dim uppercase tracking-widest mt-1">RAG Career preparedness bot online</p>
             </div>
           </div>
@@ -98,9 +98,9 @@ export default function ChatbotPage({ onNavigate }) {
           {messages.map((m, idx) => (
             <div key={idx} className={`flex gap-4 items-start ${m.sender === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-sm ${
-                m.sender === 'user' ? 'bg-primary-fixed text-primary' : 'bg-surface-container border border-outline-variant/30'
+                m.sender === 'user' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container border border-outline-variant/30'
               }`}>
-                <span className={`material-symbols-outlined text-[20px] ${m.sender === 'user' ? 'text-primary' : 'text-secondary'}`}>
+                <span className={`material-symbols-outlined text-[20px] ${m.sender === 'user' ? 'text-on-primary-fixed' : 'text-secondary'}`}>
                   {m.sender === 'user' ? 'person' : 'auto_awesome'}
                 </span>
               </div>

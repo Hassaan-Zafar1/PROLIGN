@@ -1,7 +1,7 @@
 import React from 'react';
 import { getCurrentUser } from '../../utils/db';
 
-const SideNavBar = ({ navigateTo, currentPage, isOpen, onClose }) => {
+const SideNavBar = ({ navigateTo, currentPage, isOpen, onClose, theme, toggleTheme }) => {
   const user = getCurrentUser();
   if (!user) return null;
 
@@ -38,8 +38,8 @@ const SideNavBar = ({ navigateTo, currentPage, isOpen, onClose }) => {
   const links = getLinks();
 
   const NavContent = () => (
-    <div className="p-6">
-      <div className="mb-8">
+    <div className="flex h-full flex-col p-6">
+      <div className="flex-1">
         <p className="text-xs font-semibold text-outline tracking-wider uppercase mb-4">Menu</p>
         <nav className="space-y-1">
           {links.map((link) => (
@@ -62,6 +62,16 @@ const SideNavBar = ({ navigateTo, currentPage, isOpen, onClose }) => {
             </button>
           ))}
         </nav>
+      </div>
+
+      <div className="border-t border-outline-variant/10 pt-4">
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-variant"
+        >
+          <span className="material-symbols-outlined text-on-surface-variant">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+          <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+        </button>
       </div>
     </div>
   );

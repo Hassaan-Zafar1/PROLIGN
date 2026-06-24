@@ -8,7 +8,7 @@ const INITIAL_DATA = {
       id: "u1",
       name: "Dr. Emily Chen",
       role: "mentor",
-      email: "mentor@mentorbridge.com",
+      email: "mentor@prolign.com",
       password: "mentor123",
       title: "Senior AI Researcher",
       company: "TechNexus",
@@ -22,25 +22,6 @@ const INITIAL_DATA = {
       bio: "Passionate about AI ethics and mentoring the next generation of data scientists.",
       status: "approved",
       createdAt: "2025-07-12T10:00:00Z"
-    },
-     {
-      id: "u1",
-      name: "Dr. Emily Chen",
-      role: "mentor",
-      email: "mentee@mentorbridge.com",
-      password: "mentee123",
-      title: "Senior AI Researcher",
-      company: "TechNexus",
-      industry: "Artificial Intelligence",
-      skills: ["Machine Learning", "Python", "Data Science", "Deep Learning"],
-      rating: 4.9,
-      reviews: 124,
-      hourlyRate: 150,
-      avatar: "https://i.pravatar.cc/150?u=emily",
-      availability: ["Monday 10:00 AM", "Wednesday 2:00 PM"],
-      bio: "Passionate about AI ethics and mentoring the next generation of data scientists.",
-      status: "approved",
-      createdAt: "2025-08-03T10:00:00Z"
     },
     {
       id: "u2",
@@ -170,7 +151,7 @@ const INITIAL_DATA = {
       id: "mentee1",
       name: "Sarah Jenkins",
       role: "mentee",
-      email: "mentee@mentorbridge.com",
+      email: "mentee@prolign.com",
       password: "mentee123",
       title: "Computer Science Student",
       skills: ["JavaScript", "React"],
@@ -190,7 +171,7 @@ const INITIAL_DATA = {
       id: "admin1",
       name: "System Admin",
       role: "admin",
-      email: "admin@mentorbridge.com",
+      email: "admin@prolign.com",
       password: "password123",
       avatar: "https://i.pravatar.cc/150?u=admin",
       createdAt: "2025-06-01T10:00:00Z"
@@ -288,7 +269,7 @@ const INITIAL_DATA = {
       name: "David K.",
       role: "Frontend Engineer",
       company: "TechNova",
-      quote: "MentorBridge transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
+      quote: "ProLign transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
       avatar: "https://i.pravatar.cc/150?u=david",
       published: true
     },
@@ -300,35 +281,44 @@ const INITIAL_DATA = {
       quote: "My mentor helped me navigate the transition from engineering to product management seamlessly. The flexible scheduling was a lifesaver.",
       avatar: "https://i.pravatar.cc/150?u=elena",
       published: true
+    },
+    {
+      id: "t3",
+      name: "Marcus T.",
+      role: "Data Scientist",
+      company: "Analytix Labs",
+      quote: "The AI matching was spot-on. My mentor\u2019s guidance on machine learning pipelines saved me months of trial and error. I landed my dream role within weeks.",
+      avatar: "https://i.pravatar.cc/150?u=marcus",
+      published: true
     }
   ],
   currentUser: null // Will store the ID of the currently logged in user
 };
 
 export const initDB = () => {
-  if (!localStorage.getItem("mentorBridgeDB")) {
+  if (!localStorage.getItem("prolignDB")) {
     const initialDB = { ...INITIAL_DATA, siteContent: getStoredSiteContent() };
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(initialDB));
+    localStorage.setItem("prolignDB", JSON.stringify(initialDB));
     saveStoredSiteContent(initialDB.siteContent);
   }
 };
 
 export const getDB = () => {
-  const dbStr = localStorage.getItem("mentorBridgeDB");
+  const dbStr = localStorage.getItem("prolignDB");
   let db = dbStr ? JSON.parse(dbStr) : INITIAL_DATA;
   
   // Migration: ensure admin user exists in existing DBs
   if (!db.users.find(u => u.id === "admin1")) {
     const adminUser = INITIAL_DATA.users.find(u => u.id === "admin1");
     if (adminUser) db.users.push(adminUser);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   // Migration: ensure default seeded credentials stay valid
   const credentialSeeds = [
-    { id: 'admin1', email: 'admin@mentorbridge.com', password: 'password123' },
-    { id: 'u1', email: 'mentor@mentorbridge.com', password: 'mentor123' },
-    { id: 'mentee1', email: 'mentee@mentorbridge.com', password: 'mentee123' },
+    { id: 'admin1', email: 'admin@prolign.com', password: 'password123' },
+    { id: 'u1', email: 'mentor@prolign.com', password: 'mentor123' },
+    { id: 'mentee1', email: 'mentee@prolign.com', password: 'mentee123' },
   ];
   let credentialsUpdated = false;
   credentialSeeds.forEach((seed) => {
@@ -340,32 +330,32 @@ export const getDB = () => {
     }
   });
   if (credentialsUpdated) {
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure new mock mentors exist
   const newMentors = INITIAL_DATA.users.filter(u => u.role === 'mentor' && !db.users.find(existing => existing.id === u.id));
   if (newMentors.length > 0) {
     db.users.push(...newMentors);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure sessions exist
   if (!db.sessions) {
     db.sessions = INITIAL_DATA.sessions;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   const missingSessions = INITIAL_DATA.sessions.filter(
     (session) => !db.sessions.find((existingSession) => existingSession.id === session.id)
   );
   if (missingSessions.length > 0) {
     db.sessions.push(...missingSessions);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.bookings) {
     db.bookings = INITIAL_DATA.bookings;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   const newBookings = INITIAL_DATA.bookings.filter(
@@ -373,32 +363,50 @@ export const getDB = () => {
   );
   if (newBookings.length > 0) {
     db.bookings.push(...newBookings);
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.reviews) {
     db.reviews = INITIAL_DATA.reviews;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure notifications exist
   if (!db.notifications) {
     db.notifications = INITIAL_DATA.notifications;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
   
   // Migration: ensure testimonials exist
   if (!db.testimonials) {
     db.testimonials = INITIAL_DATA.testimonials;
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
+  }
+
+  const missingTestimonials = INITIAL_DATA.testimonials.filter(
+    (t) => !db.testimonials.find((existing) => existing.id === t.id)
+  );
+  if (missingTestimonials.length > 0) {
+    db.testimonials.push(...missingTestimonials);
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   if (!db.siteContent) {
     db.siteContent = getDefaultSiteContent();
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   let metadataUpdated = false;
+  const seenIds = new Set();
+  db.users = db.users.map((user) => {
+    if (seenIds.has(user.id)) {
+      metadataUpdated = true;
+      return { ...user, id: `${user.role || 'user'}-${Date.now()}-${Math.random().toString(16).slice(2)}` };
+    }
+    seenIds.add(user.id);
+    return user;
+  });
+
   db.users.forEach((user, index) => {
     if (!user.createdAt) {
       const monthOffset = index % 12;
@@ -420,7 +428,7 @@ export const getDB = () => {
   });
 
   if (metadataUpdated) {
-    localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+    localStorage.setItem("prolignDB", JSON.stringify(db));
   }
 
   saveStoredSiteContent(db.siteContent);
@@ -429,7 +437,7 @@ export const getDB = () => {
 };
 
 export const saveDB = (db) => {
-  localStorage.setItem("mentorBridgeDB", JSON.stringify(db));
+  localStorage.setItem("prolignDB", JSON.stringify(db));
   saveStoredSiteContent(db.siteContent || getDefaultSiteContent());
 };
 
@@ -511,15 +519,80 @@ export const getBookingsForUser = (userId) => {
 
 export const createBooking = (bookingData) => {
   const db = getDB();
+  const mentor = db.users.find((user) => user.id === bookingData.mentorId);
+  const mentee = db.users.find((user) => user.id === bookingData.menteeId);
   const newBooking = {
     ...bookingData,
     id: `b${Date.now()}`,
-    status: "scheduled",
-    paymentStatus: "paid"
+    status: "Pending",
+    paymentStatus: "paid",
+    createdAt: new Date().toISOString()
   };
   db.bookings.push(newBooking);
+
+  if (!db.sessions) db.sessions = [];
+  db.sessions.push({
+    id: `s${Date.now()}`,
+    bookingId: newBooking.id,
+    menteeId: bookingData.menteeId,
+    mentorId: bookingData.mentorId,
+    menteeName: mentee?.name || 'Mentee',
+    menteeAvatar: mentee?.avatar || '',
+    dateTime: bookingData.date,
+    time: bookingData.time,
+    type: bookingData.sessionType || bookingData.type || 'Mentorship Session',
+    topic: bookingData.sessionType || bookingData.type || 'Mentorship Session',
+    notes: bookingData.notes || '',
+    amount: bookingData.amount || mentor?.hourlyRate || 0,
+    status: 'Pending',
+    paymentStatus: 'paid',
+    createdAt: new Date().toISOString(),
+    isRated: false
+  });
+
+  if (!db.notifications) db.notifications = [];
+  const bookingMessage = `${mentee?.name || 'A mentee'} booked ${mentor?.name || 'a mentor'} for ${bookingData.sessionType || 'a mentorship session'} on ${bookingData.date} at ${bookingData.time}.`;
+  db.notifications.unshift({
+    id: `n${Date.now()}`,
+    title: 'New Booking Request',
+    message: bookingMessage,
+    timestamp: new Date().toISOString(),
+    read: false,
+    type: 'booking',
+    userId: bookingData.mentorId
+  }, {
+    id: `n${Date.now() + 1}`,
+    title: 'Booking Submitted',
+    message: `Your booking with ${mentor?.name || 'your mentor'} is pending approval for ${bookingData.date} at ${bookingData.time}.`,
+    timestamp: new Date().toISOString(),
+    read: false,
+    type: 'booking',
+    userId: bookingData.menteeId
+  });
   saveDB(db);
   return newBooking;
+};
+
+export const getMentorAvailability = (mentorId) => {
+  const mentor = getUserById(mentorId);
+  return mentor?.availabilitySlots || {};
+};
+
+export const updateMentorAvailability = (mentorId, date, times) => {
+  const db = getDB();
+  const mentor = db.users.find((user) => user.id === mentorId);
+  if (mentor) {
+    mentor.availabilitySlots = mentor.availabilitySlots || {};
+    const cleanedTimes = [...new Set((times || []).filter(Boolean))];
+    if (cleanedTimes.length > 0) {
+      mentor.availabilitySlots[date] = cleanedTimes;
+    } else {
+      delete mentor.availabilitySlots[date];
+    }
+    if (db.currentUser?.id === mentorId) db.currentUser = mentor;
+    saveDB(db);
+  }
+  return { success: true };
 };
 
 export const updateBookingStatus = (bookingId, status) => {
@@ -527,6 +600,8 @@ export const updateBookingStatus = (bookingId, status) => {
   const index = db.bookings.findIndex(b => b.id === bookingId);
   if (index !== -1) {
     db.bookings[index].status = status;
+    const session = (db.sessions || []).find((item) => item.bookingId === bookingId);
+    if (session) session.status = status;
     saveDB(db);
   }
 };
@@ -541,6 +616,20 @@ export const saveSessions = (sessions) => {
   const db = getDB();
   db.sessions = sessions;
   saveDB(db);
+};
+
+export const updateSessionStatus = (sessionId, status) => {
+  const db = getDB();
+  const session = (db.sessions || []).find((item) => item.id === sessionId);
+  if (session) {
+    session.status = status;
+    if (session.bookingId) {
+      const booking = (db.bookings || []).find((item) => item.id === session.bookingId);
+      if (booking) booking.status = status;
+    }
+    saveDB(db);
+  }
+  return { success: true };
 };
 
 export const getMentors = () => {
