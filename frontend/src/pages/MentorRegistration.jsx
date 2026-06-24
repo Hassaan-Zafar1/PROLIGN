@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { getDB } from '../utils/db';
+import { useState } from 'react';
+import { authService } from '../services/authService';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validateLinkedIn = (url) => /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(url.trim());
@@ -13,28 +13,20 @@ const validatePassword = (pwd) => {
   return errors;
 };
 
-const MentorRegistration = ({ navigateTo }) => {
-  const [step, setStep] = useState('form');
+export default function MentorRegistration({ navigateTo }) {
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', linkedIn: '', hourlyRate: '' });
   const [cvFile, setCvFile] = useState(null);
   const [cvError, setCvError] = useState('');
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-
-  // OTP state
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [apiError, setApiError] = useState('');
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const emailExists = (email) => {
-    const db = getDB();
-    return db.users.some(u => u.email?.toLowerCase() === email.toLowerCase());
-  };
-
   const validate = () => {
     const errs = {};
-    const { name, email, password, confirmPassword, linkedIn } = form;
+    const { name, email, password, confirmPassword, linkedIn, hourlyRate } = form;
 
     if (!name.trim()) errs.name = 'Name is required.';
     else if (name.trim().length < 2) errs.name = 'Name must be at least 2 characters.';
@@ -42,7 +34,6 @@ const MentorRegistration = ({ navigateTo }) => {
 
     if (!email.trim()) errs.email = 'Email is required.';
     else if (!validateEmail(email)) errs.email = 'Enter a valid email address.';
-    else if (emailExists(email)) errs.email = 'This email is already registered.';
 
     const pwdErrors = validatePassword(password);
     if (!password) errs.password = 'Password is required.';
@@ -54,7 +45,11 @@ const MentorRegistration = ({ navigateTo }) => {
     if (!linkedIn.trim()) errs.linkedIn = 'LinkedIn profile URL is required.';
     else if (!validateLinkedIn(linkedIn)) errs.linkedIn = 'Please enter a valid LinkedIn profile URL.';
 
+    if (!hourlyRate.trim() || Number(hourlyRate) <= 0) errs.hourlyRate = 'Please specify a valid hourly rate.';
+
     if (!cvFile) errs.cv = 'CV/Resume is required.';
+    if (cvError) errs.cv = cvError;
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -73,7 +68,7 @@ const MentorRegistration = ({ navigateTo }) => {
     setTouched(prev => ({ ...prev, [field]: true }));
     const errs = { ...errors };
     const nameVal = form.name;
-    if (field === 'name' && touched.name) {
+    if (field === 'name') {
       if (!nameVal.trim()) errs.name = 'Name is required.';
       else if (nameVal.trim().length < 2) errs.name = 'Name must be at least 2 characters.';
       else if (nameVal.trim().length > 100) errs.name = 'Name must be under 100 characters.';
@@ -82,24 +77,39 @@ const MentorRegistration = ({ navigateTo }) => {
     setErrors(errs);
   };
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 3) otpRefs[index + 1].current.focus();
-  };
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setApiError('');
 
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs[index - 1].current.focus();
-  };
+    const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), { cv: true });
+    setTouched(allTouched);
 
-  const handleSubmitApplication = () => {
-    if (validate()) setStep('otp');
-  };
+    if (!validate()) {
+      return;
+    }
 
-  const handleVerifyOtp = () => {
-    if (otp.join('').length === 4) { setStep('success'); window.scrollTo(0, 0); }
+    setLoading(true);
+
+    try {
+      const response = await authService.register(
+        form.email, 
+        form.password, 
+        'mentor', 
+        {
+          name: form.name,
+          linkedIn: form.linkedIn,
+          hourlyRate: Number(form.hourlyRate),
+          cv: cvFile 
+        }
+      );
+      
+      navigateTo('verify-otp', { userId: response.userId });
+    } catch (error) {
+      console.error('Registration failed:', error);
+      setApiError(error.response?.data?.message || 'Registration failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = (field) =>
@@ -108,35 +118,6 @@ const MentorRegistration = ({ navigateTo }) => {
     }`;
 
   const renderError = (field) => errors[field] && touched[field] ? <p className="text-error text-xs mt-1 font-semibold">{errors[field]}</p> : null;
-
-  if (step === 'success') {
-    return (
-      <div className="flex-1 flex items-center justify-center py-24">
-        <div className="text-center max-w-lg">
-          <div className="relative w-48 h-48 mx-auto mb-8">
-            <div className="absolute inset-0 bg-secondary/10 rounded-full animate-ping"></div>
-            <div className="relative bg-secondary text-on-primary w-48 h-48 rounded-full flex items-center justify-center shadow-xl">
-              <span className="material-symbols-outlined text-6xl fill-icon">assignment_turned_in</span>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-primary mb-4">Application Submitted — Under Review</h2>
-          <div className="flex justify-center mb-6">
-            <span className="bg-surface-dim text-on-surface px-6 py-2 rounded-full font-bold flex items-center gap-2 border border-outline-variant">
-              <span className="w-2 h-2 bg-on-tertiary-container rounded-full animate-pulse"></span>
-              Pending Review
-            </span>
-          </div>
-          <p className="text-on-surface-variant mb-8 leading-relaxed">
-            Thank you for your interest in ProLign. Our curation team will review your credentials and get back to you within 3-5 business days via email.
-          </p>
-          <div className="flex flex-col md:flex-row gap-4 justify-center">
-            <button onClick={() => navigateTo('home')} className="px-8 py-3 bg-primary text-on-primary rounded-lg font-bold shadow-md hover:scale-[1.02] transition-transform">Back to Home</button>
-            <button onClick={() => navigateTo('discovery')} className="px-8 py-3 border-2 border-secondary text-secondary rounded-lg font-bold hover:bg-secondary/5 transition-colors">Browse Marketplace</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full bg-surface px-4 py-10 md:px-10">
@@ -165,7 +146,13 @@ const MentorRegistration = ({ navigateTo }) => {
           </div>
         </div>
 
-        <form className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch" onSubmit={(e) => e.preventDefault()} noValidate>
+        {apiError && (
+          <div className="mb-6 p-4 bg-error/10 border border-error text-error rounded-lg text-sm font-semibold">
+            {apiError}
+          </div>
+        )}
+
+        <form className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch" onSubmit={handleRegister} noValidate>
           {/* Personal Information */}
           <section className="space-y-6 bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10 natural-shadow h-full">
             <h2 className="text-2xl font-bold text-primary mb-6">Personal Identity</h2>
@@ -239,40 +226,24 @@ const MentorRegistration = ({ navigateTo }) => {
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2">Hourly Rate (USD) <span className="text-error">*</span></label>
                 <div className="relative">
-                  <input className="w-full bg-surface-dim border-none rounded-lg p-3 pl-8 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all outline-none" placeholder="120" type="number" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value)} required />
+                  <input className={`${inputClass('hourlyRate')} pl-8`} placeholder="120" type="number" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, hourlyRate: true }))} required />
                   <span className="absolute left-3 top-3 text-on-surface-variant font-bold">$</span>
                 </div>
+                {renderError('hourlyRate')}
               </div>
             </div>
             <div className="pt-6 mt-auto">
-              <button className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md text-lg" onClick={handleSubmitApplication} type="button">Submit Application</button>
+              <button 
+                className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md text-lg disabled:opacity-50 disabled:cursor-not-allowed" 
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Submitting Application...' : 'Submit Application'}
+              </button>
             </div>
           </section>
         </form>
-
-        {/* OTP Modal */}
-        {step === 'otp' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-on-background/40 backdrop-blur-sm">
-            <div className="bg-surface-container-lowest max-w-md w-full rounded-2xl p-8 shadow-2xl animate-fade-in relative">
-              <button onClick={() => setStep('form')} className="absolute top-4 right-4 text-on-surface-variant hover:text-error transition-colors"><span className="material-symbols-outlined">close</span></button>
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-secondary-container rounded-full flex items-center justify-center mx-auto mb-4"><span className="material-symbols-outlined text-secondary text-3xl">mail</span></div>
-                <h3 className="text-2xl font-bold text-primary">Verify Email</h3>
-                <p className="text-on-surface-variant mt-2">Enter the 4-digit code sent to your email.</p>
-              </div>
-              <div className="flex justify-center gap-4 mb-8">
-                {otp.map((digit, index) => (
-                  <input key={index} ref={otpRefs[index]} value={digit} onChange={(e) => handleOtpChange(index, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(index, e)} className="w-14 h-16 bg-surface-container-high border-2 border-transparent focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none text-center text-2xl font-bold rounded-xl transition-all" maxLength="1" type="text" />
-                ))}
-              </div>
-              <button className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:opacity-90 transition-opacity" onClick={handleVerifyOtp}>Verify & Continue</button>
-              <p className="text-center mt-4 text-sm font-semibold text-on-surface-variant">Didn't receive a code? <button className="text-secondary font-bold hover:underline">Resend</button></p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
-};
-
-export default MentorRegistration;
+}

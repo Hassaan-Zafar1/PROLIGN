@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getDB } from '../utils/db';
+import { authService } from '../services/authService';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validateLinkedIn = (url) => /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(url.trim());
@@ -13,20 +13,16 @@ const validatePassword = (pwd) => {
   return errors;
 };
 
-const MenteeRegistration = ({ navigateTo }) => {
-  const [step, setStep] = useState('form');
+export default function MenteeRegistration({ navigateTo }) {
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', linkedIn: '' });
   const [cvFile, setCvFile] = useState(null);
   const [cvError, setCvError] = useState('');
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [apiError, setApiError] = useState('');
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-
-  const emailExists = (email) => {
-    const db = getDB();
-    return db.users.some(u => u.email?.toLowerCase() === email.toLowerCase());
-  };
 
   const validate = () => {
     const errs = {};
@@ -38,7 +34,6 @@ const MenteeRegistration = ({ navigateTo }) => {
 
     if (!email.trim()) errs.email = 'Email is required.';
     else if (!validateEmail(email)) errs.email = 'Enter a valid email address.';
-    else if (emailExists(email)) errs.email = 'This email is already registered.';
 
     const pwdErrors = validatePassword(password);
     if (!password) errs.password = 'Password is required.';
@@ -51,6 +46,7 @@ const MenteeRegistration = ({ navigateTo }) => {
     else if (!validateLinkedIn(linkedIn)) errs.linkedIn = 'Please enter a valid LinkedIn profile URL.';
 
     if (cvError) errs.cv = cvError;
+    
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -65,8 +61,36 @@ const MenteeRegistration = ({ navigateTo }) => {
     setCvFile(file);
   };
 
-  const handleRegister = () => {
-    if (validate()) { setStep('success'); window.scrollTo(0, 0); }
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setApiError('');
+
+    if (!validate()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await authService.register(
+        form.email, 
+        form.password, 
+        'mentee', 
+        {
+          name: form.name,
+          linkedIn: form.linkedIn,
+          cv: cvFile 
+        }
+      );
+      
+      // Pass route label and state data context up to your customized app engine
+      navigateTo('verify-otp', { userId: response.userId });
+    } catch (error) {
+      console.error('Registration failed:', error);
+      setApiError(error.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = (field) =>
@@ -75,27 +99,6 @@ const MenteeRegistration = ({ navigateTo }) => {
     }`;
 
   const renderError = (field) => errors[field] && touched[field] ? <p className="text-error text-xs mt-1 font-semibold">{errors[field]}</p> : null;
-
-  if (step === 'success') {
-    return (
-      <div className="flex-1 flex items-center justify-center py-24 px-4">
-        <div className="text-center max-w-lg">
-          <div className="relative w-48 h-48 mx-auto mb-8">
-            <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping"></div>
-            <div className="relative bg-primary text-on-primary w-48 h-48 rounded-full flex items-center justify-center shadow-xl">
-              <span className="material-symbols-outlined text-6xl">how_to_reg</span>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-primary mb-4">Welcome to ProLign!</h2>
-          <p className="text-on-surface-variant mb-8 leading-relaxed">Your account has been created. Set up your profile and start connecting with mentors.</p>
-          <div className="flex flex-col md:flex-row gap-4 justify-center">
-            <button onClick={() => navigateTo('onboarding')} className="px-8 py-3 bg-primary text-on-primary rounded-lg font-bold shadow-md hover:scale-[1.02] transition-transform">Complete Your Profile</button>
-            <button onClick={() => navigateTo('discovery')} className="px-8 py-3 border-2 border-secondary text-secondary rounded-lg font-bold hover:bg-secondary/5 transition-colors">Browse Mentors</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full bg-surface px-4 py-10 md:px-10">
@@ -115,7 +118,13 @@ const MenteeRegistration = ({ navigateTo }) => {
           <p className="text-on-surface-variant max-w-2xl text-lg">Create your free account to connect with expert mentors who will help you achieve your goals.</p>
         </div>
 
-        <form className="space-y-8" onSubmit={(e) => e.preventDefault()} noValidate>
+        {apiError && (
+          <div className="mb-6 p-4 bg-error/10 border border-error text-error rounded-lg text-sm font-semibold">
+            {apiError}
+          </div>
+        )}
+
+        <form className="space-y-8" onSubmit={handleRegister} noValidate>
           <section className="space-y-6 bg-surface-container-low p-8 rounded-xl border border-outline-variant/10 natural-shadow">
             <h2 className="text-2xl font-bold text-primary">Personal Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -179,7 +188,13 @@ const MenteeRegistration = ({ navigateTo }) => {
             </div>
           </section>
 
-          <button onClick={handleRegister} className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] transition-all shadow-md text-lg" type="button">Create Account</button>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full bg-primary text-on-primary py-4 rounded-lg font-bold hover:scale-[1.01] transition-all shadow-md text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Registering...' : 'Create Account'}
+          </button>
 
           <p className="text-center text-sm text-on-surface-variant">
             Already have an account?{' '}
@@ -189,6 +204,4 @@ const MenteeRegistration = ({ navigateTo }) => {
       </div>
     </div>
   );
-};
-
-export default MenteeRegistration;
+}
