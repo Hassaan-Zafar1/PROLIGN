@@ -15,16 +15,17 @@ export const AuthProvider = ({ children }) => {
       const token = tokenManager.getAccessToken();
 
       if (token) {
-        setIsAuthenticated(true);
-
         // Try to get fresh user data from API
         try {
           const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
           tokenManager.setUser(currentUser);
+          setUser(currentUser);
+          setIsAuthenticated(true);
         } catch (error) {
-          console.error('Failed to fetch user:', error);
+          // Token invalid or expired — clear everything
+          console.error('Session invalid:', error);
           tokenManager.clearTokens();
+          setUser(null);
           setIsAuthenticated(false);
         }
       }
@@ -35,27 +36,24 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  const login = async (userData, token) => {
+  // ✅ Token set first, no extra API call — userData from verifyOTP is sufficient
+  const login = (userData, token) => {
     tokenManager.setAccessToken(token);
+    tokenManager.setUser(userData);
+    setUser(userData);
     setIsAuthenticated(true);
-
-    // Fetch full user data from API
-    try {
-      const fullUserData = await authService.getCurrentUser();
-      tokenManager.setUser(fullUserData);
-      setUser(fullUserData);
-    } catch (error) {
-      // If API call fails, use provided userData as fallback
-      console.error('Failed to fetch full user data:', error);
-      tokenManager.setUser(userData);
-      setUser(userData);
-    }
   };
 
-  const logout = () => {
-    tokenManager.clearTokens();
-    setUser(null);
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      tokenManager.clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   const updateUser = (userData) => {
