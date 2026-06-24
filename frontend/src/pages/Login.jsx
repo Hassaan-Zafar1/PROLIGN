@@ -21,7 +21,7 @@ const Login = ({ navigateTo }) => {
     setLoading(true);
 
     try {
-      const response = await authService.login(email, password);
+      const response = await authService.login({email, password});
 
       // If email not verified, redirect to OTP verification
       if (response.userId) {

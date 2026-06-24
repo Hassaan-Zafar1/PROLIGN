@@ -91,17 +91,14 @@ export default function MentorRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
-      const response = await authService.register(
-        form.email, 
-        form.password, 
-        'mentor', 
-        {
-          name: form.name,
-          linkedIn: form.linkedIn,
-          hourlyRate: Number(form.hourlyRate),
-          cv: cvFile 
-        }
-      );
+      const response = await authService.register({
+        email: form.email,
+        password: form.password,
+        role: 'mentor',
+        name: form.name,
+        linkedinUrl: form.linkedIn,
+        hourlyRate: Number(form.hourlyRate),
+      });
       
       navigateTo('verify-otp', { userId: response.userId });
     } catch (error) {

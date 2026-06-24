@@ -72,16 +72,13 @@ export default function MenteeRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
-      const response = await authService.register(
-        form.email, 
-        form.password, 
-        'mentee', 
-        {
-          name: form.name,
-          linkedIn: form.linkedIn,
-          cv: cvFile 
-        }
-      );
+      const response = await authService.register({
+        email: form.email,
+        password: form.password,
+        role: 'mentee',
+        name: form.name,
+        linkedinUrl: form.linkedIn,
+      });
       
       // Pass route label and state data context up to your customized app engine
       navigateTo('verify-otp', { userId: response.userId });

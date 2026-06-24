@@ -33,7 +33,7 @@ function setRefreshCookie(res, token) {
 export async function register(req, res, next) {
   try {
     console.log("📩 Register hit with body:", req.body);
-    const { email, password, role } = req.body;
+    const { email, password, role, name, linkedinUrl, hourlyRate } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({
@@ -69,7 +69,14 @@ export async function register(req, res, next) {
       });
     }
 
-    const user = await User.create({ email, password, role });
+    const user = await User.create({
+        email,
+        password,
+        role,
+        ...(name && { name }),
+        ...(linkedinUrl && { linkedinUrl }),
+        ...(hourlyRate && { hourlyRate }),  // only if hourlyRate exists in your User schema
+    });
     const otp = await generateAndSaveOTP(user._id);
     await sendOTPEmail(email, otp);
 
