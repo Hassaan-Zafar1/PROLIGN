@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
 import "../config/passport.js";
+import { googleCallback } from "../controllers/authController.js";
 import {
   register,
   verifyEmail,
