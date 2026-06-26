@@ -35,6 +35,8 @@ const RATING_OPTIONS = [
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+const SORT_OPTIONS = ['Relevance', 'Highest Rating', 'Price: Low to High', 'Price: High to Low', 'Most Experienced'];
+
 const useClickOutside = (handler) => {
   const ref = useRef(null);
   useEffect(() => {
@@ -61,23 +63,23 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, displayCount 
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+        className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
           selected.length > 0
-            ? 'bg-surface-container-high border-primary text-primary'
-            : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:border-primary'
+            ? 'bg-primary/5 border-primary text-primary'
+            : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:border-primary/50'
         }`}
       >
         <span className="truncate">{displayText}</span>
         <span className={`material-symbols-outlined text-lg transition-transform ${open ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-surface-container-low border border-outline-variant/20 rounded-xl shadow-xl p-2 max-h-60 overflow-y-auto">
+        <div className="absolute z-20 mt-1.5 w-full bg-surface border border-outline-variant/20 rounded-xl shadow-xl p-2 max-h-60 overflow-y-auto">
           {options.map(opt => {
             const checked = selected.includes(opt);
             return (
               <label
                 key={opt}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
                   checked ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
@@ -85,7 +87,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, displayCount 
                   type="checkbox"
                   checked={checked}
                   onChange={() => onChange(opt)}
-                  className="rounded border-outline text-primary focus:ring-secondary w-4 h-4 bg-surface-container-lowest"
+                  className="rounded border-outline text-primary focus:ring-secondary w-4 h-4 bg-surface"
                 />
                 <span className="text-sm font-medium">{opt}</span>
               </label>
@@ -109,23 +111,23 @@ const SingleSelectDropdown = ({ label, options, value, onChange }) => {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+        className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
           value > 0
-            ? 'bg-surface-container-high border-primary text-primary'
-            : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:border-primary'
+            ? 'bg-primary/5 border-primary text-primary'
+            : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:border-primary/50'
         }`}
       >
         <span className="truncate">{displayText}</span>
         <span className={`material-symbols-outlined text-lg transition-transform ${open ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-surface-container-low border border-outline-variant/20 rounded-xl shadow-xl p-2">
+        <div className="absolute z-20 mt-1.5 w-full bg-surface border border-outline-variant/20 rounded-xl shadow-xl p-2">
           {options.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
                 value === opt.value
                   ? 'bg-primary/10 text-primary'
                   : 'text-on-surface-variant hover:bg-surface-container-high'
@@ -153,6 +155,14 @@ const MentorDiscovery = ({ navigateTo }) => {
     days: [],
     languages: []
   });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [sortBy, setSortBy] = useState('Relevance');
 
@@ -183,6 +193,7 @@ const MentorDiscovery = ({ navigateTo }) => {
       days: [],
       languages: []
     });
+    setSearchQuery('');
     setSortBy('Relevance');
   };
 
@@ -199,6 +210,19 @@ const MentorDiscovery = ({ navigateTo }) => {
 
   const filteredMentors = useMemo(() => {
     return allMentors.filter(m => {
+      if (debouncedSearchQuery.trim()) {
+        const q = debouncedSearchQuery.trim().toLowerCase();
+        const name = (m.name || '').toLowerCase();
+        const bio = (m.bio || '').toLowerCase();
+        const industry = (m.industry || '').toLowerCase();
+        const skills = (m.skills || []).join(' ').toLowerCase();
+        const expertise = (m.expertise || []).join(' ').toLowerCase();
+        const category = (m.category || '').toLowerCase();
+        if (!name.includes(q) && !bio.includes(q) && !industry.includes(q) && !skills.includes(q) && !expertise.includes(q) && !category.includes(q)) {
+          return false;
+        }
+      }
+
       if (filters.expertise.length > 0) {
         const match = filters.expertise.some(exp =>
           m.industry?.toLowerCase().includes(exp.toLowerCase())
@@ -242,7 +266,7 @@ const MentorDiscovery = ({ navigateTo }) => {
 
       return true;
     });
-  }, [allMentors, filters]);
+  }, [allMentors, filters, debouncedSearchQuery]);
 
   const sortedMentors = useMemo(() => {
     const list = [...filteredMentors];
@@ -258,15 +282,23 @@ const MentorDiscovery = ({ navigateTo }) => {
   const filterSidebar = (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-lg text-primary">Filters</h3>
+        <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+          <span className="material-symbols-outlined text-xl">filter_list</span>
+          Filters
+        </h3>
         {activeFilterCount > 0 && (
           <button onClick={resetFilters} className="text-xs text-secondary hover:underline font-semibold">Clear All</button>
         )}
       </div>
 
+      <div className="h-px bg-outline-variant/20" />
+
       {/* Expertise */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">Expertise</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">psychology</span>
+          Expertise
+        </h4>
         <MultiSelectDropdown
           label="Expertise"
           options={EXPERTISE_OPTIONS}
@@ -277,16 +309,19 @@ const MentorDiscovery = ({ navigateTo }) => {
 
       {/* Experience */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">Experience</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">work</span>
+          Experience
+        </h4>
         <div className="flex flex-wrap gap-2">
           {EXPERIENCE_RANGES.map((range, i) => (
             <button
               key={i}
               onClick={() => toggleArrayFilter('experienceRanges', i)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              className={`min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                 filters.experienceRanges.includes(i)
                   ? 'bg-primary text-on-primary border-primary'
-                  : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:border-primary hover:text-primary'
+                  : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:border-primary hover:text-primary'
               }`}
             >
               {range.label}
@@ -297,16 +332,19 @@ const MentorDiscovery = ({ navigateTo }) => {
 
       {/* Pricing */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">Pricing</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">payments</span>
+          Pricing
+        </h4>
         <div className="flex flex-wrap gap-2">
           {PRICE_TIERS.map((tier, i) => (
             <button
               key={i}
               onClick={() => togglePriceTier(i)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              className={`min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
                 filters.priceTiers.includes(i)
                   ? 'bg-secondary text-on-secondary border-secondary'
-                  : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:border-secondary hover:text-secondary'
+                  : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:border-secondary hover:text-secondary'
               }`}
             >
               {tier.label}{tier.max > 0 ? ` ($${tier.min}–$${tier.max})` : ' ($0)'}
@@ -317,7 +355,10 @@ const MentorDiscovery = ({ navigateTo }) => {
 
       {/* Rating */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">Minimum Rating</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm fill-icon">star</span>
+          Minimum Rating
+        </h4>
         <SingleSelectDropdown
           label="Rating"
           options={RATING_OPTIONS}
@@ -328,7 +369,10 @@ const MentorDiscovery = ({ navigateTo }) => {
 
       {/* Availability */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">Availability</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">schedule</span>
+          Availability
+        </h4>
         <MultiSelectDropdown
           label="Days"
           options={DAYS_OF_WEEK}
@@ -338,9 +382,11 @@ const MentorDiscovery = ({ navigateTo }) => {
         />
       </div>
 
+      <div className="h-px bg-outline-variant/20" />
+
       <button
         onClick={resetFilters}
-        className="w-full py-2.5 bg-surface-container-high text-on-surface font-semibold text-sm rounded-lg hover:bg-surface-variant transition-colors"
+        className="w-full py-2.5 bg-surface-container-high text-on-surface font-semibold text-sm rounded-xl hover:bg-surface-variant transition-colors"
       >
         Reset All Filters
       </button>
@@ -348,121 +394,190 @@ const MentorDiscovery = ({ navigateTo }) => {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] w-full gap-6 overflow-hidden">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-72 flex-shrink-0 bg-surface-dim/30 p-6 rounded-2xl border border-outline-variant/10 overflow-y-auto">
-        {filterSidebar}
-      </aside>
-
-      {/* Mobile Filter Drawer */}
-      {filterOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setFilterOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-surface-container-low shadow-2xl p-6 overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg text-primary">Filters</h3>
-              <button onClick={() => setFilterOpen(false)} className="text-on-surface-variant hover:text-on-surface">
-                <span className="material-symbols-outlined">close</span>
-              </button>
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      {/* Hero/Search Header */}
+      <div className="bg-gradient-to-br from-primary/5 via-surface to-secondary/5 rounded-2xl border border-outline-variant/10 p-6 sm:p-8 mb-6 lg:mb-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:items-center lg:justify-between">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-2">
+              Find Your Perfect Mentor
+            </h1>
+            <p className="text-on-surface-variant text-sm sm:text-base max-w-xl">
+              Connect with experienced professionals who will guide you through your career journey.
+            </p>
+            <p className="text-on-surface-variant/70 text-xs sm:text-sm mt-2">
+              {sortedMentors.length} mentor{sortedMentors.length !== 1 ? 's' : ''} available
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-xl">search</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search mentors..."
+                className="w-full sm:w-72 h-11 bg-surface border border-outline-variant/30 rounded-xl pl-11 pr-10 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all placeholder:text-on-surface-variant/50"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface">
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+              )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:block w-72 flex-shrink-0">
+          <div className="bg-surface rounded-2xl border border-outline-variant/10 p-5 sticky top-6">
             {filterSidebar}
           </div>
-        </div>
-      )}
+        </aside>
 
-      {/* Main Content */}
-      <section className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setFilterOpen(true)}
-              className="md:hidden flex items-center gap-2 px-4 py-2 bg-surface-container-high rounded-lg text-sm font-semibold hover:bg-surface-variant transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">filter_list</span>
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="bg-primary text-on-primary text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{activeFilterCount}</span>
-              )}
-            </button>
-            <div>
-              <h2 className="text-2xl font-bold text-primary">Discover Mentors</h2>
-              <p className="text-sm text-on-surface-variant mt-0.5">{sortedMentors.length} mentor{sortedMentors.length !== 1 ? 's' : ''} found</p>
+        {/* Mobile Filter Drawer */}
+        {filterOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setFilterOpen(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-surface shadow-2xl p-6 overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-lg text-primary">Filters</h3>
+                <button onClick={() => setFilterOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              {filterSidebar}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-on-surface-variant">Sort:</span>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
-              className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-secondary focus:border-secondary outline-none cursor-pointer"
-            >
-              <option>Relevance</option>
-              <option>Highest Rating</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-              <option>Most Experienced</option>
-            </select>
-          </div>
-        </div>
+        )}
 
-        {/* Results Grid */}
-        <div className="flex-1 overflow-y-auto mt-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Main Content */}
+        <section className="flex-1 min-w-0">
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => setFilterOpen(true)}
+                className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-surface rounded-xl border border-outline-variant/30 text-sm font-semibold hover:bg-surface-container-high transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">filter_list</span>
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="bg-primary text-on-primary text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{activeFilterCount}</span>
+                )}
+              </button>
+              <p className="text-sm text-on-surface-variant">
+                <span className="font-bold text-on-surface">{sortedMentors.length}</span> mentor{sortedMentors.length !== 1 ? 's' : ''} found
+                {activeFilterCount > 0 && (
+                  <span className="text-secondary ml-2">· {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-on-surface-variant">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                className="bg-surface border border-outline-variant/30 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-secondary focus:border-secondary outline-none cursor-pointer"
+              >
+                {SORT_OPTIONS.map(opt => (
+                  <option key={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Results Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {sortedMentors.length > 0 ? sortedMentors.map(mentor => (
-              <article key={mentor.id} className="bg-surface-container-lowest rounded-xl p-6 natural-shadow border border-secondary/5 group hover:-translate-y-1 transition-transform duration-300">
-                <div className="flex flex-col sm:flex-row gap-6">
-                  <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+              <article key={mentor.id} className="bg-surface rounded-2xl p-5 border border-outline-variant/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                {/* Card Header */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                     <img className="w-full h-full object-cover" src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`} alt={mentor.name} />
                   </div>
-                  <div className="flex-1 space-y-1.5 text-center sm:text-left">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <h3 className="text-lg font-bold text-primary group-hover:text-secondary transition-colors">{mentor.name}</h3>
-                      <span className="bg-secondary-container/50 text-secondary px-3 py-1 rounded-full text-xs font-bold self-center sm:self-start">{mentor.industry}</span>
-                    </div>
-                    <div className="flex items-center justify-center sm:justify-start gap-1">
-                      <span className="material-symbols-outlined text-secondary text-sm fill-icon">star</span>
-                      <span className="font-bold text-sm">{mentor.rating}</span>
-                      <span className="text-on-surface-variant text-xs">({mentor.reviews} reviews)</span>
-                      {mentor.experience > 0 && (
-                        <span className="text-on-surface-variant text-xs ml-2">· {mentor.experience} yrs exp</span>
-                      )}
-                    </div>
-                    <p className="text-on-surface-variant text-sm line-clamp-2">{mentor.bio}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold text-primary truncate">{mentor.name}</h3>
+                    <p className="text-xs text-on-surface-variant truncate">{mentor.title || mentor.industry}</p>
                   </div>
+                  <span className="bg-secondary/10 text-secondary px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap">
+                    {mentor.industry}
+                  </span>
                 </div>
-                <div className="mt-6 flex flex-col sm:flex-row justify-between items-center pt-6 border-t border-outline-variant/10 gap-4">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-primary">${mentor.hourlyRate}</span>
-                    <span className="text-xs text-on-surface-variant">/ session</span>
+
+                {/* Rating & Experience */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-secondary text-sm fill-icon">star</span>
+                    <span className="font-bold text-sm">{mentor.rating}</span>
+                    <span className="text-on-surface-variant text-xs">({mentor.reviews})</span>
                   </div>
-                  <div className="flex gap-3 w-full sm:w-auto">
+                  {mentor.experience > 0 && (
+                    <span className="text-on-surface-variant text-xs">· {mentor.experience} yrs exp</span>
+                  )}
+                </div>
+
+                {/* Bio */}
+                <p className="text-on-surface-variant text-xs leading-relaxed line-clamp-2 mb-4">{mentor.bio}</p>
+
+                {/* Skills */}
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {(mentor.skills || []).slice(0, 3).map(skill => (
+                    <span key={skill} className="bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full text-[10px] font-medium">
+                      {skill}
+                    </span>
+                  ))}
+                  {(mentor.skills || []).length > 3 && (
+                    <span className="text-on-surface-variant/60 text-[10px]">+{(mentor.skills || []).length - 3}</span>
+                  )}
+                </div>
+
+                {/* Price & Actions */}
+                <div className="mt-auto pt-4 border-t border-outline-variant/10 flex items-center justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-primary">${mentor.hourlyRate}</span>
+                    <span className="text-[10px] text-on-surface-variant">/ session</span>
+                  </div>
+                  <div className="flex gap-2">
                     <button
                       onClick={() => navigateTo('mentorProfile', { mentorId: mentor.id })}
-                      className="flex-1 sm:flex-none px-5 py-2.5 bg-surface-variant text-on-surface text-sm font-semibold rounded-lg hover:bg-surface-dim transition-colors"
+                      className="min-h-[44px] px-4 py-2.5 bg-surface-container-high text-on-surface text-sm font-semibold rounded-xl hover:bg-surface-variant transition-colors"
                     >
-                      View Profile
+                      View
                     </button>
                     <button
                       onClick={() => navigateTo('booking', { mentorId: mentor.id })}
-                      className="flex-1 sm:flex-none px-5 py-2.5 bg-primary text-on-primary text-sm font-semibold rounded-lg hover:brightness-110 transition-all shadow-sm"
+                      className="min-h-[44px] px-4 py-2.5 bg-primary text-on-primary text-sm font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm"
                     >
-                      Book Now
+                      Book
                     </button>
                   </div>
                 </div>
               </article>
             )) : (
-              <div className="col-span-full py-16 text-center flex flex-col items-center gap-4 bg-surface-container-lowest rounded-xl border border-dashed border-outline-variant/30">
+              <div className="col-span-full py-16 text-center flex flex-col items-center gap-4 bg-surface rounded-2xl border border-dashed border-outline-variant/30">
                 <span className="material-symbols-outlined text-5xl text-outline-variant">person_search</span>
-                <p className="text-xl text-on-surface-variant font-semibold">No mentors found</p>
-                <p className="text-sm text-on-surface-variant">Try adjusting your filters to see more results.</p>
-                <button onClick={resetFilters} className="mt-2 text-secondary font-semibold text-sm hover:underline">Reset Filters</button>
+                <div>
+                  <p className="text-lg text-on-surface-variant font-semibold mb-1">
+                    {debouncedSearchQuery.trim() ? 'No mentors match your search' : 'No Mentors Found'}
+                  </p>
+                  <p className="text-sm text-on-surface-variant/70">
+                    {debouncedSearchQuery.trim()
+                      ? 'Try a different name or keyword.'
+                      : 'Try adjusting your filters to discover more mentors.'}
+                  </p>
+                </div>
+                <button onClick={resetFilters} className="mt-2 px-5 py-2.5 bg-secondary text-on-secondary font-semibold text-sm rounded-xl hover:brightness-110 transition-all">
+                  Reset Filters
+                </button>
               </div>
             )}
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 };

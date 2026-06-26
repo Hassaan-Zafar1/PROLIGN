@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import ProfileSettings from '../components/ProfileSettings';
+import { tokenManager } from '../utils/tokenManager';
 import {
   addReview,
   cancelSession,
@@ -8,28 +9,37 @@ import {
   getSessions,
   getUserById,
   getUsersByRole,
-  logout,
+  logout as dbLogout,
   saveSessions,
   updateBookingStatus,
   updateSessionStatus,
   getDB,
   saveDB,
+  getNotifications,
+  markNotificationRead,
+  deleteNotification,
 } from '../utils/db';
 
 const useTheme = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('prolign-theme', next);
       return next;
     });
-  };
+  }, []);
+  const applyTheme = useCallback((t) => {
+    const next = t === 'Dark' ? 'dark' : 'light';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('prolign-theme', next);
+  }, []);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
-  return { theme, toggleTheme };
+  return { theme, toggleTheme, applyTheme };
 };
 
 const normalizeView = (view) => {
@@ -40,13 +50,8 @@ const navItems = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { id: 'sessions', icon: 'event_available', label: 'Sessions' },
   { id: 'analytics', icon: 'bar_chart', label: 'Analytics' },
+  { id: 'payments', icon: 'payments', label: 'Payments' },
   { id: 'settings', icon: 'settings', label: 'Settings' },
-];
-
-const goals = [
-  { title: 'Data Science Career', detail: 'Build a confident portfolio and interview rhythm.', progress: 85, icon: 'psychology' },
-  { title: 'System Design', detail: 'Practice architecture tradeoffs with mentors weekly.', progress: 64, icon: 'schema' },
-  { title: 'Communication', detail: 'Turn project work into crisp stories and examples.', progress: 72, icon: 'record_voice_over' },
 ];
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -80,11 +85,9 @@ function Modal({ children, onClose }) {
 }
 
 export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' }) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, applyTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [mentors, setMentors] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -98,6 +101,8 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [analyticsMode, setAnalyticsMode] = useState('year');
   const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
   const [analyticsMonth, setAnalyticsMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [analyticsRange, setAnalyticsRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
   const [showBookMentorModal, setShowBookMentorModal] = useState(false);
 
@@ -120,6 +125,8 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         mentor: getUserById(booking.mentorId),
       }))
     );
+
+    setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser.id));
   };
 
   useEffect(() => {
@@ -166,27 +173,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       return date ? date.getTime() >= Date.now() : true;
     }) || sessionGroups.upcoming[0] || null;
 
-  const filteredMentors = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return mentors;
-
-    return mentors.filter((mentor) => {
-      const searchable = [
-        mentor.name,
-        mentor.title,
-        mentor.company,
-        mentor.industry,
-        ...(mentor.skills || []),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return searchable.includes(query);
-    });
-  }, [mentors, searchTerm]);
-
-  const recommendedMentors = filteredMentors.slice(0, 4);
-  const progressAverage = Math.round(goals.reduce((total, goal) => total + goal.progress, 0) / goals.length);
+  const recommendedMentors = mentors.slice(0, 4);
   const completedSessions = sessionGroups.past.length;
   const mentorshipHours = Math.max(0, completedSessions * 1.5 + sessionGroups.upcoming.length);
 
@@ -260,12 +247,12 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const setView = (view) => {
     setActiveView(view);
-    setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLogout = () => {
-    logout();
+    dbLogout();
+    tokenManager.clearTokens();
     navigateTo('home');
   };
 
@@ -422,10 +409,10 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     return (
       <div className="h-72 w-full">
         <svg className="h-full w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-          {[50, 100, 150].map((line) => <line key={line} x1="0" x2={width} y1={line} y2={line} stroke="#45483f" strokeOpacity="0.1" />)}
-          <path d={path} fill="none" stroke="#202a10" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          {[50, 100, 150].map((line) => <line key={line} x1="0" x2={width} y1={line} y2={line} style={{ stroke: 'var(--color-on-surface-variant)', strokeOpacity: '0.1' }} />)}
+          <path d={path} fill="none" style={{ stroke: 'var(--color-primary)' }} strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
           {data.map((item, index) => (
-            <circle key={`${item.label}-${index}`} cx={index * step} cy={yFor(item.value || 0)} r="4" fill="#202a10" />
+            <circle key={`${item.label}-${index}`} cx={index * step} cy={yFor(item.value || 0)} r="4" style={{ fill: 'var(--color-primary)' }} />
           ))}
         </svg>
         <div className="grid text-xs font-semibold text-on-surface-variant" style={{ gridTemplateColumns: `repeat(${Math.min(data.length || 1, 12)}, minmax(0, 1fr))` }}>
@@ -435,11 +422,9 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     );
   };
 
-  const Sidebar = ({ mobile = false }) => (
+  const Sidebar = () => (
     <aside
-      className={`flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl ${
-        mobile ? '' : 'hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex'
-      }`}
+      className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex"
     >
       <button
         onClick={() => setView('dashboard')}
@@ -502,48 +487,89 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const Header = () => (
     <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-4 border-b border-outline-variant/10 bg-background/90 px-4 py-3 backdrop-blur-md sm:px-6">
-      <button
-        onClick={() => setMobileMenuOpen(true)}
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container text-on-surface lg:hidden"
-        aria-label="Open dashboard menu"
-      >
-        <span className="material-symbols-outlined">menu</span>
-      </button>
-
-      <div className="hidden flex-1 sm:block">
-        <div className="relative max-w-xl">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="w-full rounded-full border-none bg-surface-container py-3 pl-12 pr-4 text-on-surface outline-none transition-all focus:ring-2 focus:ring-secondary/30"
-            placeholder="Search mentors, skills, or resources..."
-            type="text"
-          />
-        </div>
-      </div>
+      <h1 className="text-lg font-bold text-on-background">Dashboard</h1>
 
       <div className="flex items-center gap-3 sm:gap-5">
-        <button
-          onClick={() => setView('sessions')}
-          className="relative flex h-11 w-11 items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-container"
-          aria-label="Notifications"
-        >
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative flex h-11 w-11 items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-container"
+            aria-label="Notifications"
+          >
+            <span className="material-symbols-outlined">notifications</span>
+            {notifications.filter((n) => !n.read).length > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-4 w-4 rounded-full bg-error text-[10px] font-bold text-on-error flex items-center justify-center">
+                {notifications.filter((n) => !n.read).length}
+              </span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <>
+              <button className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} aria-label="Close notifications" />
+              <div className="absolute right-0 mt-2 w-80 rounded-xl border border-outline-variant/10 bg-surface-container-lowest shadow-xl z-50 overflow-hidden">
+                <div className="flex items-center justify-between border-b border-outline-variant/10 px-4 py-3">
+                  <h4 className="text-sm font-bold text-on-surface">Notifications</h4>
+                  {notifications.some((n) => !n.read) && (
+                    <button
+                      className="text-xs font-bold text-secondary hover:underline"
+                      onClick={() => { notifications.forEach((n) => markNotificationRead(n.id)); loadData(); }}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="p-6 text-center text-sm text-on-surface-variant">No notifications.</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`border-b border-outline-variant/5 px-4 py-3 transition-colors hover:bg-surface-container-low ${!n.read ? 'bg-primary/5' : ''}`}
+                      >
+                        <div className="mb-1 flex items-start justify-between">
+                          <p className="text-xs font-semibold text-on-surface">{n.message}</p>
+                          <div className="ml-2 flex gap-1.5 flex-shrink-0">
+                            {!n.read && (
+                              <button
+                                onClick={() => { markNotificationRead(n.id); loadData(); }}
+                                className="text-[10px] font-bold text-secondary hover:underline"
+                              >
+                                Read
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { deleteNotification(n.id); loadData(); }}
+                              className="text-[10px] font-bold text-error hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant">
+                          {n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         <button
           onClick={() => setView('settings')}
           className="flex items-center gap-3 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-surface-container sm:border-l sm:border-outline-variant/20 sm:pl-5"
         >
           <span className="hidden text-right sm:block">
             <span className="block text-sm font-semibold leading-none text-on-surface">{user?.name || 'Mentee'}</span>
-            <span className="mt-1 block text-xs text-on-surface-variant">Mentee Account</span>
+            <span className="mt-1 block text-[11px] text-on-surface-variant">Mentee Account</span>
           </span>
           <img
             alt="User profile"
             className="h-10 w-10 rounded-full border-2 border-surface-container-highest object-cover"
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'Mentee'}`}
+            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentee')}&background=6750A4&color=fff`}
           />
         </button>
       </div>
@@ -762,124 +788,416 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       { id: 'cancelled', label: 'Cancelled', count: sessionGroups.cancelled.length },
     ];
     const visibleSessions = sessionGroups[sessionTab] || [];
+    const activeMentors = new Set(sessionGroups.past.map(s => s.mentorId).concat(sessionGroups.upcoming.map(s => s.mentorId))).size;
+    const avgRating = sessionGroups.past.filter(s => s.isRated && s.rating).length > 0
+      ? (sessionGroups.past.filter(s => s.isRated && s.rating).reduce((sum, s) => sum + s.rating, 0) / sessionGroups.past.filter(s => s.isRated && s.rating).length).toFixed(1)
+      : '—';
+
+    const renderKpiCard = (icon, value, label, color) => (
+      <div className={`rounded-2xl border border-outline-variant/10 bg-surface p-5 transition-all hover:shadow-md hover:-translate-y-0.5`}>
+        <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
+          <span className="material-symbols-outlined text-[20px]">{icon}</span>
+        </div>
+        <p className="font-headline-xl text-3xl font-bold text-on-surface">{value}</p>
+        <p className="mt-1 text-xs font-semibold text-on-surface-variant">{label}</p>
+      </div>
+    );
+
+    const renderUpcomingCard = (session, isHero = false) => {
+      const sessionDate = parseSessionDate(session);
+      const isLive = sessionDate && (sessionDate.getTime() - Date.now()) < 15 * 60 * 1000 && (sessionDate.getTime() - Date.now()) > -60 * 60 * 1000;
+      return (
+        <div className={`rounded-2xl border border-outline-variant/10 bg-surface p-5 transition-all hover:shadow-md ${isHero ? 'ring-2 ring-primary/20' : ''}`}>
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <img
+                  alt={session.mentor?.name}
+                  className="h-12 w-12 rounded-xl object-cover"
+                  src={session.mentor?.avatar || `https://ui-avatars.com/api/?name=${session.mentor?.name}`}
+                />
+                {isLive && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-surface animate-pulse" />}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold text-on-surface">{session.mentor?.name}</p>
+                  <p className="text-xs text-on-surface-variant">{session.mentor?.title || 'Mentor'}</p>
+                </div>
+                <span className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${getStatusClass(session.status)}`}>
+                  {isLive ? 'LIVE NOW' : session.status || 'Scheduled'}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">
+                <span className="inline-flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px]">calendar_today</span>
+                  {sessionDate ? sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px]">schedule</span>
+                  {session.time || 'TBD'}
+                </span>
+                {session.type && (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">laptop</span>
+                    {session.type}
+                  </span>
+                )}
+              </div>
+              {session.topic && (
+                <p className="mt-2 truncate text-xs text-on-surface-variant/70">"{session.topic}"</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => handleJoinSession(session)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined text-[14px]">videocam</span>
+              Join Session
+            </button>
+            <button
+              onClick={() => openNotesModal(session)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+            >
+              Prepare Notes
+            </button>
+            <button
+              onClick={() => handleCancelSession(session)}
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    const renderPastCard = (session) => {
+      const sessionDate = parseSessionDate(session);
+      return (
+        <div className="rounded-2xl border border-outline-variant/10 bg-surface p-4 transition-all hover:shadow-md">
+          <div className="flex items-start gap-3">
+            <img
+              alt={session.mentor?.name}
+              className="h-10 w-10 rounded-xl object-cover"
+              src={session.mentor?.avatar || `https://ui-avatars.com/api/?name=${session.mentor?.name}`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-on-surface">{session.mentor?.name}</p>
+                {session.isRated && session.rating && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-500">
+                    <span className="material-symbols-outlined text-[12px]">star</span>
+                    {session.rating}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-on-surface-variant">{session.type || 'Mentorship Session'}</p>
+              <div className="mt-2 flex items-center gap-3 text-xs text-on-surface-variant">
+                <span>{sessionDate ? sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                <span>{session.time || ''}</span>
+              </div>
+              {session.notes && (
+                <p className="mt-2 line-clamp-2 rounded-lg bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant italic">"{session.notes}"</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => openNotesModal(session)}
+              className="inline-flex items-center gap-1 rounded-lg bg-surface-container-high px-3 py-1.5 text-[11px] font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+            >
+              <span className="material-symbols-outlined text-[12px]">edit_note</span>
+              View Notes
+            </button>
+            {!session.isRated && (
+              <button
+                onClick={() => openRatingModal(session)}
+                className="inline-flex items-center gap-1 rounded-lg bg-secondary-container px-3 py-1.5 text-[11px] font-bold text-on-secondary-container transition-colors hover:opacity-90"
+              >
+                <span className="material-symbols-outlined text-[12px]">star</span>
+                Rate
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const renderCancelledCard = (session) => {
+      const sessionDate = parseSessionDate(session);
+      return (
+        <div className="rounded-2xl border border-outline-variant/10 bg-surface p-4 opacity-70 transition-all hover:opacity-100">
+          <div className="flex items-center gap-3">
+            <img
+              alt={session.mentor?.name}
+              className="h-9 w-9 rounded-xl object-cover grayscale"
+              src={session.mentor?.avatar || `https://ui-avatars.com/api/?name=${session.mentor?.name}`}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-on-surface">{session.mentor?.name}</p>
+              <p className="text-xs text-on-surface-variant">{sessionDate ? sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'} · {session.time || ''}</p>
+            </div>
+            <button
+              onClick={() => handleBookMentor(session.mentorId)}
+              className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-on-primary transition-all hover:scale-[1.02]"
+            >
+              Rebook
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    const renderSessionList = () => {
+      if (sessionTab === 'upcoming') {
+        if (visibleSessions.length === 0) {
+          return (
+            <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
+              <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">event_available</span>
+              <p className="text-sm font-bold text-on-surface">No upcoming sessions</p>
+              <p className="mt-1 text-xs text-on-surface-variant">Book a mentor to start your journey.</p>
+              <button onClick={() => handleBookMentor()} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02]">
+                <span className="material-symbols-outlined text-[14px]">add</span>
+                Book New Session
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-3">
+            {visibleSessions.map((session) => renderUpcomingCard(session))}
+          </div>
+        );
+      }
+      if (sessionTab === 'past') {
+        if (visibleSessions.length === 0) {
+          return (
+            <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
+              <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">history</span>
+              <p className="text-sm font-bold text-on-surface">No past sessions yet</p>
+              <p className="mt-1 text-xs text-on-surface-variant">Complete your first session to see it here.</p>
+            </div>
+          );
+        }
+        return (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visibleSessions.map((session) => renderPastCard(session))}
+          </div>
+        );
+      }
+      if (visibleSessions.length === 0) {
+        return (
+          <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
+            <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">cancel</span>
+            <p className="text-sm font-bold text-on-surface">No cancelled sessions</p>
+            <p className="mt-1 text-xs text-on-surface-variant">All your sessions are on track.</p>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-2">
+          {visibleSessions.map((session) => renderCancelledCard(session))}
+        </div>
+      );
+    };
+
+    const quickActions = [
+      { icon: 'calendar_month', label: 'Book Session', action: () => handleBookMentor(), color: 'bg-primary-container text-on-primary-container' },
+      { icon: 'people', label: 'Browse Mentors', action: () => handleBookMentor(), color: 'bg-secondary-container text-on-secondary-container' },
+    ];
 
     return (
-      <section className="space-y-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-headline-lg text-4xl font-bold text-on-background sm:text-5xl">My Sessions</h2>
-            <p className="mt-2 max-w-2xl text-on-surface-variant">
-              Manage your mentorship calls, join rooms, prepare notes, and review past growth milestones.
-            </p>
+            <h2 className="text-2xl font-bold text-on-background">My Sessions</h2>
+            <p className="mt-1 text-sm text-on-surface-variant">Manage your mentorship sessions, prepare for meetings, and review your learning journey.</p>
           </div>
-          <div className="flex overflow-x-auto rounded-2xl bg-surface-container-high p-1">
+          <div className="flex overflow-x-auto rounded-xl bg-surface-container-high p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setSessionTab(tab.id)}
-                className={`min-w-28 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold transition-all ${
                   sessionTab === tab.id ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-primary'
                 }`}
               >
                 {tab.label}
-                <span className="ml-2 text-xs opacity-70">{tab.count}</span>
+                <span className="ml-1.5 text-[10px] opacity-60">({tab.count})</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <section className="rounded-2xl bg-primary p-6 text-on-primary shadow-sm md:p-8 xl:col-span-2">
-            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-5">
-                <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">Next session starts in</p>
-                <div className="flex items-end gap-4">
-                  {[
-                    ['Days', countdown.days],
-                    ['Hrs', countdown.hours],
-                    ['Min', countdown.minutes],
-                  ].map(([label, value], index) => (
-                    <React.Fragment key={label}>
-                      {index > 0 && <span className="mb-5 text-3xl text-primary-fixed-dim/60">:</span>}
-                      <div className="text-center">
-                        <span className="block font-headline-xl text-5xl font-bold">{value}</span>
-                        <span className="text-sm text-primary-fixed-dim">{label}</span>
-                      </div>
-                    </React.Fragment>
-                  ))}
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="flex-1 min-w-0 space-y-6">
+            {sessionTab === 'upcoming' && sessionGroups.upcoming.length > 0 && (
+              <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-6 text-on-primary shadow-lg">
+                <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-primary-fixed-dim">Next Session</p>
+                    <div className="flex items-end gap-3">
+                      {[
+                        ['Days', countdown.days],
+                        ['Hrs', countdown.hours],
+                        ['Min', countdown.minutes],
+                      ].map(([label, value], index) => (
+                        <React.Fragment key={label}>
+                          {index > 0 && <span className="mb-4 text-2xl text-primary-fixed-dim/50">:</span>}
+                          <div className="text-center">
+                            <span className="block font-headline-xl text-4xl font-bold tabular-nums">{value}</span>
+                            <span className="text-[10px] font-bold text-primary-fixed-dim">{label}</span>
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleJoinSession(featuredSession)}
+                        disabled={!featuredSession}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary-fixed px-5 py-2.5 text-xs font-bold text-on-primary-fixed shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">videocam</span>
+                        Join Session
+                      </button>
+                      <button
+                        onClick={() => openNotesModal(featuredSession)}
+                        disabled={!featuredSession}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-on-primary/20 px-5 py-2.5 text-xs font-bold text-on-primary transition-all hover:bg-on-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Prepare Notes
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center text-center">
+                    <img
+                      alt={featuredSession?.mentor?.name || 'Mentor'}
+                      className="h-20 w-20 rounded-2xl border-2 border-primary-fixed object-cover"
+                      src={featuredSession?.mentor?.avatar || 'https://ui-avatars.com/api/?name=Mentor'}
+                    />
+                    <p className="mt-3 text-sm font-bold text-primary-fixed">{featuredSession?.mentor?.name || 'No session yet'}</p>
+                    <p className="text-[11px] text-primary-fixed-dim">{featuredSession?.mentor?.title || 'Book a mentor to begin'}</p>
+                    {featuredSession?.type && (
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary-fixed/20 px-2.5 py-0.5 text-[10px] font-bold text-primary-fixed">
+                        <span className="material-symbols-outlined text-[10px]">laptop</span>
+                        {featuredSession.type}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => handleJoinSession(featuredSession)}
-                    disabled={!featuredSession}
-                    className={`${buttonClass} bg-primary-fixed text-on-primary-fixed hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">videocam</span>
-                    Join Room
+              </div>
+            )}
+
+            {sessionTab === 'upcoming' && sessionGroups.upcoming.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low py-16 text-center">
+                <span className="material-symbols-outlined mb-4 text-6xl text-on-surface/10">event_available</span>
+                <p className="text-lg font-bold text-on-surface">No upcoming sessions scheduled</p>
+                <p className="mt-2 text-sm text-on-surface-variant max-w-sm mx-auto">Start your mentorship journey today. Find a mentor and book your first session.</p>
+                <div className="mt-6 flex justify-center gap-3">
+                  <button onClick={() => handleBookMentor()} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02]">
+                    <span className="material-symbols-outlined text-[18px]">search</span>
+                    Find Mentors
                   </button>
-                  <button
-                    onClick={() => openNotesModal(featuredSession)}
-                    disabled={!featuredSession}
-                    className={`${buttonClass} border border-on-primary/20 text-on-primary hover:bg-on-primary/10 disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    Prepare Notes
+                  <button onClick={() => handleBookMentor()} className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high">
+                    Book Session
                   </button>
                 </div>
               </div>
+            )}
 
-              <div className="flex flex-col items-center text-center">
-                <img
-                  alt={featuredSession?.mentor?.name || 'Mentor'}
-                  className="h-32 w-32 rounded-full border-4 border-primary-fixed object-cover"
-                  src={featuredSession?.mentor?.avatar || 'https://ui-avatars.com/api/?name=Mentor'}
-                />
-                <p className="mt-4 font-headline-md text-2xl font-bold text-primary-fixed">{featuredSession?.mentor?.name || 'No session yet'}</p>
-                <p className="text-sm text-primary-fixed-dim">{featuredSession?.mentor?.title || 'Book a mentor to begin'}</p>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-6">
-            <div className={`${cardClass} p-6`}>
-              <div className="mb-4 flex items-center gap-4">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
-                  <span className="material-symbols-outlined">trending_up</span>
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-on-surface">
+                  {sessionTab === 'upcoming' ? 'Upcoming Appointments' : sessionTab === 'past' ? 'Session History' : 'Cancelled Sessions'}
+                </h3>
+                <span className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider">
+                  {visibleSessions.length} session{visibleSessions.length !== 1 ? 's' : ''}
                 </span>
-                <div>
-                  <p className="text-sm font-semibold text-on-surface-variant">Growth Progress</p>
-                  <p className="font-headline-md text-2xl font-bold text-primary">{progressAverage}% Achieved</p>
+              </div>
+              {renderSessionList()}
+            </div>
+          </div>
+
+          <div className="w-full space-y-4 lg:w-[300px] flex-shrink-0">
+            <div className="grid grid-cols-2 gap-3">
+              {renderKpiCard('check_circle', completedSessions, 'Sessions Done', 'bg-primary-container text-on-primary-container')}
+              {renderKpiCard('schedule', mentorshipHours.toFixed(1), 'Mentorship Hours', 'bg-secondary-container text-on-secondary-container')}
+              {renderKpiCard('people', activeMentors, 'Active Mentors', 'bg-tertiary-container text-on-tertiary-container')}
+              {renderKpiCard('star', avgRating, 'Avg Rating', 'bg-tertiary/15 text-tertiary')}
+            </div>
+
+            <div className="rounded-2xl border border-outline-variant/10 bg-surface p-4">
+              <h4 className="mb-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Quick Actions</h4>
+              <div className="grid grid-cols-2 gap-2">
+                {quickActions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={action.action}
+                    className="flex flex-col items-center gap-2 rounded-xl p-3 text-center transition-all hover:shadow-sm hover:-translate-y-0.5"
+                  >
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.color}`}>
+                      <span className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-on-surface">{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-outline-variant/10 bg-surface p-4">
+              <h4 className="mb-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">This Month</h4>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-on-surface-variant">Sessions Completed</span>
+                  <span className="font-bold text-on-surface">{sessionGroups.past.filter(s => { const d = parseSessionDate(s); return d && d.getMonth() === new Date().getMonth(); }).length}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (sessionGroups.past.filter(s => { const d = parseSessionDate(s); return d && d.getMonth() === new Date().getMonth(); }).length / 8) * 100)}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-on-surface-variant">Upcoming</span>
+                  <span className="font-bold text-on-surface">{sessionGroups.upcoming.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-on-surface-variant">Hours Invested</span>
+                  <span className="font-bold text-on-surface">{mentorshipHours.toFixed(1)}h</span>
                 </div>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-surface-container-highest">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${progressAverage}%` }} />
+            </div>
+
+            {sessionGroups.past.length > 0 && sessionGroups.past.some(s => s.isRated && s.rating) && (
+              <div className="rounded-2xl border border-outline-variant/10 bg-surface p-4">
+                <h4 className="mb-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Recent Feedback</h4>
+                {sessionGroups.past.filter(s => s.isRated && s.rating).slice(0, 2).map((session) => (
+                  <div key={session.id} className="mb-3 last:mb-0">
+                    <div className="flex items-center gap-2">
+                      <img
+                        alt={session.mentor?.name}
+                        className="h-7 w-7 rounded-lg object-cover"
+                        src={session.mentor?.avatar || `https://ui-avatars.com/api/?name=${session.mentor?.name}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-on-surface truncate">{session.mentor?.name}</p>
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <span key={i} className={`material-symbols-outlined text-[10px] ${i < session.rating ? 'text-amber-500' : 'text-on-surface/15'}`}>star</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {session.feedback && (
+                      <p className="mt-1.5 line-clamp-2 rounded-lg bg-surface-container-low px-2.5 py-1.5 text-[11px] text-on-surface-variant italic">"{session.feedback}"</p>
+                    )}
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="rounded-2xl bg-tertiary-container p-6 text-on-tertiary-container shadow-sm">
-              <p className="text-sm font-semibold opacity-80">Mentorship Hours</p>
-              <p className="font-headline-xl mt-2 text-5xl font-bold">{mentorshipHours.toFixed(1)}</p>
-              <p className="mt-2 text-sm opacity-70">Total focus time this quarter</p>
-            </div>
-          </div>
-        </div>
-
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-headline-md text-2xl font-bold text-on-background">
-              {sessionTab === 'upcoming' ? 'Upcoming Appointments' : sessionTab === 'past' ? 'Past Sessions' : 'Cancelled Sessions'}
-            </h3>
-            <button onClick={() => handleBookMentor()} className="text-sm font-semibold text-secondary hover:underline">
-              Browse Mentors
-            </button>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface-container-low">
-            {visibleSessions.length > 0 ? (
-              visibleSessions.map((session) => <SessionRow key={session.id} session={session} />)
-            ) : (
-              <EmptyState title="Need more guidance?" detail="Your network of mentors is growing. Schedule a follow-up." action="Browse Mentors" onAction={() => handleBookMentor()} />
             )}
           </div>
-        </section>
+        </div>
       </section>
     );
   };
@@ -957,47 +1275,217 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     </section>
   );
 
-  const renderSettings = () => <ProfileSettings compact onSaved={loadData} />;
+  const renderSettings = () => (
+    <ProfileSettings
+      compact
+      onSaved={loadData}
+      user={user}
+      onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }}
+      onThemeChange={applyTheme}
+    />
+  );
+
+  const renderPayments = () => {
+    const paidBookings = bookings.filter((b) => b.paymentStatus === 'paid' || String(b.status).toLowerCase() === 'completed');
+    const pendingBookings = bookings.filter((b) => String(b.status).toLowerCase() === 'pending');
+    const totalSpent = paidBookings.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+    const sessionsPurchased = paidBookings.length;
+
+    const monthlySpending = (() => {
+      const rev = new Array(12).fill(0);
+      paidBookings.forEach((b) => {
+        const m = new Date(b.createdAt).getMonth();
+        rev[m] += Number(b.amount || 0);
+      });
+      return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((name, i) => ({
+        name, value: Math.round(rev[i]),
+      }));
+    })();
+    const maxSpending = Math.max(...monthlySpending.map((d) => d.value), 1);
+
+    const transactions = [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    if (bookings.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <span className="material-symbols-outlined mb-4 text-6xl text-on-surface/15">receipt_long</span>
+          <h3 className="text-xl font-bold text-on-surface mb-2">No payment history yet</h3>
+          <p className="text-sm text-on-surface-variant max-w-sm mb-6">Book your first mentorship session to start building your payment history.</p>
+          <button onClick={() => handleBookMentor()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:shadow-md hover:scale-[1.02]">
+            <span className="material-symbols-outlined text-[18px]">search</span>
+            Browse Mentors
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
+              <span className="material-symbols-outlined text-[22px] text-primary">account_balance_wallet</span>
+            </span>
+            <p className="text-2xl font-bold text-on-surface">${totalSpent.toLocaleString()}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Total Spent</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Across all sessions</p>
+          </div>
+          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/10 mb-3">
+              <span className="material-symbols-outlined text-[22px] text-secondary">school</span>
+            </span>
+            <p className="text-2xl font-bold text-on-surface">{sessionsPurchased}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Sessions Purchased</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">All time</p>
+          </div>
+          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-tertiary/10 mb-3">
+              <span className="material-symbols-outlined text-[22px] text-tertiary">pending</span>
+            </span>
+            <p className="text-2xl font-bold text-on-surface">{pendingBookings.length}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Pending Payments</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Awaiting confirmation</p>
+          </div>
+          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
+              <span className="material-symbols-outlined text-[22px] text-primary">credit_card</span>
+            </span>
+            <p className="text-lg font-bold text-on-surface truncate">Visa •••• 4587</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Payment Method</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Default card</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+          <div className="border-b border-outline-variant/10 px-6 py-4">
+            <h3 className="text-base font-bold text-on-surface">Spending Overview</h3>
+            <p className="mt-0.5 text-xs text-on-surface-variant">Monthly spending on mentorship</p>
+          </div>
+          <div className="p-6">
+            <div className="flex items-end gap-2" style={{ height: 140 }}>
+              {monthlySpending.map((d, i) => {
+                const pct = Math.max((d.value / maxSpending) * 100, d.value > 0 ? 4 : 0);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
+                    <span className="text-[10px] font-bold text-on-surface-variant opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                      ${d.value}
+                    </span>
+                    <div className="w-full rounded-t-lg bg-primary/80 transition-all duration-500 group-hover/bar:bg-primary"
+                      style={{ height: `${pct}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 mt-2">
+              {monthlySpending.map((d, i) => (
+                <div key={i} className="flex-1 text-center text-[10px] font-semibold text-on-surface-variant truncate">{d.name}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+          <div className="border-b border-outline-variant/10 px-6 py-4">
+            <h3 className="text-base font-bold text-on-surface">Payment History</h3>
+            <p className="mt-0.5 text-xs text-on-surface-variant">All your transactions</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[700px]">
+              <thead className="bg-surface-container-low">
+                <tr>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Date</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Mentor</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Amount</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Invoice</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/10">
+                {transactions.map((booking) => {
+                  const status = String(booking.status).toLowerCase();
+                  const isPaid = booking.paymentStatus === 'paid' || status === 'completed';
+                  const isPending = status === 'pending';
+                  const mentor = mentors.find((m) => m.id === booking.mentorId);
+                  return (
+                    <tr key={booking.id} className="transition-colors hover:bg-surface-container-low/50">
+                      <td className="px-6 py-4 text-sm font-semibold text-on-surface">
+                        {new Date(booking.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-on-surface">{mentor?.name || 'Mentor'}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-primary">${Number(booking.amount || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          isPaid ? 'bg-secondary-container text-on-secondary-container'
+                            : isPending ? 'bg-tertiary-container text-on-tertiary-container'
+                            : 'bg-error-container text-on-error-container'
+                        }`}>
+                          {isPaid ? 'Paid' : isPending ? 'Pending' : 'Failed'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button className="inline-flex items-center gap-1.5 rounded-lg bg-surface-container px-3 py-1.5 text-[11px] font-bold text-on-surface transition-colors hover:bg-surface-container-high">
+                          <span className="material-symbols-outlined text-[14px]">download</span>
+                          Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {pendingBookings.length > 0 && (
+          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+            <div className="border-b border-outline-variant/10 px-6 py-4">
+              <h3 className="text-base font-bold text-on-surface">Upcoming Payments</h3>
+              <p className="mt-0.5 text-xs text-on-surface-variant">Sessions awaiting payment confirmation</p>
+            </div>
+            <div className="divide-y divide-outline-variant/10">
+              {pendingBookings.map((booking) => {
+                const mentor = mentors.find((m) => m.id === booking.mentorId);
+                return (
+                  <div key={booking.id} className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-surface-container-low/50">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10">
+                        <span className="material-symbols-outlined text-[20px] text-tertiary">schedule</span>
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">Session with {mentor?.name || 'Mentor'}</p>
+                        <p className="text-xs text-on-surface-variant">{booking.date || 'Date TBD'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-on-surface">${Number(booking.amount || 0).toFixed(2)}</p>
+                      <p className="text-[11px] text-tertiary font-semibold">Pending</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderContent = () => {
     if (activeView === 'sessions') return renderSessions();
     if (activeView === 'analytics') return renderAnalytics();
+    if (activeView === 'payments') return renderPayments();
     if (activeView === 'settings') return renderSettings();
     return renderDashboard();
   };
 
   return (
-    <div className="min-h-screen bg-background text-on-background font-body-md">
+    <div className="min-h-screen bg-surface font-body-md">
       <Sidebar />
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close dashboard menu"
-          />
-          <div className="relative h-full w-64">
-            <Sidebar mobile />
-          </div>
-        </div>
-      )}
-
-      <main className="min-h-screen lg:pl-64">
+      <main className="min-h-screen lg:pl-64 bg-surface">
         <Header />
         <div className="mx-auto w-full max-w-[1440px] space-y-8 p-4 pb-28 sm:p-6 lg:p-8">
-          <div className="block sm:hidden">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                className="w-full rounded-full border-none bg-surface-container py-3 pl-12 pr-4 text-on-surface outline-none focus:ring-2 focus:ring-secondary/30"
-                placeholder="Search mentors..."
-                type="text"
-              />
-            </div>
-          </div>
           {renderContent()}
         </div>
 
@@ -1010,8 +1498,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             <div className="flex flex-wrap justify-center gap-5 text-sm font-semibold">
               <button onClick={() => navigateTo('privacy')} className="hover:text-primary-fixed">Privacy Policy</button>
               <button onClick={() => navigateTo('terms')} className="hover:text-primary-fixed">Terms of Service</button>
-              <button onClick={() => navigateTo('help-center')} className="hover:text-primary-fixed">Contact Support</button>
-              <button onClick={() => navigateTo('resources')} className="hover:text-primary-fixed">Careers</button>
             </div>
           </div>
         </footer>

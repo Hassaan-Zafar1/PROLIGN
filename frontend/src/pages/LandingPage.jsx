@@ -116,6 +116,8 @@ const TestimonialCarousel = ({ testimonials }) => {
 const LandingPage = ({ navigateTo }) => {
   const [testimonials, setTestimonials] = useState([]);
   const mainRef = useRef(null);
+  const journeyRef = useRef(null);
+  const [visibleSteps, setVisibleSteps] = useState(new Set());
 
   useEffect(() => {
     setTestimonials(getTestimonials().filter(t => t.published));
@@ -160,10 +162,41 @@ const LandingPage = ({ navigateTo }) => {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!journeyRef.current) return;
+    const steps = journeyRef.current.querySelectorAll('[data-journey-step]');
+    if (steps.length === 0) return;
+
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const idx = entry.target.dataset.journeyStep;
+          setVisibleSteps((prev) => new Set([...prev, idx]));
+        }
+      });
+    }, { threshold: 0.2 });
+
+    steps.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
   return (
     <main ref={mainRef}>
       {/* Hero Section */}
       <section className="relative min-h-[500px] md:min-h-[700px] lg:min-h-[819px] flex items-center justify-center hero-gradient overflow-hidden">
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source src="https://videos.pexels.com/video-files/5764741/5764741-uhd_3840_2160_24fps.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-black/90"></div>
+        </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 text-center py-16 sm:py-24">
           <h1 className="font-headline-xl text-3xl sm:text-4xl md:text-5xl text-on-surface mb-6 sm:mb-8 max-w-3xl mx-auto font-bold tracking-tight">
             Find your mentor, shape your future
@@ -219,36 +252,142 @@ const LandingPage = ({ navigateTo }) => {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-24 bg-surface-container">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="font-headline-lg text-3xl font-bold text-primary mb-4">Your Path to Mastery</h2>
-            <p className="font-body-md text-on-surface-variant">A streamlined journey from discovery to achievement.</p>
+      {/* How It Works — Your Path to Mastery */}
+      <section className="relative py-20 sm:py-28 overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-surface via-surface-container-low to-surface" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-secondary/5 rounded-full blur-[80px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/3 rounded-full blur-[120px]" />
+
+        <div ref={journeyRef} className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Hero Header */}
+          <div className="text-center mb-14 sm:mb-20">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary-container/50 px-4 py-2 text-xs font-bold text-on-primary-container mb-5 border border-primary/10">
+              <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+              Your Path to Mastery
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-on-surface leading-tight mb-4">
+              Your Journey to<br className="hidden sm:block" /> Professional Growth
+            </h2>
+            <p className="text-on-surface-variant text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
+              Join ProLign in just a few simple steps and connect with experienced mentors who will help accelerate your career.
+            </p>
           </div>
+
+          {/* Journey Roadmap */}
           <div className="relative">
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-secondary/20 -translate-y-1/2 z-0"></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center mb-6 font-headline-md text-2xl natural-shadow">1</div>
-                <h4 className="font-headline-md text-xl font-bold text-primary mb-2">Register</h4>
-                <p className="font-caption text-sm text-on-surface-variant">Create your professional profile in minutes.</p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center mb-6 font-headline-md text-2xl natural-shadow">2</div>
-                <h4 className="font-headline-md text-xl font-bold text-primary mb-2">AI Interview</h4>
-                <p className="font-caption text-sm text-on-surface-variant">Share your goals with our virtual analyst.</p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center mb-6 font-headline-md text-2xl natural-shadow">3</div>
-                <h4 className="font-headline-md text-xl font-bold text-primary mb-2">Get Matched</h4>
-                <p className="font-caption text-sm text-on-surface-variant">Review top-tier mentor recommendations.</p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center mb-6 font-headline-md text-2xl natural-shadow">4</div>
-                <h4 className="font-headline-md text-xl font-bold text-primary mb-2">Book Session</h4>
-                <p className="font-caption text-sm text-on-surface-variant">Begin your journey with your first 1-on-1.</p>
-              </div>
+            {/* Connector Line — Desktop */}
+            <div className="hidden lg:block absolute top-[72px] left-[calc(12.5%+24px)] right-[calc(12.5%+24px)] h-[2px]">
+              <div className="w-full h-full bg-gradient-to-r from-primary/10 via-primary/25 to-primary/10 rounded-full" />
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-1000 ease-out"
+                style={{ width: visibleSteps.size >= 4 ? '100%' : visibleSteps.size >= 3 ? '66%' : visibleSteps.size >= 2 ? '33%' : visibleSteps.size >= 1 ? '0%' : '0%' }}
+              />
+            </div>
+
+            {/* Connector Line — Tablet (2-col) */}
+            <div className="hidden sm:block lg:hidden absolute top-[72px] left-[25%] right-[25%] h-[2px]">
+              <div className="w-full h-full bg-gradient-to-r from-primary/10 via-primary/25 to-primary/10 rounded-full" />
+            </div>
+
+            {/* Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-5">
+              {[
+                {
+                  num: '01',
+                  icon: 'person_add',
+                  title: 'Create Your Account',
+                  description: 'Register as a Mentor or Mentee and create your professional profile in just a few minutes.',
+                  color: 'primary',
+                },
+                {
+                  num: '02',
+                  icon: 'psychology',
+                  title: 'AI Career Assessment',
+                  description: 'Answer a few questions so our AI can understand your goals, strengths, and career aspirations.',
+                  color: 'secondary',
+                },
+                {
+                  num: '03',
+                  icon: 'handshake',
+                  title: 'Get Matched',
+                  description: 'Receive personalized mentor recommendations based on your skills, interests, and career objectives.',
+                  color: 'tertiary',
+                },
+                {
+                  num: '04',
+                  icon: 'calendar_month',
+                  title: 'Book Your First Session',
+                  description: 'Choose an available time, confirm your booking, and begin your mentorship journey.',
+                  color: 'primary',
+                },
+              ].map((step, idx) => {
+                const isVisible = visibleSteps.has(String(idx));
+                return (
+                  <div
+                    key={idx}
+                    data-journey-step={idx}
+                    className={`relative flex flex-col items-center text-center transition-all duration-500 ease-out ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                    }`}
+                    style={{ transitionDelay: `${idx * 120}ms` }}
+                  >
+                    {/* Step Number Badge */}
+                    <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm mb-5 transition-all duration-300 ${
+                      step.color === 'primary'
+                        ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+                        : step.color === 'secondary'
+                        ? 'bg-secondary text-on-secondary shadow-lg shadow-secondary/20'
+                        : 'bg-tertiary text-on-tertiary shadow-lg shadow-tertiary/20'
+                    } group-hover:scale-110`}>
+                      {step.num}
+                    </div>
+
+                    {/* Card */}
+                    <div className="flex-1 w-full bg-surface rounded-[18px] p-6 sm:p-7 border border-outline-variant/10 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/20 transition-all duration-300 group cursor-default">
+                      {/* Icon */}
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${
+                        step.color === 'primary'
+                          ? 'bg-primary-container text-on-primary-container'
+                          : step.color === 'secondary'
+                          ? 'bg-secondary-container text-on-secondary-container'
+                          : 'bg-tertiary-container text-on-tertiary-container'
+                      }`}>
+                        <span className="material-symbols-outlined text-2xl">{step.icon}</span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-on-surface mb-2">{step.title}</h3>
+                      <p className="text-sm text-on-surface-variant leading-relaxed">{step.description}</p>
+                    </div>
+
+                    {/* Mobile/Tablet Connector (vertical) */}
+                    {idx < 3 && (
+                      <div className="sm:hidden w-0.5 h-8 bg-gradient-to-b from-primary/25 to-primary/10 my-1" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bottom Highlight Banner */}
+          <div className="mt-16 sm:mt-20 bg-surface rounded-2xl border border-outline-variant/10 p-6 sm:p-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {[
+                { icon: 'psychology', text: 'Personalized AI Matching' },
+                { icon: 'verified', text: 'Verified Professional Mentors' },
+                { icon: 'lock', text: 'Secure Session Booking' },
+                { icon: 'trending_up', text: 'Continuous Career Growth' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 justify-center sm:justify-start">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-success-container text-on-success-container flex-shrink-0">
+                    <span className="material-symbols-outlined text-[16px]">check</span>
+                  </span>
+                  <span className="material-symbols-outlined text-[18px] text-primary flex-shrink-0">{item.icon}</span>
+                  <span className="text-sm font-semibold text-on-surface">{item.text}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

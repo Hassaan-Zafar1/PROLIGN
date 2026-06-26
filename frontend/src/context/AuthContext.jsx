@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { tokenManager } from '../utils/tokenManager';
 import { authService } from '../services/authService';
+import { getDB, saveDB } from '../utils/db';
 
 export const AuthContext = createContext();
 
@@ -21,6 +22,10 @@ export const AuthProvider = ({ children }) => {
           tokenManager.setUser(currentUser);
           setUser(currentUser);
           setIsAuthenticated(true);
+          // Sync db.currentUser so getCurrentUser() from db.js works
+          const db = getDB();
+          db.currentUser = currentUser;
+          saveDB(db);
         } catch (error) {
           // Token invalid or expired — clear everything
           console.error('Session invalid:', error);
@@ -36,12 +41,20 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  // ✅ Token set first, no extra API call — userData from verifyOTP is sufficient
+  // Token set first, no extra API call — userData from verifyOTP is sufficient
   const login = (userData, token) => {
     tokenManager.setAccessToken(token);
     tokenManager.setUser(userData);
     setUser(userData);
     setIsAuthenticated(true);
+    // Sync db.currentUser so getCurrentUser() from db.js works
+    try {
+      const db = getDB();
+      db.currentUser = userData;
+      saveDB(db);
+    } catch (e) {
+      // db may not be available in some contexts
+    }
   };
 
   const logout = async () => {
@@ -59,6 +72,12 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (userData) => {
     tokenManager.setUser(userData);
     setUser(userData);
+    // Sync db.currentUser
+    try {
+      const db = getDB();
+      db.currentUser = userData;
+      saveDB(db);
+    } catch (e) {}
   };
 
   return (

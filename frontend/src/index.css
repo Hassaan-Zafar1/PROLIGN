@@ -278,3 +278,103 @@ body {
 [data-theme="dark"] .hero-gradient {
   background: linear-gradient(180deg, var(--color-background) 0%, var(--color-surface-container) 100%);
 }
+
+/* ===== Chatbot FAB Animations ===== */
+
+@keyframes chatbot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes chatbot-glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0; }
+  50% { transform: scale(1.4); opacity: 0.4; }
+}
+
+@keyframes chatbot-badge-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+@keyframes chatbot-fade-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes chatbot-bounce-in {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.chatbot-fab {
+  animation: chatbot-float 3s ease-in-out infinite;
+}
+
+.chatbot-fab-pulse {
+  animation: chatbot-glow-pulse 8s ease-in-out infinite;
+}
+
+.chatbot-fab-hover {
+  transform: scale(1.08) rotate(5deg);
+  box-shadow: 0 10px 40px -8px rgba(91, 98, 57, 0.5);
+}
+
+.animate-chatbot-fade-in {
+  animation: chatbot-fade-in 250ms ease-out forwards;
+}
+
+.animate-chatbot-badge-pulse {
+  animation: chatbot-badge-pulse 2s ease-in-out infinite;
+}
+
+.animate-chatbot-bounce-in {
+  animation: chatbot-bounce-in 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Modal animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes successPop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-fab {
+    animation: none;
+  }
+
+  .chatbot-fab-pulse {
+    animation: none;
+  }
+
+  .chatbot-fab-hover {
+    transition: none;
+  }
+
+  .animate-chatbot-fade-in,
+  .animate-chatbot-badge-pulse,
+  .animate-chatbot-bounce-in {
+    animation: none;
+  }
+
+  [role="dialog"] [style*="animation"] {
+    animation: none !important;
+  }
+
+  .animate-\[successPop_0\.4s_ease-out\] {
+    animation: none !important;
+  }
+}
