@@ -343,7 +343,7 @@ export default function MentorRegistration({ navigateTo }) {
   };
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row bg-surface overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-surface overflow-y-auto">
       {/* Left Side — Brand Story */}
       <div className="hidden lg:flex lg:w-[42%] xl:w-[40%] bg-gradient-to-br from-primary to-primary-fixed relative overflow-hidden flex-col justify-between p-8 xl:p-10">
         <div className="absolute inset-0 opacity-10">
@@ -384,7 +384,7 @@ export default function MentorRegistration({ navigateTo }) {
       </div>
 
       {/* Right Side — Form */}
-      <div className="flex-1 flex flex-col h-full lg:h-screen">
+      <div className="flex-1 flex flex-col min-h-full lg:min-h-screen">
         {/* Mobile Header */}
         <div className="lg:hidden px-3 sm:px-4 pt-4 sm:pt-6 pb-3 sm:pb-4">
           <button type="button" onClick={() => navigateTo('home')} className="mb-3 sm:mb-4 inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors">

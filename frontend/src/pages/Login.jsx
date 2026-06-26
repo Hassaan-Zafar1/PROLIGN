@@ -148,16 +148,19 @@ const Login = ({ navigateTo }) => {
 
       {/* Right Side — Auth Card */}
       <div className="flex-1 flex flex-col h-full lg:h-screen">
-        {/* Mobile Header */}
-        <div className="lg:hidden px-4 pt-5 pb-3">
+        {/* Top-back Button (mobile + desktop) */}
+        <div className="px-4 pt-5 pb-3">
           <button
             type="button"
             onClick={() => navigateTo('home')}
-            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
             Home
           </button>
+        </div>
+        {/* Mobile Header */}
+        <div className="lg:hidden px-4 pb-3">
           <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined text-primary text-2xl fill-icon">school</span>
             <span className="font-headline-lg text-xl font-bold text-on-surface tracking-tight">ProLign</span>
