@@ -1,10 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   getCurrentUser,
-  logout,
+  logout as dbLogout,
   getSessions,
   updateSessionStatus,
-  updateUserProfile,
   getUserById,
   getNotifications,
   markNotificationRead as markStoredNotificationRead,
@@ -15,6 +14,8 @@ import {
   saveDB,
   deleteUser,
 } from '../utils/db';
+import { tokenManager } from '../utils/tokenManager';
+import ProfileSettings from '../components/ProfileSettings';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -61,7 +62,6 @@ const MentorDashboard = ({ navigateTo }) => {
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -70,6 +70,13 @@ const MentorDashboard = ({ navigateTo }) => {
   const [metricYear, setMetricYear] = useState(String(new Date().getFullYear()));
   const [metricMonth, setMetricMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [metricRange, setMetricRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
+  const [metricWeek, setMetricWeek] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+    return monday.toISOString().split('T')[0];
+  });
   const [metricError, setMetricError] = useState('');
   const [reviews, setReviews] = useState([]);
   const [availabilityDate, setAvailabilityDate] = useState(new Date().toISOString().split('T')[0]);
@@ -77,15 +84,10 @@ const MentorDashboard = ({ navigateTo }) => {
   const [availabilityStatus, setAvailabilityStatus] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', title: '', industry: '', bio: '', avatar: '' });
 
-  const [settingsSection, setSettingsSection] = useState('personal');
-  const [settingsForm, setSettingsForm] = useState({});
-  const [settingsStatus, setSettingsStatus] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [settingsTab, setSettingsTab] = useState('profile');
 
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -148,27 +150,14 @@ const MentorDashboard = ({ navigateTo }) => {
 
   useEffect(() => {
     if (user) {
-      setProfileForm({ 
-        name: user.name || '', 
-        title: user.title || '', 
-        industry: user.industry || '', 
-        bio: user.bio || '', 
-        avatar: user.avatar || '' 
-      });
       setAvailabilityTimes(user.availabilitySlots?.[availabilityDate] || []);
     }
   }, [availabilityDate, user]);
 
   const handleLogout = () => {
-    logout();
+    dbLogout();
+    tokenManager.clearTokens();
     navigateTo('home');
-  };
-
-  const handleProfileSave = (e) => {
-    e.preventDefault();
-    updateUserProfile(user.id, profileForm);
-    setIsEditingProfile(false);
-    refreshData();
   };
 
   const markNotificationRead = (id) => {
@@ -195,85 +184,6 @@ const MentorDashboard = ({ navigateTo }) => {
     setTimeout(() => setAvailabilityStatus(''), 2500);
   };
 
-  useEffect(() => {
-    if (!user || Object.keys(settingsForm).length > 0) return;
-    setSettingsForm({
-      name: user.name || '',
-      username: user.username || '',
-      email: user.email || '',
-      phone: user.phone || '',
-      country: user.country || '',
-      city: user.city || '',
-      bio: user.bio || '',
-      title: user.title || '',
-      company: user.company || '',
-      industry: user.industry || '',
-      experience: user.experience || '',
-      education: user.education || '',
-      certifications: Array.isArray(user.certifications) ? user.certifications.join(', ') : (user.certifications || ''),
-      skills: Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || ''),
-      hourlyRate: user.hourlyRate || 150,
-      linkedIn: user.linkedIn || '',
-      github: user.github || '',
-      website: user.website || '',
-      twitter: user.twitter || '',
-      avatar: user.avatar || '',
-      meetingLink: user.meetingLink || 'https://meet.google.com/',
-      bufferMinutes: user.bufferMinutes || 15,
-      maxBookingsPerWeek: user.maxBookingsPerWeek || 10,
-      bookingNoticeHours: user.bookingNoticeHours || 24,
-      languages: Array.isArray(user.languages) ? user.languages.join(', ') : (user.languages || 'English'),
-    });
-  }, [user]);
-
-  const setSettingsField = (field, value) => {
-    setSettingsStatus('');
-    setSettingsForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  const saveSettings = (e) => {
-    e.preventDefault();
-    if (!user) return;
-    const db = getDB();
-    const idx = db.users.findIndex(u => u.id === user.id);
-    if (idx === -1) return;
-    db.users[idx] = {
-      ...db.users[idx],
-      name: settingsForm.name,
-      username: settingsForm.username,
-      email: settingsForm.email,
-      phone: settingsForm.phone,
-      country: settingsForm.country,
-      city: settingsForm.city,
-      bio: settingsForm.bio,
-      title: settingsForm.title,
-      company: settingsForm.company,
-      industry: settingsForm.industry,
-      experience: settingsForm.experience,
-      education: settingsForm.education,
-      certifications: settingsForm.certifications.split(',').map(s => s.trim()).filter(Boolean),
-      skills: settingsForm.skills.split(',').map(s => s.trim()).filter(Boolean),
-      hourlyRate: Number(settingsForm.hourlyRate),
-      linkedIn: settingsForm.linkedIn,
-      github: settingsForm.github,
-      website: settingsForm.website,
-      twitter: settingsForm.twitter,
-      avatar: settingsForm.avatar,
-      meetingLink: settingsForm.meetingLink,
-      bufferMinutes: Number(settingsForm.bufferMinutes),
-      maxBookingsPerWeek: Number(settingsForm.maxBookingsPerWeek),
-      bookingNoticeHours: Number(settingsForm.bookingNoticeHours),
-      languages: settingsForm.languages.split(',').map(s => s.trim()).filter(Boolean),
-      updatedAt: new Date().toISOString(),
-    };
-    db.currentUser = db.users[idx];
-    saveDB(db);
-    setUser(db.users[idx]);
-    setSettingsStatus('Settings saved successfully.');
-    setTimeout(() => setSettingsStatus(''), 3000);
-    refreshData();
-  };
-
   const handleDeleteAccount = () => {
     if (deleteConfirmName !== user?.name) return;
     deleteUser(user.id);
@@ -289,6 +199,14 @@ const MentorDashboard = ({ navigateTo }) => {
   };
   const isValidYear = Number(metricYear) > 2000 && Number(metricYear) < 3000;
   const metricDates = useMemo(() => {
+    if (metricMode === 'week') {
+      if (!metricWeek) return { error: 'Select a week.' };
+      const from = new Date(metricWeek + 'T00:00:00');
+      const to = new Date(from);
+      to.setDate(to.getDate() + 6);
+      to.setHours(23, 59, 59, 0);
+      return Number.isNaN(from.getTime()) ? { error: 'Invalid week date.' } : { from, to, error: '' };
+    }
     if (metricMode === 'year') {
       return isValidYear
         ? { from: new Date(Number(metricYear), 0, 1), to: new Date(Number(metricYear), 11, 31, 23, 59, 59), error: '' }
@@ -305,12 +223,11 @@ const MentorDashboard = ({ navigateTo }) => {
     if (from > to) return { error: 'Start date must be before end date.' };
     if (from.getFullYear() <= 2000 || to.getFullYear() <= 2000) return { error: 'Custom dates must be after year 2000.' };
     return { from, to, error: '' };
-  }, [isValidYear, metricMode, metricMonth, metricRange, metricYear]);
+  }, [isValidYear, metricMode, metricMonth, metricRange, metricWeek, metricYear]);
 
   // Real data calculations
   const upcomingSessions = sessions.filter(s => ['Confirmed', 'Pending', 'scheduled'].includes(s.status));
   const completedSessions = sessions.filter(s => s.status === 'Completed');
-  const pastSessionsCount = completedSessions.length;
   const hourlyRate = user?.hourlyRate || 150;
   
   const paidSessions = sessions.filter((session) => ['Confirmed', 'Completed'].includes(session.status));
@@ -387,12 +304,15 @@ const MentorDashboard = ({ navigateTo }) => {
   const renderMetricFilters = (downloadKind) => (
     <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-4">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {['year', 'month', 'custom'].map((mode) => (
-          <button key={mode} onClick={() => setMetricMode(mode)} className={`rounded-lg px-4 py-2 text-sm font-bold capitalize ${metricMode === mode ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant'}`}>{mode}</button>
+        {['week', 'month', 'year', 'custom'].map((mode) => (
+          <button key={mode} onClick={() => setMetricMode(mode)} className={`rounded-lg px-4 py-2 text-sm font-bold capitalize ${metricMode === mode ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant'}`}>{mode === 'week' ? 'Weekly' : mode}</button>
         ))}
         <button onClick={() => downloadCsv(downloadKind)} className="ml-auto rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Download CSV</button>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {metricMode === 'week' && (
+          <input type="date" value={metricWeek} onChange={(event) => setMetricWeek(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
+        )}
         {(metricMode === 'year' || metricMode === 'month') && (
           <input type="number" min="2001" value={metricYear} onChange={(event) => setMetricYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" />
         )}
@@ -422,8 +342,8 @@ const MentorDashboard = ({ navigateTo }) => {
     return (
       <div className="h-72 w-full">
         <svg className="h-full w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-          {[50, 100, 150].map((line) => <line key={line} x1="0" x2={width} y1={line} y2={line} stroke="#45483f" strokeOpacity="0.1" />)}
-          <path d={path} fill="none" stroke="#202a10" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          {[50, 100, 150].map((line) => <line key={line} x1="0" x2={width} y1={line} y2={line} style={{ stroke: 'var(--color-on-surface-variant)', strokeOpacity: '0.1' }} />)}
+          <path d={path} fill="none" style={{ stroke: 'var(--color-primary)' }} strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
         </svg>
         <div className="grid text-xs font-semibold text-on-surface-variant" style={{ gridTemplateColumns: `repeat(${Math.min(data.length || 1, 12)}, minmax(0, 1fr))` }}>
           {data.filter((_, index) => data.length <= 12 || index % Math.ceil(data.length / 12) === 0).map((item, index) => <span key={`${item.label}-${index}`}>{item.label}</span>)}
@@ -440,11 +360,9 @@ const MentorDashboard = ({ navigateTo }) => {
     { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
-  const renderSidebar = ({ mobile = false } = {}) => (
-    <aside className={`flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl ${
-      mobile ? '' : 'hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex'
-    }`}>
-      <div className="px-6 mb-8 cursor-pointer" onClick={() => { setActiveView('dashboard'); if (mobile) setMobileMenuOpen(false); }}>
+  const renderSidebar = () => (
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
+      <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
           ProLign
@@ -456,7 +374,7 @@ const MentorDashboard = ({ navigateTo }) => {
         {navItems.map(item => (
           <button
             key={item.id}
-            onClick={() => { setActiveView(item.id); if (mobile) setMobileMenuOpen(false); }}
+            onClick={() => setActiveView(item.id)}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
                 ? 'bg-secondary-container text-on-secondary-container scale-95' 
@@ -492,7 +410,7 @@ const MentorDashboard = ({ navigateTo }) => {
             <span className="material-symbols-outlined text-[16px] text-primary-fixed">school</span>
             <span className="font-label-sm text-sm font-semibold text-primary-fixed">Mentor Level: Expert</span>
           </div>
-          <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back, {user?.name?.split(' ')[0] || 'Mentor'}!</h2>
+          <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
           <p className="text-on-primary/80 max-w-md">
             You have {upcomingSessions.length} upcoming sessions. Your recent mentees have rated you {user?.rating?.toFixed(1) || '5.0'} stars!
           </p>
@@ -505,25 +423,6 @@ const MentorDashboard = ({ navigateTo }) => {
           </div>
         </div>
       </section>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-surface-container p-6 rounded-2xl border border-outline-variant/10 natural-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-on-surface-variant font-label-sm">Total Sessions</span>
-            <span className="material-symbols-outlined text-secondary">groups</span>
-          </div>
-          <h3 className="font-headline-xl text-3xl font-bold text-primary">{pastSessionsCount}</h3>
-          <p className="text-sm text-secondary mt-2 flex items-center"><span className="material-symbols-outlined text-[16px] mr-1">trending_up</span> +3 this week</p>
-        </div>
-        <div className="bg-surface-container p-6 rounded-2xl border border-outline-variant/10 natural-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-on-surface-variant font-label-sm">Average Rating</span>
-            <span className="material-symbols-outlined text-secondary">star</span>
-          </div>
-          <h3 className="font-headline-xl text-3xl font-bold text-primary">{user?.rating?.toFixed(1) || '4.9'}</h3>
-          <p className="text-sm text-secondary mt-2 flex items-center"><span className="material-symbols-outlined text-[16px] mr-1">trending_flat</span> Consistent</p>
-        </div>
-      </div>
 
       <section className="space-y-4">
         <h3 className="font-headline-md text-2xl font-bold text-primary">Your Next Sessions</h3>
@@ -587,68 +486,172 @@ const MentorDashboard = ({ navigateTo }) => {
     </>
   );
 
-  const renderEarnings = () => (
-    <section className="space-y-6">
-      <h3 className="font-headline-md text-2xl font-bold text-primary mb-6">Earnings & Deductions</h3>
-      {renderMetricFilters('earnings')}
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-surface-container-high p-6 rounded-xl natural-shadow">
-          <p className="text-sm font-bold text-on-surface-variant uppercase mb-2">Gross Earnings</p>
-          <h4 className="text-3xl font-bold text-on-surface">${totalGrossEarnings.toLocaleString()}</h4>
-          <p className="text-xs text-on-surface-variant mt-2">Before system fees</p>
-        </div>
-        <div className="bg-error-container p-6 rounded-xl natural-shadow">
-          <p className="text-sm font-bold text-on-error-container uppercase mb-2">System Deductions</p>
-          <h4 className="text-3xl font-bold text-on-error-container">-${platformFee.toLocaleString()}</h4>
-          <p className="text-xs text-on-error-container/80 mt-2">20% Platform Fee</p>
-        </div>
-        <div className="bg-primary-container p-6 rounded-xl natural-shadow">
-          <p className="text-sm font-bold text-on-primary-container uppercase mb-2">Net Payout</p>
-          <h4 className="text-3xl font-bold text-on-primary-container">${netEarnings.toLocaleString()}</h4>
-          <p className="text-xs text-on-primary-container/80 mt-2">Available for withdrawal</p>
-        </div>
-      </div>
+  const renderEarnings = () => {
+    const monthlyEarnings = (() => {
+      const counts = new Array(12).fill(0);
+      const revenue = new Array(12).fill(0);
+      paidSessions.forEach((s) => {
+        const m = new Date(s.createdAt || s.date).getMonth();
+        counts[m]++;
+        revenue[m] += Number(s.amount || hourlyRate) * 0.8;
+      });
+      return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((name, i) => ({
+        name, sessions: counts[i], revenue: Math.round(revenue[i]),
+      }));
+    })();
+    const maxRev = Math.max(...monthlyEarnings.map((d) => d.revenue), 1);
 
-      <div className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
-        <div className="flex justify-between items-center mb-6">
-          <h4 className="font-bold text-on-surface text-lg">Earnings Graph</h4>
+    return (
+      <section className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-on-surface">Earnings</h3>
+            <p className="text-sm text-on-surface-variant">Track your revenue, payouts, and transactions.</p>
+          </div>
+          {renderMetricFilters('earnings')}
         </div>
-        {renderLineChart(metricData, 'value')}
-      </div>
 
-      <div className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
-        <h4 className="font-bold text-on-surface text-lg mb-6">Recent Transactions</h4>
-        <div className="overflow-x-auto">
-        <table className="w-full text-left min-w-[500px]">
-          <thead className="border-b border-outline-variant/20">
-            <tr>
-              <th className="pb-3 text-xs uppercase text-on-surface-variant">Date</th>
-              <th className="pb-3 text-xs uppercase text-on-surface-variant">Description</th>
-              <th className="pb-3 text-xs uppercase text-on-surface-variant">Amount</th>
-              <th className="pb-3 text-xs uppercase text-on-surface-variant">Fee</th>
-              <th className="pb-3 text-xs uppercase text-on-surface-variant">Net</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/10">
-            {paidSessions.map((session) => {
-              const gross = Number(session.amount || hourlyRate);
-              return (
-                <tr key={session.id}>
-                  <td className="py-4 text-sm font-semibold">{getSessionDate(session).toLocaleDateString()}</td>
-                  <td className="py-4 text-sm">Session with {session.menteeName || session.mentee?.name || 'Mentee'}</td>
-                  <td className="py-4 text-sm text-primary font-bold">${gross.toFixed(2)}</td>
-                  <td className="py-4 text-sm text-error">-${(gross * 0.2).toFixed(2)}</td>
-                  <td className="py-4 text-sm font-bold">${(gross * 0.8).toFixed(2)}</td>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <div className="flex items-start justify-between mb-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                <span className="material-symbols-outlined text-[22px] text-primary">account_balance_wallet</span>
+              </span>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-secondary-container px-2 py-1 text-[11px] font-bold text-on-secondary-container">
+                <span className="material-symbols-outlined text-[12px]">trending_up</span>+12%
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-on-surface">${totalGrossEarnings.toLocaleString()}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Gross Earnings</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Before platform fees</p>
+          </div>
+          <div className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <div className="flex items-start justify-between mb-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-error/10">
+                <span className="material-symbols-outlined text-[22px] text-error">remove_circle</span>
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-on-surface">-${platformFee.toLocaleString()}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Platform Fees</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">20% commission</p>
+          </div>
+          <div className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <div className="flex items-start justify-between mb-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/10">
+                <span className="material-symbols-outlined text-[22px] text-secondary">savings</span>
+              </span>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-secondary-container px-2 py-1 text-[11px] font-bold text-on-secondary-container">
+                <span className="material-symbols-outlined text-[12px]">trending_up</span>+8%
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-on-surface">${netEarnings.toLocaleString()}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Net Earnings</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Available for withdrawal</p>
+          </div>
+          <div className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+            <div className="flex items-start justify-between mb-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-tertiary/10">
+                <span className="material-symbols-outlined text-[22px] text-tertiary">receipt_long</span>
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-on-surface">{paidSessions.length}</p>
+            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Paid Sessions</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">All time transactions</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+          <div className="border-b border-outline-variant/10 px-6 py-4">
+            <h4 className="text-base font-bold text-on-surface">Revenue Trend</h4>
+            <p className="mt-0.5 text-xs text-on-surface-variant">Monthly earnings over time</p>
+          </div>
+          <div className="p-6">
+            {renderLineChart(metricData, 'value')}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+          <div className="border-b border-outline-variant/10 px-6 py-4">
+            <h4 className="text-base font-bold text-on-surface">Monthly Breakdown</h4>
+            <p className="mt-0.5 text-xs text-on-surface-variant">Earnings by month</p>
+          </div>
+          <div className="p-6">
+            <div className="flex items-end gap-2" style={{ height: 140 }}>
+              {monthlyEarnings.map((d, i) => {
+                const pct = Math.max((d.revenue / maxRev) * 100, 2);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
+                    <span className="text-[10px] font-bold text-on-surface-variant opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                      ${d.revenue}
+                    </span>
+                    <div className="w-full rounded-t-lg bg-primary/80 transition-all duration-500 group-hover/bar:bg-primary"
+                      style={{ height: `${pct}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 mt-2">
+              {monthlyEarnings.map((d, i) => (
+                <div key={i} className="flex-1 text-center text-[10px] font-semibold text-on-surface-variant truncate">{d.name}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+          <div className="border-b border-outline-variant/10 px-6 py-4">
+            <h4 className="text-base font-bold text-on-surface">Recent Transactions</h4>
+            <p className="mt-0.5 text-xs text-on-surface-variant">Your latest session payments</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[600px]">
+              <thead className="bg-surface-container-low">
+                <tr>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Date</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Session</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Amount</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Fee</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Net</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/10">
+                {paidSessions.map((session) => {
+                  const gross = Number(session.amount || hourlyRate);
+                  const fee = gross * 0.2;
+                  const net = gross * 0.8;
+                  const status = String(session.status).toLowerCase();
+                  const isCompleted = status === 'completed';
+                  return (
+                    <tr key={session.id} className="transition-colors hover:bg-surface-container-low/50">
+                      <td className="px-6 py-4 text-sm font-semibold text-on-surface">{getSessionDate(session).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-sm text-on-surface">Session with {session.menteeName || session.mentee?.name || 'Mentee'}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-primary">${gross.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-error">-${fee.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-on-surface">${net.toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          isCompleted ? 'bg-secondary-container text-on-secondary-container' : 'bg-tertiary-container text-on-tertiary-container'
+                        }`}>
+                          {isCompleted ? 'Completed' : 'Pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {paidSessions.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-on-surface-variant">No transactions yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   const renderRatings = () => (
     <section className="space-y-6">
@@ -674,439 +677,373 @@ const MentorDashboard = ({ navigateTo }) => {
     </section>
   );
 
-  const renderProfile = () => (
-    <section className="max-w-3xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="font-headline-md text-2xl font-bold text-primary">My Profile</h3>
-        {!isEditingProfile && (
-          <button onClick={() => setIsEditingProfile(true)} className="bg-secondary text-on-secondary px-4 py-2 rounded-lg font-bold text-sm shadow-sm cursor-pointer">Edit Profile</button>
-        )}
-      </div>
-
-      <div className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
-        {isEditingProfile ? (
-          <form onSubmit={handleProfileSave} className="space-y-6">
-            <div className="flex items-center gap-6 mb-6">
-              <img src={profileForm.avatar || 'https://i.pravatar.cc/150'} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-surface-variant" />
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-on-surface uppercase mb-2">Avatar URL</label>
-                <input type="text" value={profileForm.avatar} onChange={e => setProfileForm({...profileForm, avatar: e.target.value})} className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg text-sm" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-on-surface uppercase mb-2">Full Name</label>
-                <input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg text-sm" required />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-on-surface uppercase mb-2">Professional Title</label>
-                <input type="text" value={profileForm.title} onChange={e => setProfileForm({...profileForm, title: e.target.value})} className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg text-sm" required />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-on-surface uppercase mb-2">Industry / Domain</label>
-              <input type="text" value={profileForm.industry} onChange={e => setProfileForm({...profileForm, industry: e.target.value})} className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg text-sm" required />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-on-surface uppercase mb-2">Biography</label>
-              <textarea value={profileForm.bio} onChange={e => setProfileForm({...profileForm, bio: e.target.value})} className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg text-sm h-32 resize-none" required />
-            </div>
-            <div className="flex justify-end gap-4 pt-4 border-t border-outline-variant/10">
-              <button type="button" onClick={() => setIsEditingProfile(false)} className="px-6 py-2 font-bold text-on-surface-variant hover:bg-surface-variant rounded-lg cursor-pointer transition-colors">Cancel</button>
-              <button type="submit" className="px-6 py-2 bg-primary text-on-primary font-bold rounded-lg shadow-sm cursor-pointer hover:opacity-90">Save Profile</button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <img src={user?.avatar || 'https://i.pravatar.cc/150'} alt="Profile" className="w-40 h-40 rounded-2xl object-cover shadow-sm" />
-            <div className="space-y-4 flex-1">
-              <div>
-                <h4 className="text-3xl font-bold text-on-surface">{user?.name}</h4>
-                <p className="text-lg text-secondary font-semibold">{user?.title}</p>
-              </div>
-              <div>
-                <span className="inline-block px-3 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold uppercase tracking-wider">{user?.industry}</span>
-              </div>
-              <p className="text-on-surface-variant leading-relaxed">{user?.bio}</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-
-  const settingsSections = [
-    { id: 'personal', icon: 'account_circle', label: 'Personal Information' },
-    { id: 'security', icon: 'lock', label: 'Account & Security' },
-    { id: 'about', icon: 'article', label: 'About Me' },
-    { id: 'professional', icon: 'badge', label: 'Professional Profile' },
-    { id: 'preferences', icon: 'psychology', label: 'Mentorship Preferences' },
-    { id: 'availability', icon: 'event_available', label: 'Availability' },
-    { id: 'social', icon: 'link', label: 'Social Links' },
-    { id: 'notifications', icon: 'notifications', label: 'Notifications' },
-    { id: 'meetings', icon: 'calendar_month', label: 'Meetings & Calendar' },
-    { id: 'achievements', icon: 'workspace_premium', label: 'Achievements' },
-    { id: 'appearance', icon: 'palette', label: 'Appearance' },
-    { id: 'danger', icon: 'warning', label: 'Danger Zone' },
-  ];
-
-  const SField = ({ label, field, type = 'text', placeholder = '', span = '' }) => (
-    <label className={`space-y-1.5 ${span}`}>
-      <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{label}</span>
-      <input
-        type={type}
-        value={settingsForm[field] ?? ''}
-        onChange={(e) => setSettingsField(field, e.target.value)}
-        className="w-full rounded-lg border border-outline-variant/25 bg-surface px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-secondary/30"
-        placeholder={placeholder}
-      />
-    </label>
-  );
-
-  const STextArea = ({ label, field, rows = 4, span = '' }) => (
-    <label className={`space-y-1.5 ${span}`}>
-      <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{label}</span>
-      <textarea
-        rows={rows}
-        value={settingsForm[field] || ''}
-        onChange={(e) => setSettingsField(field, e.target.value)}
-        className="w-full resize-none rounded-lg border border-outline-variant/25 bg-surface px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-secondary/30"
-      />
-    </label>
-  );
-
-  const SToggle = ({ label, detail, field }) => {
-    const enabled = settingsForm[field] ?? false;
-    return (
-      <button type="button" onClick={() => setSettingsField(field, !enabled)} className="flex min-h-16 items-center justify-between gap-4 rounded-lg bg-surface-container-low p-4 text-left transition-colors hover:bg-surface-container">
-        <span>
-          <span className="block font-semibold text-sm text-on-surface">{label}</span>
-          {detail && <span className="mt-0.5 block text-xs text-on-surface-variant">{detail}</span>}
-        </span>
-        <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${enabled ? 'bg-secondary' : 'bg-outline-variant'}`}>
-          <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-        </span>
-      </button>
-    );
-  };
-
-  const renderSettingsSection = () => {
-    switch (settingsSection) {
-      case 'personal':
-        return (
-          <div className="space-y-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <img src={settingsForm.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(settingsForm.name || 'Mentor')}`} alt="" className="h-20 w-20 rounded-full object-cover ring-4 ring-surface-variant" />
-              <SField label="Avatar URL" field="avatar" placeholder="https://..." span="flex-1" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <SField label="Full Name" field="name" />
-              <SField label="Username" field="username" />
-              <SField label="Email Address" field="email" type="email" />
-              <SField label="Phone Number" field="phone" />
-              <SField label="Country" field="country" />
-              <SField label="City" field="city" />
-            </div>
-          </div>
-        );
-      case 'security':
-        return (
-          <div className="space-y-5">
-            <p className="text-sm text-on-surface-variant">Password and security settings are managed through your account credentials.</p>
-            <SField label="Current Password" field="currentPassword" type="password" placeholder="Enter current password" />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <SField label="New Password" field="newPassword" type="password" placeholder="Min 6 characters" />
-              <SField label="Confirm Password" field="confirmPassword" type="password" />
-            </div>
-          </div>
-        );
-      case 'about':
-        return <STextArea label="Bio" field="bio" rows={7} />;
-      case 'professional':
-        return (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SField label="Professional Title" field="title" placeholder="Senior AI Researcher and Career Mentor" span="md:col-span-2" />
-            <SField label="Company" field="company" />
-            <SField label="Industry" field="industry" />
-            <SField label="Years of Experience" field="experience" type="number" />
-            <SField label="Education" field="education" />
-            <SField label="Certifications" field="certifications" placeholder="AWS, PMP, ... (comma separated)" />
-            <SField label="Skills / Expertise" field="skills" placeholder="Machine Learning, Leadership, ... (comma separated)" />
-          </div>
-        );
-      case 'preferences':
-        return (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SField label="Languages" field="languages" placeholder="English, Urdu (comma separated)" />
-            <SField label="Hourly Rate ($)" field="hourlyRate" type="number" />
-            <SField label="Buffer Between Sessions (min)" field="bufferMinutes" type="number" />
-            <SField label="Max Bookings Per Week" field="maxBookingsPerWeek" type="number" />
-            <SField label="Min Booking Notice (hours)" field="bookingNoticeHours" type="number" span="md:col-span-2" />
-          </div>
-        );
-      case 'availability':
-        return (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase text-on-surface-variant">Available Date</label>
-                <input type="date" min={new Date().toISOString().split('T')[0]} value={availabilityDate} onChange={(e) => setAvailabilityDate(e.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
-              </div>
-              <button onClick={saveAvailability} className="rounded-lg bg-primary px-5 py-3 text-sm font-bold text-on-primary cursor-pointer">Save Availability</button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {getAvailableSlots(availabilityDate).map((time) => (
-                <button key={time} onClick={() => toggleAvailabilityTime(time)} className={`rounded-lg px-4 py-3 text-sm font-bold transition-colors cursor-pointer ${availabilityTimes.includes(time) ? 'bg-secondary text-on-secondary' : 'bg-surface text-on-surface-variant hover:bg-surface-container-high'}`}>{time}</button>
-              ))}
-            </div>
-            <p className="text-xs text-on-surface-variant">
-              {availabilityDate === new Date().toISOString().split('T')[0] ? 'Only slots at least 1 hour from now are shown.' : 'All slots are available for future dates.'} Selected slots are visible to mentees on the booking calendar.
-            </p>
-            {availabilityStatus && <p className="text-sm font-bold text-secondary">{availabilityStatus}</p>}
-          </div>
-        );
-      case 'social':
-        return (
-          <div className="grid grid-cols-1 gap-4">
-            <SField label="LinkedIn URL" field="linkedIn" placeholder="https://linkedin.com/in/..." />
-            <SField label="GitHub URL" field="github" placeholder="https://github.com/..." />
-            <SField label="Website URL" field="website" placeholder="https://..." />
-            <SField label="Twitter / X URL" field="twitter" placeholder="https://twitter.com/..." />
-          </div>
-        );
-      case 'notifications':
-        return (
-          <div className="grid grid-cols-1 gap-3">
-            <SToggle label="Session Requests" detail="Notify when a mentee requests a session" field="notifySessionRequests" />
-            <SToggle label="Session Reminders" detail="Get reminded before upcoming sessions" field="notifyReminders" />
-            <SToggle label="Platform Announcements" detail="Receive product and feature updates" field="notifyAnnouncements" />
-            <SToggle label="Email Notifications" detail="Receive notifications via email" field="notifyEmail" />
-          </div>
-        );
-      case 'meetings':
-        return (
-          <div className="space-y-4">
-            <SField label="Meeting Link" field="meetingLink" placeholder="https://meet.google.com/..." />
-            <p className="text-xs text-on-surface-variant">This link will be shared with mentees when a session is confirmed.</p>
-          </div>
-        );
-      case 'achievements':
-        return (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-lg bg-surface-container-low p-5">
-              <span className="material-symbols-outlined mb-3 text-[28px] text-secondary">star</span>
-              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Rating</p>
-              <p className="mt-1 font-headline-md text-3xl font-bold text-primary">{user?.rating ? user.rating.toFixed(1) : '0.0'}</p>
-              <p className="mt-1 text-xs text-on-surface-variant">{reviews.length} review{reviews.length === 1 ? '' : 's'}</p>
-            </div>
-            <div className="rounded-lg bg-surface-container-low p-5">
-              <span className="material-symbols-outlined mb-3 text-[28px] text-secondary">groups</span>
-              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Completed Sessions</p>
-              <p className="mt-1 font-headline-md text-3xl font-bold text-primary">{completedSessions.length}</p>
-              <p className="mt-1 text-xs text-on-surface-variant">Finished sessions</p>
-            </div>
-            <div className="rounded-lg bg-surface-container-low p-5">
-              <span className="material-symbols-outlined mb-3 text-[28px] text-secondary">workspace_premium</span>
-              <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Status</p>
-              <p className="mt-1 font-headline-md text-3xl font-bold text-primary">{user?.status === 'approved' ? 'Active' : user?.status || 'Active'}</p>
-              <p className="mt-1 text-xs text-on-surface-variant">Account status</p>
-            </div>
-          </div>
-        );
-      case 'appearance':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg bg-surface-container-low p-4">
-              <div>
-                <p className="font-semibold text-sm text-on-surface">Theme</p>
-                <p className="text-xs text-on-surface-variant">Toggle between light and dark mode</p>
-              </div>
-              <button onClick={toggleTheme} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer">
-                {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-              </button>
-            </div>
-            <SField label="Preferred Theme" field="appearanceTheme" placeholder="system / light / dark" />
-          </div>
-        );
-      case 'danger':
-        return (
-          <div className="space-y-4">
-            <button type="button" onClick={() => setShowDeleteModal(true)} className="flex w-full items-center justify-between rounded-lg bg-error-container p-4 text-left text-on-error-container transition-opacity hover:opacity-90 cursor-pointer">
-              <span className="flex items-center gap-3">
-                <span className="material-symbols-outlined">delete</span>
-                <span>
-                  <span className="block font-bold">Delete Account</span>
-                  <span className="text-sm opacity-80">Permanently remove this account, sessions, and all data.</span>
-                </span>
-              </span>
-              <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
-            {showDeleteModal && (
-              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                <div className="w-full max-w-md rounded-3xl border border-outline-variant/15 bg-surface-container-lowest p-8 shadow-2xl">
-                  <div className="mb-6 text-center">
-                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error-container text-on-error-container">
-                      <span className="material-symbols-outlined text-3xl">warning</span>
-                    </span>
-                    <h3 className="mt-4 font-headline-md text-2xl font-bold text-on-surface">Delete Account?</h3>
-                    <p className="mt-2 text-sm text-on-surface-variant">This is permanent. All your data will be removed.</p>
-                  </div>
-                  <div className="mb-6 space-y-3">
-                    <p className="text-sm font-semibold text-on-surface">Type <strong className="text-error">{user?.name}</strong> to confirm:</p>
-                    <input value={deleteConfirmName} onChange={(e) => setDeleteConfirmName(e.target.value)} className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-error/30" placeholder="Enter your full name" />
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <button type="button" onClick={handleDeleteAccount} disabled={deleteConfirmName !== user?.name} className="w-full rounded-2xl bg-error py-3.5 font-bold text-on-error shadow-md transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">Yes, Delete My Account</button>
-                    <button type="button" onClick={() => setShowDeleteModal(false)} className="w-full rounded-2xl border border-outline-variant/20 bg-surface-container py-3.5 font-bold text-on-surface transition-colors hover:bg-surface-container-high cursor-pointer">Cancel</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const renderSettings = () => (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="mb-6">
-        <h1 className="font-headline-lg text-3xl font-bold text-primary">Settings</h1>
-        <p className="mt-1 text-sm text-on-surface-variant">Manage your mentor profile, availability, preferences, and account.</p>
-      </div>
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[240px_1fr]">
-        <aside className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-2 natural-shadow xl:sticky xl:top-6 xl:self-start">
-          {settingsSections.map((section) => (
-            <button key={section.id} onClick={() => setSettingsSection(section.id)} type="button" className={`mb-1 flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-bold transition-all cursor-pointer ${settingsSection === section.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'}`}>
-              <span className="material-symbols-outlined text-[20px]">{section.icon}</span>
-              {section.label}
-            </button>
-          ))}
-        </aside>
-        <form onSubmit={saveSettings} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-6 natural-shadow md:p-8">
-          <div className="mb-6 flex flex-col justify-between gap-3 border-b border-outline-variant/20 pb-5 md:flex-row md:items-center">
-            <div>
-              <h2 className="font-headline-md text-xl font-bold text-on-surface">{settingsSections.find(s => s.id === settingsSection)?.label || 'Settings'}</h2>
-              <p className="text-xs text-on-surface-variant">Mentor account settings</p>
-            </div>
-            {settingsStatus && <span className="rounded-full bg-secondary-container px-4 py-1.5 text-xs font-bold text-on-secondary-container">{settingsStatus}</span>}
-          </div>
-          {renderSettingsSection()}
-          {settingsSection !== 'achievements' && settingsSection !== 'availability' && (
-            <div className="mt-6 flex justify-end border-t border-outline-variant/20 pt-5">
-              <button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-on-primary shadow-md transition-transform hover:scale-[1.02] cursor-pointer">
-                <span className="material-symbols-outlined text-[18px]">save</span>
-                Save Changes
-              </button>
-            </div>
-          )}
-        </form>
-      </div>
-    </div>
-  );
+  const renderSettings = () => <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} initialTab={settingsTab} />;
 
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard': return renderDashboard();
       case 'earnings': return renderEarnings();
       case 'ratings': return renderRatings();
-      case 'profile': return renderProfile();
       case 'settings': return renderSettings();
       case 'sessions': {
         const groups = {
           pending: sessions.filter((session) => session.status === 'Pending'),
           scheduled: sessions.filter((session) => ['Confirmed', 'scheduled'].includes(session.status)),
-          past: sessions.filter((session) => ['Completed', 'Rejected', 'Cancelled', 'Canceled'].includes(session.status)),
+          completed: sessions.filter((session) => session.status === 'Completed'),
+          cancelled: sessions.filter((session) => ['Cancelled', 'Canceled', 'Rejected'].includes(session.status)),
         };
-        const visibleSessions = groups[sessionTab] || [];
-        return (
-          <>
-          <section className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <h3 className="font-headline-md text-2xl font-bold text-primary">My Sessions</h3>
-                <p className="text-sm text-on-surface-variant">View pending, past, and scheduled sessions.</p>
-              </div>
-              <div className="flex rounded-lg bg-surface-container-low p-1">
-                {[
-                  ['pending', 'Pending'],
-                  ['scheduled', 'Scheduled'],
-                  ['past', 'Past'],
-                ].map(([id, label]) => (
-                  <button key={id} onClick={() => setSessionTab(id)} className={`rounded-md px-4 py-2 text-sm font-bold ${sessionTab === id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant'}`}>{label} ({groups[id].length})</button>
-                ))}
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[500px]">
-              <thead className="bg-surface-container-low border-b border-outline-variant/10">
-                <tr>
-                  <th className="px-4 py-3 text-xs uppercase font-bold text-on-surface-variant">Mentee</th>
-                  <th className="px-4 py-3 text-xs uppercase font-bold text-on-surface-variant">Date & Time</th>
-                  <th className="px-4 py-3 text-xs uppercase font-bold text-on-surface-variant">Status</th>
-                  <th className="px-4 py-3 text-right text-xs uppercase font-bold text-on-surface-variant">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/10">
-                {visibleSessions.map(s => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-4 text-sm font-bold text-on-surface">{s.menteeName || s.mentee?.name || 'Mentee'}</td>
-                    <td className="px-4 py-4 text-sm">{s.dateTime} <span className="text-xs text-on-surface-variant ml-2">{s.time}</span></td>
-                    <td className="px-4 py-4">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full uppercase ${s.status === 'Confirmed' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-variant text-on-surface-variant'}`}>{s.status}</span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => setSelectedSession(s)} className="rounded-lg bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface-variant">Preview</button>
-                        {s.status === 'Pending' && (
-                          <>
-                            <button onClick={() => rejectSession(s)} className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container">Reject</button>
-                            <button onClick={() => approveSession(s)} className="rounded-lg bg-secondary px-3 py-2 text-xs font-bold text-on-secondary">Approve</button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-             {visibleSessions.length === 0 && <p className="py-8 text-center text-sm text-on-surface-variant">No {sessionTab} sessions.</p>}
-          </section>
+        const visibleSessions = groups[sessionTab] || groups.pending;
+        const today = new Date();
+        const todaySessions = sessions.filter(s => {
+          const d = new Date(s.dateTime || s.date || s.createdAt);
+          return d.toDateString() === today.toDateString() && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+        });
+        const weekSessions = sessions.filter(s => {
+          const d = new Date(s.dateTime || s.date || s.createdAt);
+          const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+          return d >= today && d <= weekEnd && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+        });
+        const nextSession = groups.scheduled[0] || groups.pending[0];
 
-          <section className="bg-surface-container p-8 rounded-xl natural-shadow border border-outline-variant/10">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <h4 className="font-headline-md text-xl font-bold text-primary">Session Analytics</h4>
-                <p className="text-sm text-on-surface-variant">Track your session volume over time.</p>
+        const renderNextSessionCard = () => {
+          if (!nextSession) return (
+            <div className="rounded-2xl border border-dashed border-outline-variant/30 bg-surface-container-lowest p-8 text-center">
+              <span className="material-symbols-outlined text-5xl text-outline-variant mb-3">calendar_month</span>
+              <h3 className="text-lg font-bold text-on-surface mb-1">No upcoming sessions</h3>
+              <p className="text-sm text-on-surface-variant mb-4">Update your availability so mentees can start booking.</p>
+              <button onClick={() => { setSettingsTab('career'); setActiveView('settings'); }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm hover:shadow-md transition-all">
+                <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                Manage Availability
+              </button>
+            </div>
+          );
+          const menteeName = nextSession.menteeName || nextSession.mentee?.name || 'Mentee';
+          const sessionDate = new Date(nextSession.dateTime || nextSession.date || nextSession.createdAt);
+          const sessionTime = nextSession.time || '';
+          const diffMs = sessionDate.getTime() - Date.now();
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const countdownText = diffDays > 0 ? `${diffDays}d ${diffHrs}h` : diffHrs > 0 ? `${diffHrs}h` : 'Today';
+
+          return (
+            <div className="rounded-2xl bg-gradient-to-br from-primary via-primary-container to-surface-dim overflow-hidden shadow-md">
+              <div className="p-6 text-on-primary">
+                <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-3">Next Session</p>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-on-primary/30 flex-shrink-0 bg-on-primary/10">
+                    <img src={nextSession.menteeAvatar || `https://ui-avatars.com/api/?name=${menteeName}&background=ffffff&color=202a10`} alt={menteeName} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold truncate">{menteeName}</h3>
+                    <p className="text-sm opacity-80 truncate">{nextSession.type || nextSession.topic || 'Mentorship Session'}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-2xl font-bold">{countdownText}</p>
+                    <p className="text-xs opacity-70">until session</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4 text-sm opacity-85">
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">calendar_today</span>{sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">schedule</span>{sessionTime || '—'}</span>
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">hourglass_top</span>{nextSession.duration || 60} min</span>
+                </div>
+              </div>
+              <div className="bg-on-primary/5 backdrop-blur-sm px-6 py-3 flex flex-wrap gap-2">
+                <button onClick={() => navigateTo('video-interview', { sessionId: nextSession.id })} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary text-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/90 transition-all shadow-sm">
+                  <span className="material-symbols-outlined text-[14px]">videocam</span>Join Session
+                </button>
+                <button onClick={() => setSelectedSession(nextSession)} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary/15 text-on-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/25 transition-all">
+                  <span className="material-symbols-outlined text-[14px]">info</span>View Details
+                </button>
+                <button onClick={() => openRescheduleModal(nextSession)} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary/15 text-on-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/25 transition-all">
+                  <span className="material-symbols-outlined text-[14px]">edit_calendar</span>Reschedule
+                </button>
               </div>
             </div>
-            {renderMetricFilters('analytics')}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-6">
-              <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10 text-center">
-                <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">Pending</p>
-                <p className="text-2xl font-bold text-primary">{sessions.filter((session) => session.status === 'Pending').length}</p>
+          );
+        };
+
+        const renderKpiCards = () => (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              { icon: 'today', label: "Today's Sessions", value: todaySessions.length, accent: 'primary' },
+              { icon: 'date_range', label: 'Upcoming (7d)', value: weekSessions.length, accent: 'secondary' },
+              { icon: 'check_circle', label: 'Completed', value: completedSessions.length, accent: 'tertiary' },
+            ].map((kpi) => (
+              <div key={kpi.label} className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-4 transition-all duration-200 hover:shadow-lg hover:scale-[1.02]">
+                <div className="flex items-start justify-between mb-3">
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-${kpi.accent}/10`}>
+                    <span className={`material-symbols-outlined text-[18px] text-${kpi.accent}`}>{kpi.icon}</span>
+                  </span>
+                </div>
+                <p className="text-xl font-bold text-on-surface">{kpi.value}</p>
+                <p className="text-[11px] font-semibold text-on-surface-variant mt-0.5">{kpi.label}</p>
               </div>
-              <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10 text-center">
-                <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">Scheduled</p>
-                <p className="text-2xl font-bold text-primary">{sessions.filter((session) => session.status === 'Confirmed').length}</p>
+            ))}
+          </div>
+        );
+
+        const renderTimeline = () => {
+          const timelineSessions = sessions
+            .filter(s => new Date(s.dateTime || s.date || s.createdAt).toDateString() === today.toDateString())
+            .sort((a, b) => new Date(a.dateTime || a.date) - new Date(b.dateTime || b.date))
+            .slice(0, 5);
+          if (timelineSessions.length === 0) return null;
+          return (
+            <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+              <div className="px-6 py-4 border-b border-outline-variant/10">
+                <h4 className="text-sm font-bold text-on-surface">Today's Schedule</h4>
+                <p className="text-xs text-on-surface-variant mt-0.5">{today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
               </div>
-              <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10 text-center">
-                <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">Completed</p>
-                <p className="text-2xl font-bold text-primary">{completedSessions.length}</p>
-              </div>
-              <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10 text-center">
-                <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">In Range</p>
-                <p className="text-2xl font-bold text-primary">{metricSessions.length}</p>
+              <div className="p-6">
+                <div className="space-y-0">
+                  {timelineSessions.map((s, i) => {
+                    const statusColors = { Pending: 'bg-tertiary', Confirmed: 'bg-primary', Completed: 'bg-secondary', Cancelled: 'bg-error', Canceled: 'bg-error', Rejected: 'bg-error' };
+                    const dotColor = statusColors[s.status] || 'bg-outline-variant';
+                    return (
+                      <div key={s.id} className="flex gap-4 pb-6 last:pb-0 relative">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-3 h-3 rounded-full ${dotColor} ring-2 ring-surface-container-lowest z-10`} />
+                          {i < timelineSessions.length - 1 && <div className="w-0.5 flex-1 bg-outline-variant/30 -mt-1" />}
+                        </div>
+                        <div className="flex-1 min-w-0 -mt-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-xs font-bold text-on-surface-variant flex-shrink-0 w-14">{s.time || '—'}</span>
+                              <span className="text-sm font-semibold text-on-surface truncate">{s.menteeName || s.mentee?.name || 'Mentee'}</span>
+                            </div>
+                            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              s.status === 'Confirmed' ? 'bg-primary/10 text-primary' :
+                              s.status === 'Completed' ? 'bg-secondary/10 text-secondary' :
+                              s.status === 'Pending' ? 'bg-tertiary/15 text-tertiary' :
+                              'bg-error/10 text-error'
+                            }`}>{s.status}</span>
+                          </div>
+                          <p className="text-xs text-on-surface-variant truncate mt-0.5 ml-14">{s.type || s.topic || 'Mentorship Session'}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-            <div className="bg-surface-container-low p-6 rounded-xl">
-              <h5 className="font-bold text-on-surface mb-4">Session Volume</h5>
-              {renderLineChart(metricData, 'sessions')}
+          );
+        };
+
+        const statusBadge = (status) => {
+          const map = {
+            Pending: 'bg-tertiary/15 text-tertiary border-tertiary/20',
+            Confirmed: 'bg-primary/10 text-primary border-primary/20',
+            Completed: 'bg-secondary/10 text-secondary border-secondary/20',
+            scheduled: 'bg-primary/10 text-primary border-primary/20',
+            Cancelled: 'bg-error/10 text-error border-error/20',
+            Canceled: 'bg-error/10 text-error border-error/20',
+            Rejected: 'bg-error/10 text-error border-error/20',
+          };
+          return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold border ${map[status] || 'bg-surface-variant text-on-surface-variant border-outline-variant/20'}`;
+        };
+
+        return (
+          <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
+            {/* Segment Tabs */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {[
+                { id: 'pending', label: 'Pending' },
+                { id: 'scheduled', label: 'Scheduled' },
+                { id: 'completed', label: 'Completed' },
+                { id: 'cancelled', label: 'Cancelled' },
+              ].map((tab) => (
+                <button key={tab.id} onClick={() => setSessionTab(tab.id)}
+                  className={`relative flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                    sessionTab === tab.id ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                    sessionTab === tab.id ? 'bg-on-primary/20 text-on-primary' : 'bg-outline-variant/30 text-on-surface-variant'
+                  }`}>
+                    {groups[tab.id]?.length || 0}
+                  </span>
+                </button>
+              ))}
             </div>
-          </section>
-          </>
+
+            {/* KPI Statistics */}
+            {renderKpiCards()}
+
+            {/* Next Session Hero Card */}
+            {renderNextSessionCard()}
+
+            {/* Today's Timeline */}
+            {renderTimeline()}
+
+            {/* Sessions Table */}
+            <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+              <div className="px-6 py-4 border-b border-outline-variant/10">
+                <h4 className="text-sm font-bold text-on-surface capitalize">{sessionTab} Sessions</h4>
+              </div>
+              {visibleSessions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                  <span className="material-symbols-outlined text-5xl text-outline-variant mb-4">event_upcoming</span>
+                  <h3 className="text-lg font-bold text-on-surface mb-1">No sessions scheduled yet</h3>
+                  <p className="text-sm text-on-surface-variant mb-6 max-w-sm">Update your availability so mentees can start booking sessions.</p>
+                  <button onClick={() => { setSettingsTab('career'); setActiveView('settings'); }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm hover:shadow-md transition-all">
+                    <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                    Manage Availability
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-outline-variant/10">
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Mentee</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Topic</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Date</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Time</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Duration</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Platform</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+                        <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10">
+                      {visibleSessions.map((s) => (
+                        <tr key={s.id} className="hover:bg-surface-container/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full overflow-hidden bg-surface-variant flex-shrink-0">
+                                <img src={s.menteeAvatar || `https://ui-avatars.com/api/?name=${s.menteeName || 'M'}&background=202a10&color=fff`} alt={s.menteeName} className="w-full h-full object-cover" />
+                              </div>
+                              <span className="text-sm font-semibold text-on-surface">{s.menteeName || s.mentee?.name || 'Mentee'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant">{s.type || s.topic || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant whitespace-nowrap">{s.dateTime || s.date || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant whitespace-nowrap">{s.time || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant">{s.duration ? `${s.duration} min` : '—'}</td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant">{s.platform || '—'}</td>
+                          <td className="px-6 py-4">
+                            <span className={statusBadge(s.status)}>{s.status}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => setSelectedSession(s)} className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="View Details">
+                                <span className="material-symbols-outlined text-[18px]">visibility</span>
+                              </button>
+                              {['Confirmed', 'scheduled'].includes(s.status) && (
+                                <button onClick={() => navigateTo('video-interview', { sessionId: s.id })} className="p-2 rounded-lg text-secondary hover:bg-secondary/10 transition-colors" title="Join">
+                                  <span className="material-symbols-outlined text-[18px]">videocam</span>
+                                </button>
+                              )}
+                              {['Confirmed', 'Pending', 'scheduled'].includes(s.status) && (
+                                <>
+                                  <button onClick={() => openRescheduleModal(s)} className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors" title="Reschedule">
+                                    <span className="material-symbols-outlined text-[18px]">edit_calendar</span>
+                                  </button>
+                                  <button onClick={() => handleCancelSession(s)} className="p-2 rounded-lg text-error hover:bg-error/10 transition-colors" title="Cancel">
+                                    <span className="material-symbols-outlined text-[18px]">cancel</span>
+                                  </button>
+                                </>
+                              )}
+                              {s.status === 'Pending' && (
+                                <>
+                                  <button onClick={() => approveSession(s)} className="p-2 rounded-lg text-secondary hover:bg-secondary/10 transition-colors" title="Approve">
+                                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                                  </button>
+                                  <button onClick={() => rejectSession(s)} className="p-2 rounded-lg text-error hover:bg-error/10 transition-colors" title="Reject">
+                                    <span className="material-symbols-outlined text-[18px]">block</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Analytics Section */}
+            <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+              <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-on-surface">Session Analytics</h4>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Track session volume and status distribution</p>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Status KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Pending', count: groups.pending.length, color: 'bg-tertiary', icon: 'pending_actions' },
+                    { label: 'Scheduled', count: groups.scheduled.length, color: 'bg-primary', icon: 'checklist' },
+                    { label: 'Completed', count: groups.completed.length, color: 'bg-secondary', icon: 'task_alt' },
+                    { label: 'Cancelled', count: groups.cancelled.length, color: 'bg-error', icon: 'cancel_schedule_send' },
+                  ].map((stat) => (
+                    <div key={stat.label} className="flex items-center gap-3 rounded-xl bg-surface-container-low p-4">
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.color}/10`}>
+                        <span className={`material-symbols-outlined text-[20px] ${stat.color.replace('bg-', 'text-')}`}>{stat.icon}</span>
+                      </span>
+                      <div>
+                        <p className="text-xl font-bold text-on-surface">{stat.count}</p>
+                        <p className="text-[11px] font-semibold text-on-surface-variant">{stat.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="relative h-3 rounded-full bg-surface-container-low overflow-hidden">
+                  {(() => {
+                    const total = sessions.length || 1;
+                    const p1 = (groups.pending.length / total) * 100;
+                    const p2 = (groups.scheduled.length / total) * 100;
+                    const p3 = (groups.completed.length / total) * 100;
+                    return (
+                      <>
+                        <div className="absolute inset-y-0 left-0 bg-tertiary rounded-full transition-all duration-500" style={{ width: `${p1}%` }} />
+                        <div className="absolute inset-y-0 rounded-full bg-primary transition-all duration-500" style={{ left: `${p1}%`, width: `${p2}%` }} />
+                        <div className="absolute inset-y-0 rounded-full bg-secondary transition-all duration-500" style={{ left: `${p1 + p2}%`, width: `${p3}%` }} />
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Analytics Filters + Charts */}
+                {renderMetricFilters('analytics')}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-surface-container-low p-4 rounded-xl">
+                    <p className="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-wider">Volume Trend ({metricMode})</p>
+                    {metricData.length > 0 ? renderLineChart(metricData, 'sessions') : (
+                      <div className="h-40 flex items-center justify-center text-sm text-on-surface-variant">No data for selected period</div>
+                    )}
+                  </div>
+                  <div className="bg-surface-container-low p-4 rounded-xl">
+                    <p className="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-wider">Session Volume</p>
+                    {metricData.length > 0 ? (
+                      <div className="flex items-end gap-1.5" style={{ height: 140 }}>
+                        {metricData.slice(-12).map((d, i) => {
+                          const max = Math.max(...metricData.map(x => x.sessions || 0), 1);
+                          const pct = Math.max(((d.sessions || 0) / max) * 100, 2);
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1 group/bar">
+                              <span className="text-[9px] font-bold text-on-surface-variant opacity-0 group-hover/bar:opacity-100 transition-opacity">{d.sessions}</span>
+                              <div className="w-full rounded-t-lg bg-primary/70 transition-all duration-500 group-hover/bar:bg-primary" style={{ height: `${pct}%` }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-40 flex items-center justify-center text-sm text-on-surface-variant">No data for selected period</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
       }
       default: return renderDashboard();
@@ -1117,33 +1054,17 @@ const MentorDashboard = ({ navigateTo }) => {
     <div className="min-h-screen bg-surface font-body-md">
       {renderSidebar()}
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close dashboard menu"
-          />
-          <div className="relative h-full w-64">
-            {renderSidebar({ mobile: true })}
-          </div>
-        </div>
-      )}
-
       <main className="min-h-screen lg:pl-64 bg-surface">
         <div className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8 pb-28">
         <header className="flex justify-between items-center mb-6 gap-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container text-on-surface lg:hidden"
-              aria-label="Open dashboard menu"
-            >
-              <span className="material-symbols-outlined">menu</span>
-            </button>
             <div>
-              <h2 className="font-headline-lg text-2xl sm:text-4xl font-bold text-on-surface capitalize">{activeView.replace('-', ' ')}</h2>
-              <p className="text-on-surface-variant text-sm sm:text-base mt-0.5">Manage your mentorship practice and impact.</p>
+              {activeView !== 'settings' && activeView !== 'earnings' && (
+                <>
+                  <h2 className="font-headline-lg text-2xl sm:text-4xl font-bold text-on-surface capitalize">{activeView.replace('-', ' ')}</h2>
+                  <p className="text-on-surface-variant text-sm sm:text-base mt-0.5">Manage your mentorship practice and impact.</p>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -1185,11 +1106,20 @@ const MentorDashboard = ({ navigateTo }) => {
               )}
             </div>
 
-            <div onClick={() => setActiveView('profile')} className="flex items-center gap-3 bg-surface-container px-4 py-2 rounded-full natural-shadow cursor-pointer hover:bg-surface-container-high transition-colors">
+            <div onClick={() => setActiveView('settings')} className="flex items-center gap-3 bg-surface-container px-4 py-2 rounded-full natural-shadow cursor-pointer hover:bg-surface-container-high transition-colors">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-variant border border-outline-variant/30">
-                <img className="w-full h-full object-cover" src={user?.avatar || "https://i.pravatar.cc/150"} alt="Mentor" />
+                {user?.avatar ? (
+                  <img className="w-full h-full object-cover" src={user.avatar} alt={user?.name} />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-xs font-bold text-on-surface-variant">
+                    {(user?.name || 'M').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                )}
               </div>
-              <span className="font-label-sm text-sm font-semibold text-on-surface">{user?.name}</span>
+              <span className="hidden sm:block">
+                <span className="block text-sm font-semibold leading-none text-on-surface">{user?.name || 'Mentor'}</span>
+                <span className="mt-1 block text-[11px] text-on-surface-variant">Mentor Account</span>
+              </span>
             </div>
           </div>
         </header>

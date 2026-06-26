@@ -36,11 +36,14 @@ export default function OTPVerification({ navigateTo, params }) {
     setLoading(true);
     try {
       const response = await authService.verifyOTP(userId, otp);
+      if (response.user.role === 'mentee' && response.user.isProfileComplete === undefined) {
+        response.user.isProfileComplete = false;
+      }
       login(response.user, response.accessToken);
 
       const role = response.user.role;
       if (role === 'mentor') navigateTo('mentor-dashboard');
-      else if (role === 'mentee') navigateTo('mentee-dashboard');
+      else if (role === 'mentee') navigateTo('onboarding');
       else if (role === 'admin') navigateTo('admindashboard');
       else navigateTo('home');
     } catch (err) {

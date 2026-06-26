@@ -1,4 +1,4 @@
-import { getDefaultSiteContent, getStoredSiteContent, saveStoredSiteContent } from '../content/siteContent';
+import { getDefaultSiteContent, saveStoredSiteContent } from '../content/siteContent';
 
 // Mock Database Initialization and Utility Functions using localStorage
 
@@ -17,7 +17,7 @@ const INITIAL_DATA = {
       rating: 4.9,
       reviews: 124,
       hourlyRate: 150,
-      avatar: "https://i.pravatar.cc/150?u=emily",
+      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
       availability: ["Monday 10:00 AM", "Wednesday 2:00 PM"],
       bio: "Passionate about AI ethics and mentoring the next generation of data scientists.",
       status: "approved",
@@ -34,7 +34,7 @@ const INITIAL_DATA = {
       rating: 4.7,
       reviews: 89,
       hourlyRate: 200,
-      avatar: "https://i.pravatar.cc/150?u=james",
+      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
       availability: ["Tuesday 4:00 PM", "Friday 9:00 AM"],
       bio: "15+ years of experience scaling engineering teams from 10 to 500+.",
       status: "approved"
@@ -50,7 +50,7 @@ const INITIAL_DATA = {
       rating: 4.8,
       reviews: 54,
       hourlyRate: 120,
-      avatar: "https://ui-avatars.com/api/?name=Michael+Chang",
+      avatar: "https://randomuser.me/api/portraits/men/75.jpg",
       availability: ["Monday 1:00 PM", "Thursday 10:00 AM"],
       bio: "Helping engineers transition into product management.",
       status: "approved",
@@ -68,7 +68,7 @@ const INITIAL_DATA = {
       rating: 4.5,
       reviews: 32,
       hourlyRate: 90,
-      avatar: "https://ui-avatars.com/api/?name=Aisha+Patel",
+      avatar: "https://randomuser.me/api/portraits/women/63.jpg",
       availability: ["Wednesday 9:00 AM"],
       bio: "Passionate about data-driven decision making.",
       status: "approved",
@@ -86,7 +86,7 @@ const INITIAL_DATA = {
       rating: 3.9,
       reviews: 12,
       hourlyRate: 60,
-      avatar: "https://ui-avatars.com/api/?name=David+Reynolds",
+      avatar: "https://randomuser.me/api/portraits/men/22.jpg",
       availability: ["Friday 2:00 PM"],
       bio: "Self-taught developer eager to help beginners.",
       status: "approved",
@@ -104,7 +104,7 @@ const INITIAL_DATA = {
       rating: 5.0,
       reviews: 200,
       hourlyRate: 180,
-      avatar: "https://ui-avatars.com/api/?name=Sarah+Chen",
+      avatar: "https://randomuser.me/api/portraits/women/90.jpg",
       availability: ["Tuesday 11:00 AM", "Thursday 3:00 PM"],
       bio: "Designing the future of productivity software.",
       status: "approved",
@@ -122,7 +122,7 @@ const INITIAL_DATA = {
       rating: 0,
       reviews: 0,
       hourlyRate: 160,
-      avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuA8kOZXGI9DFRoAQ1yowFwvg1ZUM8R-4Kth7GdTi1EFeSyf1BAwV_ZmFZYNUC-Eckf_UI4LuF_2yPiLODRQduMk1yhJlUsDFNYvlTCRSprdkVkf5LHoLoNGNyaKpknZjd3VC1aKD22hmByp69c3ylT17ZVH0AwXvpyF7xciW8LvB7WaVVIqcIUP1peyIk4Tx12zJ8Ucy7KMqyLpfW0NfCg5xY52muCrI3XNRnvXKQbfJa03a1LEiuZ49jz75J9A6xeaNI8mPpUhPnDF",
+      avatar: "https://randomuser.me/api/portraits/women/26.jpg",
       availability: ["Monday 10:00 AM"],
       bio: "Helping developers build better experiences.",
       status: "pending",
@@ -140,7 +140,7 @@ const INITIAL_DATA = {
       rating: 0,
       reviews: 0,
       hourlyRate: 110,
-      avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDqjMVAVdd9Rrlxlxpx494SqF-W1Vditgf-moZj4glvxMqEgyW3z7YA7hAR7Qbwb3W6ORthPn-Ak_R0-sq5BrJPwlhd4ICCkQaDsJ74d1QYJXjna2lwPAWRF1UDuizHH9oYVLoRAQhsnSPXMaaR28CL74tFvnmZlB2Qbd4UDEG7P-MYKgV6YlnHnfQqbtcM_dlPG5CxOnF3bhG0QCSkr1snMMH-fk4aEXbBNvmA-yXuEqlBBuwJUVBhJjvGzlpRSQNBNVPB5pXLgdx4",
+      avatar: "https://randomuser.me/api/portraits/men/55.jpg",
       availability: ["Tuesday 2:00 PM"],
       bio: "Securing the future, one system at a time.",
       status: "pending",
@@ -155,7 +155,7 @@ const INITIAL_DATA = {
       password: "mentee123",
       title: "Computer Science Student",
       skills: ["JavaScript", "React"],
-      avatar: "https://i.pravatar.cc/150?u=sarah",
+      avatar: "https://randomuser.me/api/portraits/women/17.jpg",
       createdAt: "2025-10-14T10:00:00Z"
     },
     {
@@ -164,7 +164,7 @@ const INITIAL_DATA = {
       role: "mentee",
       title: "Aspiring Product Manager",
       skills: ["Data Analysis", "Communication"],
-      avatar: "https://i.pravatar.cc/150?u=alex",
+      avatar: "https://randomuser.me/api/portraits/men/41.jpg",
       createdAt: "2026-02-17T10:00:00Z"
     },
     {
@@ -173,7 +173,7 @@ const INITIAL_DATA = {
       role: "admin",
       email: "admin@prolign.com",
       password: "password123",
-      avatar: "https://i.pravatar.cc/150?u=admin",
+      avatar: "https://randomuser.me/api/portraits/men/68.jpg",
       createdAt: "2025-06-01T10:00:00Z"
     }
   ],
@@ -270,7 +270,7 @@ const INITIAL_DATA = {
       role: "Frontend Engineer",
       company: "TechNova",
       quote: "ProLign transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
-      avatar: "https://i.pravatar.cc/150?u=david",
+      avatar: "https://randomuser.me/api/portraits/men/52.jpg",
       published: true
     },
     {
@@ -279,7 +279,7 @@ const INITIAL_DATA = {
       role: "Product Manager",
       company: "Innovate Inc.",
       quote: "My mentor helped me navigate the transition from engineering to product management seamlessly. The flexible scheduling was a lifesaver.",
-      avatar: "https://i.pravatar.cc/150?u=elena",
+      avatar: "https://randomuser.me/api/portraits/women/33.jpg",
       published: true
     },
     {
@@ -288,19 +288,11 @@ const INITIAL_DATA = {
       role: "Data Scientist",
       company: "Analytix Labs",
       quote: "The AI matching was spot-on. My mentor\u2019s guidance on machine learning pipelines saved me months of trial and error. I landed my dream role within weeks.",
-      avatar: "https://i.pravatar.cc/150?u=marcus",
+      avatar: "https://randomuser.me/api/portraits/men/8.jpg",
       published: true
     }
   ],
   currentUser: null // Will store the ID of the currently logged in user
-};
-
-export const initDB = () => {
-  if (!localStorage.getItem("prolignDB")) {
-    const initialDB = { ...INITIAL_DATA, siteContent: getStoredSiteContent() };
-    localStorage.setItem("prolignDB", JSON.stringify(initialDB));
-    saveStoredSiteContent(initialDB.siteContent);
-  }
 };
 
 export const getDB = () => {
@@ -442,17 +434,6 @@ export const saveDB = (db) => {
 };
 
 // User Operations
-export const login = (email, password) => {
-  const db = getDB();
-  const user = db.users.find((candidate) => candidate.email === email && candidate.password === password);
-
-  if (user) {
-    db.currentUser = user;
-    saveDB(db);
-  }
-  return user;
-};
-
 export const logout = () => {
   const db = getDB();
   db.currentUser = null;
@@ -469,21 +450,6 @@ export const getUsersByRole = (role) => {
 
 export const getUserById = (id) => {
   return getDB().users.find(u => u.id === id);
-};
-
-export const addMentee = (data) => {
-    const db = getDB();
-    const newUser = {
-        ...data,
-        id: `u${Date.now()}`,
-        role: "mentee",
-        avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'Mentee')}`,
-        createdAt: new Date().toISOString()
-    };
-    db.users.push(newUser);
-    db.currentUser = newUser;
-    saveDB(db);
-    return newUser;
 };
 
 export const addUser = (data) => {
@@ -592,6 +558,20 @@ export const updateMentorAvailability = (mentorId, date, times) => {
     if (db.currentUser?.id === mentorId) db.currentUser = mentor;
     saveDB(db);
   }
+  return { success: true };
+};
+
+export const saveMentorAvailability = (mentorId, availabilitySlots) => {
+  const db = getDB();
+  const mentor = db.users.find((user) => user.id === mentorId);
+  if (!mentor) return { success: false };
+  mentor.availabilitySlots = {};
+  Object.entries(availabilitySlots || {}).forEach(([date, times]) => {
+    const cleaned = [...new Set((times || []).filter(Boolean))];
+    if (cleaned.length > 0) mentor.availabilitySlots[date] = cleaned;
+  });
+  if (db.currentUser?.id === mentorId) db.currentUser = mentor;
+  saveDB(db);
   return { success: true };
 };
 
@@ -719,19 +699,6 @@ export const rejectMentor = (id, reason) => {
     // Optionally save the reason somewhere, or just remove them
     db.users[index].status = "rejected";
     db.users[index].rejectionReason = reason;
-    saveDB(db);
-  }
-  return { success: true };
-};
-
-export const updateUserProfile = (id, updates) => {
-  const db = getDB();
-  const userIndex = db.users.findIndex(u => u.id === id);
-  if (userIndex !== -1) {
-    db.users[userIndex] = { ...db.users[userIndex], ...updates };
-    if (db.currentUser && db.currentUser.id === id) {
-      db.currentUser = db.users[userIndex];
-    }
     saveDB(db);
   }
   return { success: true };

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { getCurrentUser, logout } from '../../utils/db';
-//landing page navbar
-const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen, theme, toggleTheme }) => {
+const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
   const user = getCurrentUser();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
 
@@ -9,7 +8,6 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
     { id: 'home', label: 'Home' },
     { id: 'discovery', label: 'Find Mentors' },
     { id: 'how-it-works', label: 'How it Works' },
-    { id: 'help-center', label: 'Help Center' },
   ];
 
   const handleNavigate = (page) => {
@@ -27,15 +25,6 @@ const TopNavBar = ({ navigateTo, currentPage, toggleMobileMenu, isMobileMenuOpen
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleNavigate('home')}>
-            {user && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); toggleMobileMenu(); }}
-                className="md:hidden mr-2 p-1 text-on-surface hover:bg-surface-variant rounded-md transition-colors"
-                aria-label="Toggle dashboard menu"
-              >
-                <span className="material-symbols-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
-              </button>
-            )}
             <span className="material-symbols-outlined text-primary text-3xl mr-2">school</span>
             <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">ProLign</span>
           </div>

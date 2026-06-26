@@ -70,7 +70,6 @@ const siteContentDefaults = {
     footer: {
       label: 'Need help understanding these terms?',
       email: 'legal@prolign.io',
-      helpRoute: 'help-center',
     },
   },
   privacy: {
@@ -332,69 +331,6 @@ const siteContentDefaults = {
       { name: 'Creative Portfolio', type: 'Design & Marketing', icon: 'palette' },
       { name: 'Academic & Research', type: 'Academia & Science', icon: 'science' },
     ],
-  },
-  helpCenter: {
-    hero: {
-      badge: 'Help Center',
-      title: 'How can we help you today?',
-      summary: 'Find answers fast, browse common topics, or reach support when you need a human.',
-    },
-    categories: [
-      {
-        icon: 'rocket_launch',
-        title: 'Getting Started',
-        desc: 'Set up your profile, find your first mentor, and move through onboarding.',
-      },
-      {
-        icon: 'event',
-        title: 'Sessions and Bookings',
-        desc: 'Learn how scheduling, rescheduling, and cancellation works.',
-      },
-      {
-        icon: 'credit_card',
-        title: 'Billing and Payments',
-        desc: 'Manage subscriptions, invoices, and payment methods.',
-      },
-      {
-        icon: 'shield',
-        title: 'Account and Security',
-        desc: 'Password, privacy, and account protection basics.',
-      },
-    ],
-    faqs: [
-      {
-        q: 'How do I find a mentor on ProLign?',
-        a: 'After creating your profile, the platform suggests compatible mentors based on your goals, skills, and preferences. You can also browse the mentor directory and filter by expertise and availability.',
-      },
-      {
-        q: 'What happens if my mentor cancels a session?',
-        a: 'If a mentor cancels within the policy window, the session credit is handled according to the booking rules shown at checkout.',
-      },
-      {
-        q: 'How are mentors verified on the platform?',
-        a: 'Every mentor goes through profile review and platform checks so users have a safer, higher-quality mentoring experience.',
-      },
-      {
-        q: 'Can I request a refund for my subscription?',
-        a: 'Refund eligibility depends on the plan and timing. Review the pricing and checkout terms or contact support for account-specific help.',
-      },
-      {
-        q: 'Is my data secure on ProLign?',
-        a: 'We use standard safeguards, access controls, and privacy practices to protect data and reduce risk across the platform.',
-      },
-      {
-        q: 'Can I be both a mentor and a mentee?',
-        a: 'Yes. Many users occupy both roles and can switch between them as their goals evolve.',
-      },
-    ],
-    contact: {
-      title: 'Still need help?',
-      description:
-        'Our support team can help with account questions, bookings, and platform issues.',
-      email: 'support@prolign.io',
-      ctaLabel: 'Contact Support',
-      ctaRoute: 'help-center',
-    },
   },
 };
 

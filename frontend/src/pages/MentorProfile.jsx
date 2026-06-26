@@ -98,56 +98,62 @@ const MentorProfile = ({ navigateTo, params }) => {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-10">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-surface to-secondary/10 border border-outline-variant/10 p-8 md:p-12">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+    <div className="w-full max-w-[1440px] mx-auto">
+      {/* Hero Profile Header */}
+      <section className="relative overflow-hidden rounded-2xl lg:rounded-3xl bg-gradient-to-br from-primary/10 via-surface to-secondary/10 border border-outline-variant/10 p-5 sm:p-6 md:p-8 lg:p-10 mb-6 lg:mb-8">
+        <div className="absolute top-0 right-0 w-48 h-48 lg:w-64 lg:h-64 bg-secondary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-36 h-36 lg:w-48 lg:h-48 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        <div className="relative z-10 flex flex-col sm:flex-row gap-5 sm:gap-6 lg:gap-8 items-start">
+          {/* Avatar */}
           <div className="shrink-0">
             <div className="relative">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-secondary to-primary p-[3px]">
-                <div className="w-full h-full rounded-2xl bg-surface" />
+              <div className="absolute inset-0 rounded-xl lg:rounded-2xl bg-gradient-to-br from-secondary to-primary p-[3px]">
+                <div className="w-full h-full rounded-xl lg:rounded-2xl bg-surface" />
               </div>
               <img
                 alt={mentor.name}
-                className="w-28 h-28 md:w-36 md:h-36 rounded-2xl object-cover ring-4 ring-surface relative z-10"
+                className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-36 lg:h-36 rounded-xl lg:rounded-2xl object-cover ring-4 ring-surface relative z-10"
                 src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`}
               />
             </div>
           </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-primary">{mentor.name}</h1>
-              <p className="text-lg text-on-surface-variant">{mentor.title} at {mentor.company}</p>
+
+          {/* Mentor Info */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-bold text-primary truncate">{mentor.name}</h1>
+            <p className="text-base sm:text-lg text-on-surface-variant mt-1">{mentor.title} at {mentor.company}</p>
+
+            {/* Quick Stats Row */}
+            <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 mt-3 sm:mt-4">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-secondary fill-icon text-base lg:text-lg">star</span>
+                <span className="font-bold text-sm lg:text-base">{mentor.rating}</span>
+                <span className="text-on-surface-variant text-xs lg:text-sm">({mentor.reviews || 0})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-on-surface-variant text-base lg:text-lg">work</span>
+                <span className="font-semibold text-xs lg:text-sm">{mentor.experience || 0}+ years</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-on-surface-variant text-base lg:text-lg">language</span>
+                <span className="font-semibold text-xs lg:text-sm">English</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-on-surface-variant text-base lg:text-lg">schedule</span>
+                <span className="font-semibold text-xs lg:text-sm">~2 hrs response</span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary fill-icon text-lg">star</span>
-                <span className="font-bold">{mentor.rating}</span>
-                <span className="text-on-surface-variant text-sm">({mentor.reviews || 0} reviews)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">work</span>
-                <span className="font-semibold text-sm">{mentor.experience || 0}+ years</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">language</span>
-                <span className="font-semibold text-sm">English</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">group</span>
-                <span className="font-semibold text-sm">12 mentees</span>
-              </div>
-            </div>
-            <p className="text-on-surface-variant leading-relaxed">{mentor.bio}</p>
-            <div className="flex gap-2 flex-wrap">
+
+            {/* Skills */}
+            <div className="flex gap-2 flex-wrap mt-3 sm:mt-4">
               {mentor.skills?.map(skill => (
-                <span key={skill} className="bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-bold border border-secondary/20">{skill}</span>
+                <span key={skill} className="bg-secondary/10 text-secondary px-2.5 py-1 lg:px-3 lg:py-1 rounded-full text-[10px] lg:text-xs font-bold border border-secondary/20">{skill}</span>
               ))}
             </div>
           </div>
-          <div className="shrink-0 w-full md:w-56 bg-surface rounded-xl p-5 border border-outline-variant/10 shadow-sm">
+
+          {/* Price Card — Desktop */}
+          <div className="hidden lg:block shrink-0 w-52 bg-surface rounded-xl p-5 border border-outline-variant/10 shadow-sm">
             <p className="text-3xl font-bold text-primary">${mentor.hourlyRate}</p>
             <p className="text-xs text-on-surface-variant mb-4">per session</p>
             <div className="space-y-2 text-sm border-t border-outline-variant/10 pt-3">
@@ -158,165 +164,151 @@ const MentorProfile = ({ navigateTo, params }) => {
         </div>
       </section>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-10">
+      {/* Main Content Grid: 3-col on xl, 2-col on lg, 1-col below */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-[1fr_340px] gap-6 lg:gap-8">
+        {/* Left Content */}
+        <div className="lg:col-span-2 xl:col-span-1 space-y-6 lg:space-y-8">
           {/* About */}
           <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-8 py-5 border-b border-outline-variant/10">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 lg:px-8 py-4 border-b border-outline-variant/10">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">badge</span>
                 About
               </h2>
             </div>
-            <div className="p-8">
-              <p className="text-on-surface leading-relaxed">
+            <div className="p-5 sm:p-6 lg:p-8">
+              <p className="text-on-surface leading-relaxed text-sm sm:text-base">
                 I bridge the gap between human behavior and digital architecture. With over {mentor.experience || 15} years of experience at the intersection of {mentor.industry?.toLowerCase() || 'technology'} and product development, I help mid-to-senior designers and product managers navigate the complexities of ethical design and high-stakes strategy.
               </p>
             </div>
           </section>
 
+          {/* Quick Stats Section */}
+          <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 lg:px-8 py-4 border-b border-outline-variant/10">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary">analytics</span>
+                Statistics
+              </h2>
+            </div>
+            <div className="p-5 sm:p-6 lg:p-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+                {[
+                  { icon: 'check_circle', value: '450+', label: 'Sessions' },
+                  { icon: 'work', value: `${mentor.experience || 15}+`, label: 'Experience' },
+                  { icon: 'star', value: mentor.rating?.toFixed(1) || '4.9', label: 'Rating' },
+                  { icon: 'groups', value: '120+', label: 'Students' },
+                  { icon: 'speed', value: '~2h', label: 'Response' },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-surface-variant/30 rounded-xl p-3 lg:p-4 border border-outline-variant/10 text-center hover:bg-surface-variant/50 transition-colors">
+                    <span className="material-symbols-outlined text-secondary text-xl lg:text-2xl">{stat.icon}</span>
+                    <p className="text-lg lg:text-xl font-bold text-primary mt-1">{stat.value}</p>
+                    <p className="text-[10px] lg:text-xs text-on-surface-variant font-medium">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
           {/* Experience & Education */}
           <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-8 py-5 border-b border-outline-variant/10">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 lg:px-8 py-4 border-b border-outline-variant/10">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">timeline</span>
                 Experience
               </h2>
             </div>
-            <div className="p-8">
-              <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-secondary/40 before:to-outline-variant/20">
+            <div className="p-5 sm:p-6 lg:p-8">
+              <div className="space-y-5 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-secondary/40 before:to-outline-variant/20">
                 <div className="relative pl-10">
                   <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-secondary flex items-center justify-center shadow-sm">
                     <div className="w-2 h-2 rounded-full bg-on-primary"></div>
                   </div>
-                  <h4 className="font-bold text-on-surface">{mentor.title}</h4>
-                  <p className="text-sm text-on-surface-variant">{mentor.company} · Present</p>
+                  <h4 className="font-bold text-on-surface text-sm lg:text-base">{mentor.title}</h4>
+                  <p className="text-xs lg:text-sm text-on-surface-variant">{mentor.company} · Present</p>
                 </div>
                 <div className="relative pl-10">
                   <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-outline-variant flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-surface"></div>
                   </div>
-                  <h4 className="font-bold text-on-surface">Senior Engineer</h4>
-                  <p className="text-sm text-on-surface-variant">Leading Tech Co. · 2018 - 2022</p>
+                  <h4 className="font-bold text-on-surface text-sm lg:text-base">Senior Engineer</h4>
+                  <p className="text-xs lg:text-sm text-on-surface-variant">Leading Tech Co. · 2018 - 2022</p>
                 </div>
               </div>
             </div>
-            <div className="border-t border-outline-variant/10 px-8 py-5 bg-gradient-to-r from-primary/5 to-secondary/5">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+            <div className="border-t border-outline-variant/10 px-5 sm:px-6 lg:px-8 py-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">school</span>
                 Education
               </h2>
             </div>
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start gap-4 p-4 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
-                  <span className="material-symbols-outlined text-secondary text-2xl shrink-0">school</span>
+            <div className="p-5 sm:p-6 lg:p-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                <div className="flex items-start gap-3 lg:gap-4 p-3 lg:p-4 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
+                  <span className="material-symbols-outlined text-secondary text-xl lg:text-2xl shrink-0">school</span>
                   <div>
-                    <h4 className="font-bold text-on-surface text-sm">PhD in Computer Science</h4>
-                    <p className="text-xs text-on-surface-variant">Stanford University · 2012 - 2016</p>
+                    <h4 className="font-bold text-on-surface text-xs lg:text-sm">PhD in Computer Science</h4>
+                    <p className="text-[10px] lg:text-xs text-on-surface-variant">Stanford University · 2012 - 2016</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-4 p-4 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
-                  <span className="material-symbols-outlined text-secondary text-2xl shrink-0">school</span>
+                <div className="flex items-start gap-3 lg:gap-4 p-3 lg:p-4 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
+                  <span className="material-symbols-outlined text-secondary text-xl lg:text-2xl shrink-0">school</span>
                   <div>
-                    <h4 className="font-bold text-on-surface text-sm">B.Sc. in Software Engineering</h4>
-                    <p className="text-xs text-on-surface-variant">MIT · 2008 - 2012</p>
+                    <h4 className="font-bold text-on-surface text-xs lg:text-sm">B.Sc. in Software Engineering</h4>
+                    <p className="text-[10px] lg:text-xs text-on-surface-variant">MIT · 2008 - 2012</p>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Expertise */}
-          <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-8 py-5 border-b border-outline-variant/10">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">auto_awesome</span>
-                Expertise
-              </h2>
-            </div>
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-4">Skill Proficiency</h3>
-                <div className="space-y-4">
-                  {[
-                    { name: 'System Design', score: 92 },
-                    { name: 'Leadership', score: 88 },
-                    { name: 'Cloud Architecture', score: 85 },
-                  ].map(s => (
-                    <div key={s.name}>
-                      <div className="flex justify-between mb-1.5"><span className="font-semibold text-sm text-on-surface">{s.name}</span><span className="text-xs text-on-surface-variant">{s.score}%</span></div>
-                      <div className="w-full bg-surface-variant rounded-full h-2.5 overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-secondary to-primary transition-all duration-500" style={{width: `${s.score}%`}} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-4">Session Types</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4 p-3 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
-                    <span className="material-symbols-outlined text-2xl text-secondary shrink-0">psychology</span>
-                    <div><p className="font-semibold text-sm text-on-surface">Portfolio Review</p><p className="text-xs text-on-surface-variant">Deep dive into your work</p></div>
-                  </div>
-                  <div className="flex items-center gap-4 p-3 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
-                    <span className="material-symbols-outlined text-2xl text-secondary shrink-0">forum</span>
-                    <div><p className="font-semibold text-sm text-on-surface">Mock Interview</p><p className="text-xs text-on-surface-variant">Behavioral & technical practice</p></div>
-                  </div>
-                  <div className="flex items-center gap-4 p-3 bg-surface-variant/30 rounded-xl border border-outline-variant/10">
-                    <span className="material-symbols-outlined text-2xl text-secondary shrink-0">trending_up</span>
-                    <div><p className="font-semibold text-sm text-on-surface">Career Growth</p><p className="text-xs text-on-surface-variant">Path to senior/lead roles</p></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+
 
           {/* Reviews */}
           <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-8 py-5 border-b border-outline-variant/10">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 lg:px-8 py-4 border-b border-outline-variant/10">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">reviews</span>
                 Reviews ({reviews.length})
               </h2>
             </div>
-            <div className="p-8">
-              <div className="flex items-center gap-6 mb-8 pb-6 border-b border-outline-variant/10">
+            <div className="p-5 sm:p-6 lg:p-8">
+              {/* Rating Summary */}
+              <div className="flex items-center gap-4 sm:gap-6 mb-6 pb-5 border-b border-outline-variant/10">
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-primary leading-tight">{mentor.rating?.toFixed(1) || '0.0'}</p>
+                  <p className="text-3xl lg:text-4xl font-bold text-primary leading-tight">{mentor.rating?.toFixed(1) || '0.0'}</p>
                   <div className="flex justify-center text-secondary gap-0.5 mt-1">
                     {[1, 2, 3, 4, 5].map(i => (
-                      <span key={i} className="material-symbols-outlined fill-icon text-lg">star</span>
+                      <span key={i} className="material-symbols-outlined fill-icon text-sm lg:text-lg">star</span>
                     ))}
                   </div>
-                  <p className="text-xs text-on-surface-variant mt-1">{reviews.length} reviews</p>
+                  <p className="text-[10px] lg:text-xs text-on-surface-variant mt-1">{reviews.length} reviews</p>
                 </div>
               </div>
-              <div className="space-y-4">
+
+              {/* Review Cards — 2-col grid on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                 {reviews.length > 0 ? reviews.map(review => (
-                  <div key={review.id} className="bg-surface-variant/20 p-5 rounded-xl border border-outline-variant/10">
-                    <div className="flex justify-between items-start mb-3 gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center font-bold text-secondary text-sm">
+                  <div key={review.id} className="bg-surface-variant/20 p-4 lg:p-5 rounded-xl border border-outline-variant/10">
+                    <div className="flex justify-between items-start mb-2.5 gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-secondary/10 flex items-center justify-center font-bold text-secondary text-xs lg:text-sm">
                           {(review.menteeName || 'M').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-on-surface">{review.menteeName || 'Verified Mentee'}</p>
-                          <p className="text-xs text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString()}</p>
+                          <p className="font-bold text-xs lg:text-sm text-on-surface">{review.menteeName || 'Verified Mentee'}</p>
+                          <p className="text-[10px] lg:text-xs text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-secondary fill-icon text-sm">star</span>
-                        <span className="font-bold text-sm text-on-surface">{review.score}.0</span>
+                        <span className="material-symbols-outlined text-secondary fill-icon text-xs lg:text-sm">star</span>
+                        <span className="font-bold text-xs lg:text-sm text-on-surface">{review.score}.0</span>
                       </div>
                     </div>
-                    <p className="text-on-surface-variant text-sm leading-relaxed">&ldquo;{review.reviewText}&rdquo;</p>
+                    <p className="text-on-surface-variant text-xs lg:text-sm leading-relaxed">&ldquo;{review.reviewText}&rdquo;</p>
                   </div>
                 )) : (
-                  <div className="bg-surface-variant/20 p-8 rounded-xl border border-dashed border-outline-variant/20 text-center text-on-surface-variant text-sm">
+                  <div className="col-span-full bg-surface-variant/20 p-6 lg:p-8 rounded-xl border border-dashed border-outline-variant/20 text-center text-on-surface-variant text-sm">
                     No reviews yet.
                   </div>
                 )}
@@ -325,55 +317,31 @@ const MentorProfile = ({ navigateTo, params }) => {
           </section>
         </div>
 
-        {/* Booking Sidebar */}
-        <aside className="lg:col-span-1">
-          <div className="bg-surface rounded-2xl border border-outline-variant/10 shadow-sm lg:sticky lg:top-24 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-6 py-4 border-b border-outline-variant/10">
-              <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+        {/* Right Sidebar — Booking Card */}
+        <aside className="lg:col-span-3 xl:col-span-1 order-first lg:order-last">
+          <div className="bg-surface rounded-2xl border border-outline-variant/10 shadow-sm xl:sticky xl:top-6 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 py-4 border-b border-outline-variant/10">
+              <h3 className="text-base lg:text-lg font-bold text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">calendar_month</span>
                 Book a Session
               </h3>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-5 lg:p-6 space-y-4 lg:space-y-5">
+              {/* Calendar */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Session Type</label>
-                <div className="space-y-2">
-                  {sessionTypes.map(type => (
-                    <button
-                      key={type.value}
-                      onClick={() => setSessionType(type.value)}
-                      className={`w-full text-left p-3 rounded-xl text-sm border transition-all ${
-                        sessionType === type.value
-                          ? 'border-secondary bg-secondary/5 shadow-sm'
-                          : 'border-outline-variant/10 bg-surface-variant/20 hover:border-secondary/30'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`material-symbols-outlined text-xl ${sessionType === type.value ? 'text-secondary' : 'text-on-surface-variant'}`}>{type.icon}</span>
-                        <div>
-                          <p className="font-semibold text-on-surface">{type.value.split('(')[0].trim()}</p>
-                          <p className="text-xs text-on-surface-variant">{type.desc}</p>
-                        </div>
-                      </div>
+                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Select Date</label>
+                <div className="bg-surface-variant/20 rounded-xl p-2.5 lg:p-3 border border-outline-variant/10">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))} className="flex h-7 w-7 lg:h-8 lg:w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
+                      <span className="material-symbols-outlined text-sm lg:text-lg">chevron_left</span>
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Select Date</label>
-                <div className="bg-surface-variant/20 rounded-xl p-3 border border-outline-variant/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
-                      <span className="material-symbols-outlined text-lg">chevron_left</span>
-                    </button>
-                    <span className="text-sm font-bold text-on-surface">{monthLabels[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</span>
-                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
-                      <span className="material-symbols-outlined text-lg">chevron_right</span>
+                    <span className="text-xs lg:text-sm font-bold text-on-surface">{monthLabels[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</span>
+                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))} className="flex h-7 w-7 lg:h-8 lg:w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
+                      <span className="material-symbols-outlined text-sm lg:text-lg">chevron_right</span>
                     </button>
                   </div>
-                  <div className="grid grid-cols-7 gap-0.5 text-center text-xs font-bold text-on-surface-variant mb-1">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (<span key={d} className="py-1">{d}</span>))}
+                  <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] lg:text-xs font-bold text-on-surface-variant mb-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (<span key={d} className="py-0.5 lg:py-1">{d}</span>))}
                   </div>
                   <div className="grid grid-cols-7 gap-0.5">
                     {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (<div key={`e-${i}`} />))}
@@ -386,7 +354,7 @@ const MentorProfile = ({ navigateTo, params }) => {
                           key={dateKey(day)}
                           onClick={() => !isPast && isAvail && setSelectedDateObj(day)}
                           disabled={isPast || !isAvail}
-                          className={`h-9 text-xs rounded-full font-semibold transition-all ${
+                          className={`h-7 lg:h-8 text-[10px] lg:text-xs rounded-full font-semibold transition-all ${
                             isSelected ? 'bg-primary text-on-primary shadow-sm' :
                             isAvail && !isPast ? 'text-on-surface hover:bg-secondary/10 cursor-pointer' :
                             'text-on-surface-variant/30 cursor-not-allowed'
@@ -398,49 +366,53 @@ const MentorProfile = ({ navigateTo, params }) => {
                 </div>
               </div>
 
+              {/* Time Slots */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">
+                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">
                   {selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 lg:gap-2">
                   {availableTimes.length > 0 ? availableTimes.map(time => (
                     <button
                       key={time}
                       onClick={() => setSelectedTime(time)}
-                      className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                      className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-semibold border transition-all ${
                         selectedTime === time
                           ? 'bg-primary text-on-primary border-primary shadow-sm'
                           : 'border-outline-variant/10 bg-surface-variant/20 text-on-surface hover:border-secondary/30'
                       }`}
                     >{time}</button>
                   )) : (
-                    <p className="text-xs text-on-surface-variant py-2">No available slots for this date.</p>
+                    <p className="text-[10px] lg:text-xs text-on-surface-variant py-2">No available slots for this date.</p>
                   )}
                 </div>
               </div>
 
+              {/* Notes */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Notes (optional)</label>
+                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Notes (optional)</label>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30 resize-none"
-                  rows={3}
+                  className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-3 lg:px-4 py-2.5 lg:py-3 text-xs lg:text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30 resize-none"
+                  rows={2}
                   placeholder="What would you like to discuss?"
                 />
               </div>
 
-              <div className="bg-surface-variant/20 rounded-xl p-4 space-y-2 text-sm border border-outline-variant/10">
+              {/* Price Summary */}
+              <div className="bg-surface-variant/20 rounded-xl p-3 lg:p-4 space-y-1.5 lg:space-y-2 text-xs lg:text-sm border border-outline-variant/10">
                 <div className="flex justify-between"><span className="text-on-surface-variant">Session</span><span className="font-semibold text-on-surface">${basePrice.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-on-surface-variant">Platform fee</span><span className="font-semibold text-on-surface">${fee.toFixed(2)}</span></div>
-                <div className="flex justify-between border-t border-outline-variant/20 pt-2"><span className="font-bold text-on-surface">Total</span><span className="font-bold text-primary text-lg">${total.toFixed(2)}</span></div>
+                <div className="flex justify-between border-t border-outline-variant/20 pt-2"><span className="font-bold text-on-surface">Total</span><span className="font-bold text-primary text-base lg:text-lg">${total.toFixed(2)}</span></div>
               </div>
 
+              {/* Book Button */}
               <button
                 onClick={handleBook}
-                className="w-full py-3.5 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2"
+                className="w-full h-11 lg:h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2 text-sm lg:text-base"
               >
-                <span className="material-symbols-outlined text-lg">calendar_month</span>
+                <span className="material-symbols-outlined text-base lg:text-lg">calendar_month</span>
                 {selectedTime ? `Book for ${selectedTime}` : 'Select a Time Slot'}
               </button>
             </div>
@@ -448,50 +420,61 @@ const MentorProfile = ({ navigateTo, params }) => {
         </aside>
       </div>
 
+      {/* Mobile Sticky Book Button */}
+      <div className="fixed bottom-0 left-0 right-0 lg:hidden p-4 bg-surface/95 backdrop-blur-sm border-t border-outline-variant/10 z-40">
+        <button
+          onClick={handleBook}
+          className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-lg">calendar_month</span>
+          {selectedTime ? `Book for ${selectedTime}` : 'Book Session'}
+        </button>
+      </div>
+
       {/* Payment Modal */}
       {isPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-3xl bg-surface p-8 shadow-2xl border border-outline-variant/10">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="relative w-full max-w-md rounded-3xl bg-surface p-6 sm:p-8 shadow-2xl border border-outline-variant/10 max-h-[90vh] overflow-y-auto">
+            <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-secondary">Secure Payment</p>
-                <h3 className="mt-1 font-headline-md text-2xl font-bold text-on-surface">Complete Payment</h3>
+                <h3 className="mt-1 font-headline-md text-xl sm:text-2xl font-bold text-on-surface">Complete Payment</h3>
               </div>
               <button onClick={() => setIsPaymentOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <div className="mb-6 rounded-2xl bg-surface-variant/30 p-4 border border-outline-variant/10">
+            <div className="mb-5 rounded-2xl bg-surface-variant/30 p-4 border border-outline-variant/10">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-on-surface-variant">Total</span>
-                <span className="text-3xl font-bold text-primary">${total.toFixed(2)}</span>
+                <span className="text-2xl sm:text-3xl font-bold text-primary">${total.toFixed(2)}</span>
               </div>
               <p className="mt-1 text-xs text-on-surface-variant">{mentor.name} · {selectedDateObj.toLocaleDateString()} at {selectedTime}</p>
             </div>
-            <form onSubmit={handlePaymentSubmit} className="space-y-5">
+            <form onSubmit={handlePaymentSubmit} className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Cardholder Name</label>
-                <input value={cardName} onChange={e => setCardName(e.target.value)} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3.5 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="Jane Doe" type="text" required />
+                <input value={cardName} onChange={e => setCardName(e.target.value)} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="Full name on card" type="text" required />
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Card Number</label>
-                <input value={cardNumber} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 '); setCardNumber(formatted.slice(0, 19)); }} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3.5 font-mono text-sm tracking-wider text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="0000 0000 0000 0000" type="text" maxLength={19} required />
+                <input value={cardNumber} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 '); setCardNumber(formatted.slice(0, 19)); }} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3 font-mono text-sm tracking-wider text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="0000 0000 0000 0000" type="text" maxLength={19} required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Expiry Date</label>
-                  <input value={expiry} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 2) setExpiry(raw); else setExpiry(`${raw.slice(0, 2)}/${raw.slice(2, 4)}`); }} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3.5 font-mono text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="MM/YY" type="text" maxLength={5} required />
+                  <input value={expiry} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 2) setExpiry(raw); else setExpiry(`${raw.slice(0, 2)}/${raw.slice(2, 4)}`); }} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3 font-mono text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="MM/YY" type="text" maxLength={5} required />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">CVV</label>
-                  <input value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3.5 font-mono text-sm tracking-widest text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="***" type="password" maxLength={4} required />
+                  <input value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-4 py-3 font-mono text-sm tracking-widest text-on-surface outline-none focus:ring-2 focus:ring-secondary/30" placeholder="***" type="password" maxLength={4} required />
                 </div>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-secondary/5 p-3 text-xs font-semibold text-secondary border border-secondary/10">
                 <span className="material-symbols-outlined text-lg">lock</span>
                 Your payment is secured with end-to-end encryption.
               </div>
-              <button type="submit" disabled={isProcessing} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/90 py-4 font-bold text-on-primary shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed">
+              <button type="submit" disabled={isProcessing} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/90 py-3.5 lg:py-4 font-bold text-on-primary shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed">
                 {isProcessing ? (
                   <><span className="h-5 w-5 animate-spin rounded-full border-2 border-on-primary border-t-transparent" /> Processing...</>
                 ) : (
@@ -506,33 +489,36 @@ const MentorProfile = ({ navigateTo, params }) => {
       {/* Confirmation Modal */}
       {confirmedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl bg-surface p-8 shadow-2xl border border-outline-variant/10">
-            <div className="mb-6 text-center">
-              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                <span className="material-symbols-outlined fill-icon text-3xl">check_circle</span>
+          <div className="w-full max-w-lg rounded-3xl bg-surface p-6 sm:p-8 shadow-2xl border border-outline-variant/10">
+            <div className="mb-5 text-center">
+              <span className="mx-auto flex h-14 w-14 lg:h-16 lg:w-16 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+                <span className="material-symbols-outlined fill-icon text-2xl lg:text-3xl">check_circle</span>
               </span>
-              <h3 className="mt-4 text-2xl font-bold text-on-surface">Booking Confirmed!</h3>
-              <p className="mt-1 text-sm text-on-surface-variant">Your session has been submitted for mentor approval.</p>
+              <h3 className="mt-3 lg:mt-4 text-xl lg:text-2xl font-bold text-on-surface">Booking Confirmed!</h3>
+              <p className="mt-1 text-xs lg:text-sm text-on-surface-variant">Your session has been submitted for mentor approval.</p>
             </div>
-            <div className="mb-6 space-y-3 rounded-2xl bg-surface-variant/20 p-5 border border-outline-variant/10">
+            <div className="mb-5 space-y-2.5 rounded-2xl bg-surface-variant/20 p-4 lg:p-5 border border-outline-variant/10">
               <div className="flex items-center gap-3">
-                <img alt={confirmedBooking.mentorName} className="h-12 w-12 rounded-xl object-cover" src={confirmedBooking.mentorAvatar || `https://ui-avatars.com/api/?name=${confirmedBooking.mentorName}`} />
-                <div><p className="font-bold text-on-surface">{confirmedBooking.mentorName}</p><p className="text-xs text-on-surface-variant">Mentor</p></div>
+                <img alt={confirmedBooking.mentorName} className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl object-cover" src={confirmedBooking.mentorAvatar || `https://ui-avatars.com/api/?name=${confirmedBooking.mentorName}`} />
+                <div><p className="font-bold text-sm lg:text-base text-on-surface">{confirmedBooking.mentorName}</p><p className="text-[10px] lg:text-xs text-on-surface-variant">Mentor</p></div>
               </div>
-              <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 pt-3 text-sm">
-                <div><p className="text-xs font-semibold text-on-surface-variant">Session</p><p className="font-semibold text-on-surface">{confirmedBooking.sessionType.split('(')[0].trim()}</p></div>
-                <div><p className="text-xs font-semibold text-on-surface-variant">Date</p><p className="font-semibold text-on-surface">{confirmedBooking.date}</p></div>
-                <div><p className="text-xs font-semibold text-on-surface-variant">Time</p><p className="font-semibold text-on-surface">{confirmedBooking.time}</p></div>
-                <div><p className="text-xs font-semibold text-on-surface-variant">Total</p><p className="font-semibold text-primary">${Number(confirmedBooking.total).toFixed(2)}</p></div>
+              <div className="grid grid-cols-2 gap-2.5 lg:gap-3 border-t border-outline-variant/10 pt-2.5 text-xs lg:text-sm">
+                <div><p className="text-[10px] lg:text-xs font-semibold text-on-surface-variant">Session</p><p className="font-semibold text-on-surface">{confirmedBooking.sessionType.split('(')[0].trim()}</p></div>
+                <div><p className="text-[10px] lg:text-xs font-semibold text-on-surface-variant">Date</p><p className="font-semibold text-on-surface">{confirmedBooking.date}</p></div>
+                <div><p className="text-[10px] lg:text-xs font-semibold text-on-surface-variant">Time</p><p className="font-semibold text-on-surface">{confirmedBooking.time}</p></div>
+                <div><p className="text-[10px] lg:text-xs font-semibold text-on-surface-variant">Total</p><p className="font-semibold text-primary">${Number(confirmedBooking.total).toFixed(2)}</p></div>
               </div>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={() => { setConfirmedBooking(null); navigateTo('dashboard'); }} className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-primary/90 py-3.5 font-bold text-on-primary shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all">Back to Dashboard</button>
-              <button onClick={() => { setConfirmedBooking(null); navigateTo('sessions'); }} className="flex-1 rounded-2xl border border-outline-variant/10 bg-surface-variant/20 py-3.5 font-bold text-on-surface hover:bg-surface-variant/40 transition-all">View Sessions</button>
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <button onClick={() => { setConfirmedBooking(null); navigateTo('dashboard'); }} className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-primary/90 py-3 lg:py-3.5 font-bold text-on-primary shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all text-sm lg:text-base">Back to Dashboard</button>
+              <button onClick={() => { setConfirmedBooking(null); navigateTo('sessions'); }} className="flex-1 rounded-2xl border border-outline-variant/10 bg-surface-variant/20 py-3 lg:py-3.5 font-bold text-on-surface hover:bg-surface-variant/40 transition-all text-sm lg:text-base">View Sessions</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Bottom spacer for mobile sticky button */}
+      <div className="h-20 lg:hidden" />
     </div>
   );
 };

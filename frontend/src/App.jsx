@@ -17,20 +17,22 @@ import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
 import VideoInterview from './pages/VideoInterview';
 import HowItWorks from './pages/HowItWorks';
-import HelpCenter from './pages/HelpCenter';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
-import Chatbot from './pages/Chatbot';
 import OTPVerification from './pages/OTPVerification';
 import AIChatWidget from './components/AIChatWidget';
+import ChatbotFab from './components/ChatbotFab';
 import { useAuth } from './context/AuthContext';
 import { tokenManager } from './utils/tokenManager';
 
 const getRouteForUser = (user) => {
   if (user?.role === 'mentor') return 'mentor-dashboard';
   if (user?.role === 'admin') return 'admindashboard';
-  if (user?.role === 'mentee') return 'mentee-dashboard';
+  if (user?.role === 'mentee') {
+    if (!user.isProfileComplete) return 'onboarding';
+    return 'mentee-dashboard';
+  }
   return 'home';
 };
 
@@ -38,7 +40,6 @@ function App() {
   const { user, loading, login } = useAuth();
   const [currentRoute, setCurrentRoute] = useState({ page: 'home', params: null });
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
 
   // Handle Google OAuth callback
@@ -77,7 +78,6 @@ function App() {
 
   const navigateTo = (page, params = null) => {
     setCurrentRoute({ page, params });
-    setIsMobileMenuOpen(false);
     window.scrollTo(0, 0);
   };
 
@@ -131,12 +131,7 @@ function App() {
       case 'video-interview':
         return <VideoInterview onNavigate={navigateTo} sessionId={currentRoute.params?.sessionId} />;
       case 'how-it-works':
-        return <HowItWorks navigateTo={navigateTo} />;
-      case 'help-center':
-      case 'helpcenter':
-      case 'contact':
-      case 'community':
-        return <HelpCenter navigateTo={navigateTo} />;
+        return <HowItWorks navigateTo={navigateTo} onHelpClick={() => setIsChatbotOpen(true)} />;
       case 'terms':
         return <TermsOfService navigateTo={navigateTo} />;
       case 'privacy':
@@ -144,8 +139,6 @@ function App() {
       case 'cookies':
       case 'cookie-policy':
         return <CookiePolicy navigateTo={navigateTo} />;
-      case 'chatbot':
-        return <Chatbot navigateTo={navigateTo} />;
       default:
         return <LandingPage navigateTo={navigateTo} />;
     }
@@ -162,8 +155,8 @@ function App() {
   const noSidebarPages = ['mentorProfile'];
   const showSidebar = !hideNavigation && !!user && !noSidebarPages.includes(currentRoute.page);
 
-  const fullWidthPages = ['home', 'landing', 'how-it-works', 'help-center', 'helpcenter',
-    'terms', 'privacy', 'cookies', 'cookie-policy', 'community', 'discovery', 'mentorProfile', 'booking'];
+  const fullWidthPages = ['home', 'landing', 'how-it-works',
+    'terms', 'privacy', 'cookies', 'cookie-policy', 'discovery', 'mentorProfile', 'booking'];
   const isFullWidthPage = fullWidthPages.includes(currentRoute.page);
 
   if (loading) {
@@ -183,8 +176,6 @@ function App() {
         <TopNavBar
           navigateTo={navigateTo}
           currentPage={currentRoute.page}
-          toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isMobileMenuOpen={isMobileMenuOpen}
           theme={theme}
           toggleTheme={toggleTheme}
         />
@@ -195,8 +186,6 @@ function App() {
           <SideNavBar
             navigateTo={navigateTo}
             currentPage={currentRoute.page}
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
             theme={theme}
             toggleTheme={toggleTheme}
           />
@@ -212,19 +201,7 @@ function App() {
       {!hideNavigation && <Footer navigateTo={navigateTo} />}
 
       {currentRoute.page !== 'video-interview' && (
-        <button
-          onClick={() => setIsChatbotOpen(true)}
-          className="fixed bottom-8 right-8 z-[60] flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-on-secondary shadow-xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95 group"
-          title="Chat with ProLign AI"
-        >
-          <span className="absolute inset-0 rounded-full bg-secondary/30 animate-ping"></span>
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-error text-[10px] font-bold text-on-error">AI</span>
-          <img
-            src="/chatbot-icon.svg"
-            alt="ProLign AI"
-            className="relative h-12 w-12 rounded-full object-cover transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6"
-          />
-        </button>
+        <ChatbotFab isOpen={isChatbotOpen} onOpen={() => setIsChatbotOpen(true)} />
       )}
 
       <AIChatWidget isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
