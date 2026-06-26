@@ -192,16 +192,17 @@ const LandingPage = ({ navigateTo }) => {
             loop
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
+            poster="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80"
           >
             <source src="https://videos.pexels.com/video-files/5764741/5764741-uhd_3840_2160_24fps.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-black/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70"></div>
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 text-center py-16 sm:py-24">
-          <h1 className="font-headline-xl text-3xl sm:text-4xl md:text-5xl text-on-surface mb-6 sm:mb-8 max-w-3xl mx-auto font-bold tracking-tight">
+          <h1 className="font-headline-xl text-3xl sm:text-4xl md:text-5xl text-white mb-6 sm:mb-8 max-w-3xl mx-auto font-bold tracking-tight">
             Find your mentor, shape your future
           </h1>
-          <p className="font-body-md text-lg text-on-surface-variant mb-12 max-w-2xl mx-auto">
+          <p className="font-body-md text-lg text-white/80 mb-12 max-w-2xl mx-auto">
             Connect with industry leaders for personalized career growth. Our AI-driven platform matches your unique goals with world-class expertise.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
