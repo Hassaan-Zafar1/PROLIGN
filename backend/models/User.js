@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
+    // ── Core ──────────────────────────────────────────────────────────────────
     name: {
       type: String,
       trim: true,
@@ -29,7 +30,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ── Google OAuth ─────────────────────────────────────────────────
+    // ── Google OAuth ──────────────────────────────────────────────────────────
     googleId: { type: String, default: null, sparse: true },
     authProvider: {
       type: String,
@@ -37,7 +38,7 @@ const userSchema = new mongoose.Schema(
       default: "local",
     },
 
-    // ── Email OTP Verification ───────────────────────────────────────
+    // ── Email OTP Verification ────────────────────────────────────────────────
     isEmailVerified: { type: Boolean, default: false },
     otp: {
       code:      { type: String, select: false },
@@ -45,11 +46,19 @@ const userSchema = new mongoose.Schema(
       attempts:  { type: Number, default: 0 },
     },
 
-    // ── Profile Basics ───────────────────────────────────────────────
+    // ── Extended Profile ──────────────────────────────────────────────────────
+    phone:   { type: String, default: null },
+    country: { type: String, default: null },
+    city:    { type: String, default: null },
+    title:   { type: String, default: null },
+    company: { type: String, default: null },
+    bio:     { type: String, default: null },
+
+    // ── Profile Basics ────────────────────────────────────────────────────────
     profilePic:  { type: String, default: null },
     linkedinUrl: { type: String, default: null },
 
-    // ── CV / Resume ──────────────────────────────────────────────────
+    // ── CV / Resume ───────────────────────────────────────────────────────────
     cv: {
       url:        { type: String, default: null },
       filename:   { type: String, default: null },
@@ -57,21 +66,55 @@ const userSchema = new mongoose.Schema(
       parsedText: { type: String, default: null },
     },
 
-    // ── LinkedIn Scrape State ────────────────────────────────────────
+    // ── Skills & Expertise ────────────────────────────────────────────────────
+    skills:              { type: [String], default: [] },
+    languages:           { type: [String], default: [] },
+    certifications:      { type: [String], default: [] },
+    preferredCategories: { type: [String], default: [] },
+
+    // ── Mentor-specific ───────────────────────────────────────────────────────
+    hourlyRate:     { type: Number, default: null },
+    experience:     { type: Number, default: null },
+    availableSlots: { type: [String], default: [] },
+    weeklySchedule: { type: String, default: null },
+
+    // ── Mentee-specific ───────────────────────────────────────────────────────
+    education:         { type: String,   default: null },
+    careerGoals:       { type: String,   default: null },
+    skillsToLearn:     { type: [String], default: [] },
+    learningInterests: { type: [String], default: [] },
+
+    // ── Preferences ───────────────────────────────────────────────────────────
+    profileVisibility: {
+      type: String,
+      enum: ["public", "members", "private"],
+      default: "public",
+    },
+    emailSessionRequests: { type: Boolean, default: true },
+    emailReminders:       { type: Boolean, default: true },
+    emailMarketing:       { type: Boolean, default: false },
+    appearanceTheme: {
+      type: String,
+      enum: ["System", "Light", "Dark"],
+      default: "System",
+    },
+
+    // ── LinkedIn Scrape State ─────────────────────────────────────────────────
     linkedinScrape: {
       status:      { type: String, enum: ["pending", "done", "failed"], default: null },
       lastAttempt: { type: Date,   default: null },
       error:       { type: String, default: null },
     },
 
-    // ── Onboarding ───────────────────────────────────────────────────
+    // ── Onboarding ────────────────────────────────────────────────────────────
     onboardingStep: {
       type: String,
       enum: ["signup", "otp", "assessment", "complete"],
       default: "signup",
     },
+    isProfileComplete: { type: Boolean, default: false },
 
-    // ── Profile Refs ─────────────────────────────────────────────────
+    // ── Profile Refs ──────────────────────────────────────────────────────────
     menteeProfile: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "MenteeProfile",
@@ -83,14 +126,13 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── Account State ─────────────────────────────────────────────────
+    // ── Account State ─────────────────────────────────────────────────────────
     isActive:    { type: Boolean, default: true },
     isBanned:    { type: Boolean, default: false },
     banReason:   { type: String,  default: null },
     lastLoginAt: { type: Date,    default: null },
 
-    // ── Auth Tokens ───────────────────────────────────────────────────
-    // Array supports multi-device login (each device gets its own refresh token)
+    // ── Auth Tokens ───────────────────────────────────────────────────────────
     refreshTokens:       { type: [String], default: [], select: false },
     passwordResetToken:  { type: String,   default: null, select: false },
     passwordResetExpiry: { type: Date,     default: null },
@@ -101,7 +143,7 @@ const userSchema = new mongoose.Schema(
 // ── Indexes ───────────────────────────────────────────────────────────────────
 userSchema.index({ role: 1, isActive: 1 });
 userSchema.index({ linkedinUrl: 1 }, { sparse: true });
-userSchema.index({ googleId: 1 }, { sparse: true });
+// userSchema.index({ googleId: 1 }, { sparse: true });
 
 // ── Pre-save: Hash password ───────────────────────────────────────────────────
 userSchema.pre("save", async function () {

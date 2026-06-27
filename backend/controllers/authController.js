@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import { env } from "../config/env.js";
 import { generateAndSaveOTP, verifyOTP, clearOTP } from "../services/otpService.js";
 import { sendOTPEmail, sendPasswordResetEmail } from "../services/emailService.js";
 import { logAudit } from "../services/auditLogService.js";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateAccessToken(userId, role) {
@@ -24,15 +26,35 @@ function setRefreshCookie(res, token) {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }
 
-// ─── Step 1: Register (email + password + role) ───────────────────────────────
+// ✅ Single helper to build consistent user response object
+function buildUserResponse(user) {
+  return {
+    id: user._id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    profilePic: user.profilePic,
+    linkedinUrl: user.linkedinUrl,
+    authProvider: user.authProvider,
+    isEmailVerified: user.isEmailVerified,
+    isProfileComplete: user.isProfileComplete,
+    onboardingStep: user.onboardingStep,
+    menteeProfile: user.menteeProfile,
+    mentorProfile: user.mentorProfile,
+    cv: user.cv,
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt,
+  };
+}
+
+// ─── Register ─────────────────────────────────────────────────────────────────
 
 export async function register(req, res, next) {
   try {
-    console.log("📩 Register hit with body:", req.body);
     const { email, password, role, name, linkedinUrl, hourlyRate } = req.body;
 
     if (!email || !password || !role) {
@@ -49,10 +71,8 @@ export async function register(req, res, next) {
       });
     }
 
-    // Check if already registered
     const existing = await User.findOne({ email });
     if (existing) {
-      // If registered but not verified, resend OTP
       if (!existing.isEmailVerified) {
         await clearOTP(existing._id);
         const otp = await generateAndSaveOTP(existing._id);
@@ -70,13 +90,13 @@ export async function register(req, res, next) {
     }
 
     const user = await User.create({
-        email,
-        password,
-        role,
-        ...(name && { name }),
-        ...(linkedinUrl && { linkedinUrl }),
-        ...(hourlyRate && { hourlyRate }),  // only if hourlyRate exists in your User schema
+      email,
+      password,
+      role,
+      ...(name && { name }),
+      ...(linkedinUrl && { linkedinUrl }),
     });
+
     const otp = await generateAndSaveOTP(user._id);
     await sendOTPEmail(email, otp);
 
@@ -86,7 +106,7 @@ export async function register(req, res, next) {
       action: "user_registered",
       targetId: user._id,
       targetType: "user",
-      after: { email, role },
+      after: { email, role, name },
       request: req,
     });
 
@@ -100,12 +120,10 @@ export async function register(req, res, next) {
   }
 }
 
-// ─── Step 2: Verify OTP ───────────────────────────────────────────────────────
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
 
 export async function verifyEmail(req, res, next) {
   try {
-    console.log("📩 Verify OTP hit with body:", req.body); // ← temp debug
-
     const { userId, otp } = req.body;
 
     if (!userId || !otp) {
@@ -116,7 +134,6 @@ export async function verifyEmail(req, res, next) {
     }
 
     const result = await verifyOTP(userId, otp);
-
     if (!result.success) {
       return res.status(400).json({ success: false, message: result.message });
     }
@@ -129,12 +146,9 @@ export async function verifyEmail(req, res, next) {
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // ✅ Push to array instead of setting single field
-    const hashedRefresh = crypto
-      .createHash("sha256")
-      .update(refreshToken)
-      .digest("hex");
+    const hashedRefresh = crypto.createHash("sha256").update(refreshToken).digest("hex");
     user.refreshTokens.push(hashedRefresh);
+    user.onboardingStep = "assessment"; // ✅ Move onboarding forward
     await user.save();
 
     setRefreshCookie(res, refreshToken);
@@ -143,12 +157,7 @@ export async function verifyEmail(req, res, next) {
       success: true,
       message: "Email verified successfully.",
       accessToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        isProfileComplete: user.isProfileComplete,
-      },
+      user: buildUserResponse(user), // ✅ Full user object
     });
   } catch (error) {
     next(error);
@@ -199,15 +208,6 @@ export async function login(req, res, next) {
 
     const user = await User.findOne({ email }).select("+password +refreshTokens");
     if (!user || !(await user.comparePassword(password))) {
-      await logAudit({
-        actorId: new mongoose.Types.ObjectId(), // System or null
-        actorRole: "system",
-        action: "user_login",
-        targetId: null,
-        targetType: "none",
-        before: { email, success: false },
-        request: req,
-      });
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
@@ -215,7 +215,6 @@ export async function login(req, res, next) {
     }
 
     if (!user.isEmailVerified) {
-      // Resend OTP so they can verify
       await clearOTP(user._id);
       const otp = await generateAndSaveOTP(user._id);
       await sendOTPEmail(user.email, otp);
@@ -229,7 +228,6 @@ export async function login(req, res, next) {
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // ✅ Correct — matches your schema
     const hashedRefresh = crypto.createHash("sha256").update(refreshToken).digest("hex");
     user.refreshTokens.push(hashedRefresh);
     user.lastLoginAt = new Date();
@@ -251,12 +249,7 @@ export async function login(req, res, next) {
       success: true,
       message: "Login successful.",
       accessToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        isProfileComplete: user.isProfileComplete,
-      },
+      user: buildUserResponse(user), // ✅ Full user object
     });
   } catch (error) {
     next(error);
@@ -277,10 +270,7 @@ export async function refreshToken(req, res, next) {
     }
 
     const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       _id: decoded.id,
@@ -294,14 +284,13 @@ export async function refreshToken(req, res, next) {
       });
     }
 
-    // Rotate refresh token
     const newAccessToken = generateAccessToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);
+    const newHashedRefresh = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
-    user.refreshToken = crypto
-      .createHash("sha256")
-      .update(newRefreshToken)
-      .digest("hex");
+    // ✅ Rotate — remove old, add new
+    user.refreshTokens = user.refreshTokens.filter(t => t !== hashedToken);
+    user.refreshTokens.push(newHashedRefresh);
     await user.save();
 
     setRefreshCookie(res, newRefreshToken);
@@ -322,14 +311,21 @@ export async function logout(req, res, next) {
     const token = req.cookies?.refreshToken;
 
     if (token) {
-      const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET).id;
-      await User.findByIdAndUpdate(decoded, { $pull: { refreshTokens: hashedToken } });
+      try {
+        const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+        // ✅ Only remove this device's token
+        await User.findByIdAndUpdate(decoded.id, {
+          $pull: { refreshTokens: hashedToken },
+        });
+      } catch (err) {
+        // Token already invalid — still clear cookie
+      }
     }
 
     res.clearCookie("refreshToken");
     res.status(200).json({ success: true, message: "Logged out successfully." });
   } catch (error) {
-    // Even if token is invalid, clear the cookie
     res.clearCookie("refreshToken");
     res.status(200).json({ success: true, message: "Logged out." });
   }
@@ -342,7 +338,6 @@ export async function forgotPassword(req, res, next) {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
-    // Always return success to prevent email enumeration
     if (!user) {
       return res.status(200).json({
         success: true,
@@ -351,11 +346,8 @@ export async function forgotPassword(req, res, next) {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    user.passwordResetToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    user.passwordResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user.passwordResetExpiry = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
     await sendPasswordResetEmail(email, resetToken);
@@ -382,14 +374,11 @@ export async function resetPassword(req, res, next) {
       });
     }
 
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpiresAt: { $gt: new Date() },
+      passwordResetExpiry: { $gt: new Date() }, // ✅ Fixed field name to match schema
     });
 
     if (!user) {
@@ -399,27 +388,27 @@ export async function resetPassword(req, res, next) {
       });
     }
 
-    user.password = newPassword; // Pre-save hook will hash it
-    user.passwordResetToken = undefined;
-    user.passwordResetExpiresAt = undefined;
-    user.refreshTokens = []; // Force re-login after reset
+    user.password = newPassword;
+    user.passwordResetToken = null;
+    user.passwordResetExpiry = null;
+    user.refreshTokens = []; // Force logout all devices
     await user.save();
+
+    await logAudit({
+      actorId: user._id,
+      actorRole: user.role,
+      action: "password_reset_confirmed",
+      targetId: user._id,
+      targetType: "user",
+      after: { email: user.email, resetAt: new Date() },
+      request: req,
+    });
 
     res.clearCookie("refreshToken");
     res.status(200).json({
       success: true,
       message: "Password reset successful. Please log in.",
     });
-    // After password is successfully reset:
-await logAudit({
-  actorId: user._id,
-  actorRole: user.role,
-  action: "password_reset_confirmed",
-  targetId: user._id,
-  targetType: "user",
-  after: { email: user.email, resetAt: new Date() },
-  request: req,
-});
   } catch (error) {
     next(error);
   }
@@ -431,7 +420,7 @@ export async function getMe(req, res, next) {
   try {
     res.status(200).json({
       success: true,
-      user: req.user,
+      user: buildUserResponse(req.user), // ✅ Full user object
     });
   } catch (error) {
     next(error);
@@ -442,22 +431,18 @@ export async function getMe(req, res, next) {
 
 export async function googleCallback(req, res, next) {
   try {
-    const user = await User.findById(req.user._id).select("+refreshTokens"); // Attached by Passport
+    const user = await User.findById(req.user._id).select("+refreshTokens");
 
     const accessToken = generateAccessToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);
 
-    user.refreshToken = crypto
-      .createHash("sha256")
-      .update(newRefreshToken)
-      .digest("hex");
+    const hashedRefresh = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
+    user.refreshTokens.push(hashedRefresh); // ✅ Fixed — was using user.refreshToken
     user.lastLoginAt = new Date();
     await user.save();
 
     setRefreshCookie(res, newRefreshToken);
 
-    // Redirect to frontend with access token in query param
-    // Frontend reads this once, stores it in memory, removes from URL
     const redirectURL = new URL(`${env.FRONTEND_URL}/auth/callback`);
     redirectURL.searchParams.set("token", accessToken);
     redirectURL.searchParams.set("isProfileComplete", user.isProfileComplete);
