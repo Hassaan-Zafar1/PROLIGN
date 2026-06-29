@@ -1,4 +1,3 @@
-import React from 'react';
 import { getPublishedSiteContent } from '../content/siteContent';
 
 const shellCard =

@@ -2,36 +2,25 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import { env } from "../config/env.js";
 
-/**
- * Generates a 6-digit OTP, hashes it, and saves it to the user document.
- * Returns the plain OTP (to be emailed — never stored plain).
- */
 export async function generateAndSaveOTP(userId) {
   const plainOTP = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOTP = crypto.createHash("sha256").update(plainOTP).digest("hex");
 
-  const expiresAt = new Date(
-    Date.now() + env.OTP_EXPIRY_MINUTES * 60 * 1000
-  );
+  const expiresAt = new Date(Date.now() + env.OTP_EXPIRY_MINUTES * 60 * 1000);
 
+  // ✅ Use dot notation for nested fields — avoids overwriting the whole otp object
   await User.findByIdAndUpdate(userId, {
-    otp: {
-      code: hashedOTP,
-      expiresAt,
-      attempts: 0,
-    },
+    "otp.code": hashedOTP,
+    "otp.expiresAt": expiresAt,
+    "otp.attempts": 0,
   });
 
   return plainOTP;
 }
 
-/**
- * Verifies an OTP for a given user.
- * Increments attempt count on failure.
- * Clears OTP on success.
- */
 export async function verifyOTP(userId, plainOTP) {
-  const user = await User.findById(userId).select("+otp");
+  // ✅ Select each nested field explicitly — "+otp" doesn't work for nested select:false
+  const user = await User.findById(userId).select("+otp.code +otp.expiresAt +otp.attempts");
 
   if (!user) {
     return { success: false, message: "User not found" };
@@ -49,13 +38,9 @@ export async function verifyOTP(userId, plainOTP) {
     return { success: false, message: "Too many attempts. Please request a new OTP." };
   }
 
-  const hashedInput = crypto
-    .createHash("sha256")
-    .update(plainOTP)
-    .digest("hex");
+  const hashedInput = crypto.createHash("sha256").update(plainOTP).digest("hex");
 
   if (hashedInput !== user.otp.code) {
-    // Increment attempt count
     await User.findByIdAndUpdate(userId, {
       $inc: { "otp.attempts": 1 },
     });
@@ -69,17 +54,18 @@ export async function verifyOTP(userId, plainOTP) {
   // ✅ OTP matched — clear it and mark email verified
   await User.findByIdAndUpdate(userId, {
     isEmailVerified: true,
-    otp: { code: null, expiresAt: null, attempts: 0 },
+    "otp.code": null,
+    "otp.expiresAt": null,
+    "otp.attempts": 0,
   });
 
   return { success: true };
 }
 
-/**
- * Clears OTP from user (e.g. on resend).
- */
 export async function clearOTP(userId) {
   await User.findByIdAndUpdate(userId, {
-    otp: { code: null, expiresAt: null, attempts: 0 },
+    "otp.code": null,
+    "otp.expiresAt": null,
+    "otp.attempts": 0,
   });
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { getPublishedSiteContent } from '../content/siteContent';
 
 const shellCard =
@@ -34,13 +33,6 @@ export default function TermsOfService({ navigateTo }) {
                 <span className="material-symbols-outlined text-[16px]">schedule</span>
                 {terms.hero.updatedLabel}: {terms.hero.updatedAt}
               </span>
-              <button
-                onClick={() => navigateTo('help-center')}
-                className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container-lowest px-4 py-2 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
-              >
-                <span className="material-symbols-outlined text-[16px]">support_agent</span>
-                Get support
-              </button>
             </div>
           </div>
 

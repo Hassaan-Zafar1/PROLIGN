@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCurrentUser, getSessions, getMentors, completeSession } from '../utils/db';
 
 export default function VideoInterview({ onNavigate, sessionId }) {
@@ -80,11 +80,11 @@ export default function VideoInterview({ onNavigate, sessionId }) {
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="font-label-sm text-sm text-white font-bold">{mentor?.name || 'Dr. Aris Thorne'}</p>
-            <p className="text-[10px] uppercase tracking-wider text-white/50">{mentor?.title || 'Senior Design Mentor'}</p>
+            <p className="font-label-sm text-sm text-white font-bold">{mentor?.name || 'Mentor'}</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/50">{mentor?.title || 'Mentor'}</p>
           </div>
           <img
-            src={mentor?.avatar || `https://lh3.googleusercontent.com/aida-public/AB6AXuBOnHyX6dtLyOX2PotyAiCh6bdjZ567yiA2ctSQh4N8F9r-jFkOBpiKsaoUn49X2BMC26kDCnd044sDxae4tIRUGVxBx3uCkB2jEaq2h7uCsYeTx4R0KsTk_oY-KAjZfXz7Bkv-xQUg2xhkf54K4y96GNY9myJf-aVKNIMySci8Y-NdjfgLn2oTxDkfRngszKuQ4JOQ_HBiQ9Oa50LYADmBT6iomHQWfrwPNK7hmoGH3EBEyTj2y3ffCe-_LKalwN7zSBiJlyt0CrMU`}
+            src={mentor?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(mentor?.name || 'Mentor')}&background=354024&color=fff`}
             alt={mentor?.name}
             className="w-10 h-10 rounded-full border border-white/20 object-cover"
           />

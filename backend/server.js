@@ -7,6 +7,7 @@ import { env } from "./config/env.js";
 import { connectDB, disconnectDB } from "./config/database.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import "./config/passport.js";
+import { extractClientInfo } from "./middleware/auth.js";
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
-
+app.use(extractClientInfo);
 // ─── Global Rate Limiter ──────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -49,6 +50,8 @@ app.get("/api/health", (req, res) => {
 // ─── Routes (add here as you build them) ──────────────────────────────────────
 import authRoutes from "./routes/auth.js";
 app.use("/api/auth", authRoutes);
+import userRoutes from "./routes/user.js";
+app.use("/api/user", userRoutes);
 
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);
