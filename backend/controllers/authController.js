@@ -48,6 +48,43 @@ function buildUserResponse(user) {
     cv: user.cv,
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,
+
+    // ✅ Extended profile
+    phone: user.phone,
+    country: user.country,
+    city: user.city,
+    title: user.title,
+    company: user.company,
+    bio: user.bio,
+
+    // ✅ Skills & arrays
+    skills: user.skills,
+    languages: user.languages,
+    certifications: user.certifications,
+    preferredCategories: user.preferredCategories,
+
+    // ✅ Mentor-specific
+    hourlyRate: user.hourlyRate,
+    experience: user.experience,
+    availableSlots: user.availableSlots,
+    weeklySchedule: user.weeklySchedule,
+
+    // ✅ Mentee-specific
+    education: user.education,
+    careerGoals: user.careerGoals,
+    skillsToLearn: user.skillsToLearn,
+    learningInterests: user.learningInterests,
+
+    // ✅ Preferences
+    profileVisibility: user.profileVisibility,
+    emailSessionRequests: user.emailSessionRequests,
+    emailReminders: user.emailReminders,
+    emailMarketing: user.emailMarketing,
+    appearanceTheme: user.appearanceTheme,
+
+    // ✅ Account state
+    isActive: user.isActive,
+    isBanned: user.isBanned,
   };
 }
 
@@ -418,6 +455,8 @@ export async function resetPassword(req, res, next) {
 
 export async function getMe(req, res, next) {
   try {
+    console.log("📦 req.user country:", req.user.country);
+    console.log("📦 req.user city:", req.user.city);
     res.status(200).json({
       success: true,
       user: buildUserResponse(req.user), // ✅ Full user object
