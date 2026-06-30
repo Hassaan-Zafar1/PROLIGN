@@ -44,7 +44,7 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
 
         {/* User info at top */}
         <div
-          className="flex items-center gap-3 mb-6 pb-4 cursor-pointer rounded-xl p-2 -mx-2 transition-colors hover:bg-white/5"
+          className="flex items-center gap-3 mb-6 pb-4 cursor-pointer rounded-xl p-2 -mx-2 transition-colors hover:bg-[var(--sidebar-hover-bg)]"
           onClick={() => navigateTo('settings')}
           role="button"
           tabIndex={0}
@@ -54,8 +54,7 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
           <img
             src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
             alt={`${user.name || 'User'}'s avatar`}
-            className="w-9 h-9 rounded-full object-cover ring-2 flex-shrink-0"
-            style={{ ringColor: 'var(--sidebar-border)' }}
+            className="w-9 h-9 rounded-full object-cover border border-[var(--sidebar-border)] flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--sidebar-text)' }}>
@@ -68,13 +67,10 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
         </div>
 
         <div className="flex-1">
-          <p
-            className="text-[11px] font-semibold tracking-[0.08em] uppercase mb-3"
-            style={{ color: 'var(--sidebar-text-secondary)' }}
-          >
+          <p className="sidebar-section-label">
             Menu
           </p>
-          <nav className="space-y-0.5" aria-label="Main menu">
+          <nav className="space-y-1" aria-label="Main menu">
             {links.map((link) => {
               const active = currentPage === link.id;
               return (
@@ -88,7 +84,6 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
                     className="material-symbols-outlined sidebar-nav-icon"
                     aria-hidden="true"
                     style={{
-                      color: active ? 'var(--sidebar-active-icon)' : 'var(--sidebar-icon-color)',
                       fontVariationSettings: active ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 300",
                     }}
                   >
@@ -102,18 +97,18 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
         </div>
 
         <div
-          className="border-t pt-4 mt-2"
-          style={{ borderColor: 'var(--sidebar-border)' }}
-        >
+          className="sidebar-divider"
+        />
+
+        <div>
           <button
             onClick={toggleTheme}
             aria-label={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            className="sidebar-nav-btn"
+            className="sidebar-nav-btn sidebar-theme-toggle"
           >
             <span
               className="material-symbols-outlined sidebar-nav-icon"
               aria-hidden="true"
-              style={{ color: 'var(--sidebar-icon-color)' }}
             >
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>

@@ -141,7 +141,7 @@
 .sidebar-nav-btn.active .sidebar-nav-icon {
   color: var(--sidebar-active-icon);
 }
-.sidebar-nav-icon {
+..sidebar-nav-icon {
   font-size: 22px !important;
   display: inline-flex;
   align-items: center;
@@ -149,6 +149,7 @@
   flex-shrink: 0;
   width: 24px;
   height: 24px;
+  color: var(--sidebar-icon-color);
   transition: color 0.18s ease, transform 0.18s ease;
 }
 .sidebar-nav-btn:hover .sidebar-nav-icon,
