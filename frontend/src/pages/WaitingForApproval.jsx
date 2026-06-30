@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { getCurrentUser } from '../utils/db';
+import { authService } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import { tokenManager } from '../utils/tokenManager';
 
 export default function WaitingForApproval({ navigateTo }) {
   const [animationComplete, setAnimationComplete] = useState(false);
+  const { logout } = useAuth();
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimationComplete(true), 800);
@@ -11,23 +14,40 @@ export default function WaitingForApproval({ navigateTo }) {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const user = getCurrentUser();
-      if (user && user.status && user.status !== 'pending') {
-        clearInterval(interval);
-        toast.success('Your mentor application has been approved! You can now start using the platform.', {
-          position: 'top-right',
-          autoClose: 8000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          onClose: () => navigateTo('mentor-dashboard'),
-        });
+    const interval = setInterval(async () => {
+      try {
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser && currentUser.status === 'approved') {
+          clearInterval(interval);
+          toast.success('Your mentor application has been approved! You can now start using the platform.', {
+            position: 'top-right',
+            autoClose: 8000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            onClose: () => navigateTo('mentor-dashboard'),
+          });
+          // Navigate immediately as well
+          setTimeout(() => navigateTo('mentor-dashboard'), 2000);
+        }
+      } catch (err) {
+        // If we get 401 or 404, the user has been deleted (rejected)
+        const status = err?.response?.status;
+        if (status === 401 || status === 404) {
+          clearInterval(interval);
+          tokenManager.clearTokens();
+          try { await logout(); } catch(e) {}
+          toast.error('Your mentor application was not approved. Please contact support for more information.', {
+            position: 'top-right',
+            autoClose: 8000,
+          });
+          navigateTo('home');
+        }
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [navigateTo]);
+  }, [navigateTo, logout]);
 
   const steps = [
     { icon: 'rate_review', label: 'Review', description: 'Our team carefully reviews your credentials and experience.', color: 'text-primary' },

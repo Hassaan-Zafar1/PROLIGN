@@ -18,6 +18,7 @@ import {
 import { tokenManager } from '../utils/tokenManager';
 import Input from '../components/common/Input';
 import { getPublishedSiteContent, savePublishedSiteContent } from '../content/siteContent';
+import { adminService } from '../services/adminService';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -88,17 +89,30 @@ const AdminDashboard = ({ navigateTo }) => {
     resources: { heroTitle: '', heroSummary: '', eyebrow: '', blogPostsJson: '', resumeTemplatesJson: '' },
   });
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setLoading(true);
     try {
-      const db = getDB();
-      setMentors(getUsersByRole('mentor'));
-      setMentees(getUsersByRole('mentee'));
-      setBookings(db.bookings || []);
+      // Try fetching from backend API first
+      const response = await adminService.getUsers();
+      const allUsers = response.users || [];
+      setMentors(allUsers.filter(u => u.role === 'mentor'));
+      setMentees(allUsers.filter(u => u.role === 'mentee'));
       setNotifications(getNotifications());
       setUser(getCurrentUser());
+      const db = getDB();
+      setBookings(db.bookings || []);
     } catch (error) {
-      console.error('Failed to refresh data:', error);
+      console.warn('Backend API unavailable, falling back to local data:', error.message);
+      try {
+        const db = getDB();
+        setMentors(getUsersByRole('mentor'));
+        setMentees(getUsersByRole('mentee'));
+        setBookings(db.bookings || []);
+        setNotifications(getNotifications());
+        setUser(getCurrentUser());
+      } catch (err) {
+        console.error('Failed to refresh data:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -261,9 +275,14 @@ const AdminDashboard = ({ navigateTo }) => {
     navigateTo('home');
   };
 
-  const submitReject = (event) => {
+  const submitReject = async (event) => {
     event.preventDefault();
-    rejectMentor(showRejectModal, rejectReason);
+    try {
+      await adminService.rejectMentor(showRejectModal);
+    } catch (err) {
+      console.warn('Backend reject failed, falling back to local:', err.message);
+      rejectMentor(showRejectModal, rejectReason);
+    }
     if (user?.id === showRejectModal) setUser({ ...user, status: 'rejected', rejectionReason: rejectReason });
     setShowRejectModal(null);
     setRejectReason('');
@@ -368,7 +387,6 @@ const AdminDashboard = ({ navigateTo }) => {
     { id: 'mentors', icon: 'groups', label: 'Mentors' },
     { id: 'mentees', icon: 'person', label: 'Mentees' },
     { id: 'applications', icon: 'assignment', label: 'Applications' },
-    { id: 'content', icon: 'library_books', label: 'Content' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
     { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
@@ -614,7 +632,7 @@ const AdminDashboard = ({ navigateTo }) => {
               <div className="flex gap-2">
                 <button onClick={() => setSelectedMember(mentor)} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface-variant">Preview</button>
                 <button onClick={() => setShowRejectModal(mentor.id)} className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container">Reject</button>
-                <button onClick={() => { approveMentor(mentor.id); if (user?.id === mentor.id) setUser({ ...user, status: 'approved' }); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
+                <button onClick={async () => { try { await adminService.approveMentor(mentor.id); } catch(err) { console.warn('Backend approve failed, falling back:', err.message); approveMentor(mentor.id); } if (user?.id === mentor.id) setUser({ ...user, status: 'approved' }); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
               </div>
             </div>
           ))}
@@ -727,7 +745,6 @@ const AdminDashboard = ({ navigateTo }) => {
       case 'applications': return renderApplications();
       case 'earnings': return renderEarnings();
       case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
-      case 'content': return renderContentManager();
       default: return renderDashboard();
     }
   };
@@ -864,6 +881,25 @@ const AdminDashboard = ({ navigateTo }) => {
               </div>
             )}
             <p className="mt-4 rounded-lg bg-surface-container-low p-3 text-sm text-on-surface-variant">{selectedMember.bio || 'No bio has been added yet.'}</p>
+            {selectedMember.cv && selectedMember.cv.url && (
+              <div className="mt-4 rounded-lg bg-surface-container-low p-4">
+                <div className="text-xs font-bold uppercase text-on-surface-variant mb-2">CV / Resume</div>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-primary">description</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{selectedMember.cv.filename || 'Resume'}</p>
+                  </div>
+                  <a
+                    href={selectedMember.cv.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:brightness-110 transition-all"
+                  >
+                    Read CV
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setSelectedMember(null)} className="rounded-lg bg-surface px-4 py-2 font-bold text-on-surface-variant">Close</button>
               <button onClick={() => handleDeleteMember(selectedMember.id)} className="rounded-lg bg-error px-4 py-2 font-bold text-on-error">Delete User</button>
