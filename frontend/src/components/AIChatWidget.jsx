@@ -148,7 +148,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-background border-t border-outline-variant/10 w-full shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
+            <div className="p-4 bg-background border-t border-outline-variant/10 w-full">
               {/* Suggestion Chips */}
               <div className="flex gap-2 mb-3 overflow-x-auto pb-1 custom-scrollbar">
                 {['Help with resume', 'Interview prep', 'Career advice'].map(suggestion => (

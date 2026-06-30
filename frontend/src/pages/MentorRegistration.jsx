@@ -108,19 +108,6 @@ export default function MentorRegistration({ navigateTo }) {
     setCvFile(file);
   };
 
-  const handleBlur = (field) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    const errs = { ...errors };
-    const nameVal = form.name;
-    if (field === 'name') {
-      if (!nameVal.trim()) errs.name = 'Name is required.';
-      else if (nameVal.trim().length < 2) errs.name = 'Name must be at least 2 characters.';
-      else if (nameVal.trim().length > 100) errs.name = 'Name must be under 100 characters.';
-      else delete errs.name;
-    }
-    setErrors(errs);
-  };
-
   const handleNext = () => {
     const allTouched = {};
     if (currentStep === 1) {
@@ -144,6 +131,19 @@ export default function MentorRegistration({ navigateTo }) {
   const handleBack = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
     setErrors({});
+  };
+
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const errs = { ...errors };
+    const nameVal = form.name;
+    if (field === 'name') {
+      if (!nameVal.trim()) errs.name = 'Name is required.';
+      else if (nameVal.trim().length < 2) errs.name = 'Name must be at least 2 characters.';
+      else if (nameVal.trim().length > 100) errs.name = 'Name must be under 100 characters.';
+      else delete errs.name;
+    }
+    setErrors(errs);
   };
 
   const handleRegister = async (e) => {
@@ -179,7 +179,7 @@ export default function MentorRegistration({ navigateTo }) {
   };
 
   const inputClass = (field) =>
-    `w-full bg-surface-dim border-none rounded-lg p-3 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50 outline-none ${
+    `w-full bg-surface-dim border-none rounded-lg p-3 sm:p-3.5 text-on-surface focus:ring-2 focus:ring-secondary/50 transition-all placeholder:text-on-surface-variant/50 outline-none ${
       errors[field] && touched[field] ? 'ring-2 ring-error' : ''
     }`;
 
@@ -193,23 +193,23 @@ export default function MentorRegistration({ navigateTo }) {
             <h2 className="text-xl sm:text-2xl font-bold text-primary mb-4 sm:mb-6">Account Information</h2>
             <div>
               <label className="block text-sm font-semibold text-on-surface mb-2">Full Name <span className="text-error">*</span></label>
-              <input className={inputClass('name')} placeholder="Dr. Julian Thorne" type="text" value={form.name} onChange={e => set('name', e.target.value)} onBlur={() => handleBlur('name')} required />
+              <input className={inputClass('name')} placeholder="Dr. Julian Thorne" type="text" value={form.name} onChange={e => set('name', e.target.value)} onBlur={() => handleBlur('name')} required autoComplete="name" />
               {renderError('name')}
             </div>
             <div>
               <label className="block text-sm font-semibold text-on-surface mb-2">Email Address <span className="text-error">*</span></label>
-              <input className={inputClass('email')} placeholder="julian@prolign.edu" type="email" value={form.email} onChange={e => set('email', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, email: true }))} required />
+              <input className={inputClass('email')} placeholder="julian@prolign.edu" type="email" inputMode="email" value={form.email} onChange={e => set('email', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, email: true }))} required autoComplete="email" />
               {renderError('email')}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2">Password <span className="text-error">*</span></label>
-                <input className={inputClass('password')} placeholder="••••••••" type="password" value={form.password} onChange={e => set('password', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, password: true }))} required />
+                <input className={inputClass('password')} placeholder="••••••••" type="password" value={form.password} onChange={e => set('password', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, password: true }))} required autoComplete="new-password" />
                 {renderError('password')}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2">Confirm Password <span className="text-error">*</span></label>
-                <input className={inputClass('confirmPassword')} placeholder="••••••••" type="password" value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))} required />
+                <input className={inputClass('confirmPassword')} placeholder="••••••••" type="password" value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))} required autoComplete="new-password" />
                 {renderError('confirmPassword')}
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function MentorRegistration({ navigateTo }) {
             <div>
               <label className="block text-sm font-semibold text-on-surface mb-2">LinkedIn Profile URL <span className="text-error">*</span></label>
               <div className="relative">
-                <input className={`${inputClass('linkedIn')} pl-10`} placeholder="linkedin.com/in/username" type="url" value={form.linkedIn} onChange={e => set('linkedIn', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, linkedIn: true }))} required />
+                <input className={`${inputClass('linkedIn')} pl-10`} placeholder="linkedin.com/in/username" type="url" inputMode="url" value={form.linkedIn} onChange={e => set('linkedIn', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, linkedIn: true }))} required autoComplete="url" />
                 <span className="material-symbols-outlined absolute left-3 top-3 text-on-surface-variant/60">link</span>
               </div>
               {renderError('linkedIn')}
@@ -237,7 +237,7 @@ export default function MentorRegistration({ navigateTo }) {
             <div>
               <label className="block text-sm font-semibold text-on-surface mb-2">Hourly Rate (USD) <span className="text-error">*</span></label>
               <div className="relative">
-                <input className={`${inputClass('hourlyRate')} pl-8`} placeholder="120" type="number" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, hourlyRate: true }))} required />
+                <input className={`${inputClass('hourlyRate')} pl-8`} placeholder="120" type="text" inputMode="decimal" value={form.hourlyRate} onChange={e => set('hourlyRate', e.target.value)} onBlur={() => setTouched(prev => ({ ...prev, hourlyRate: true }))} required autoComplete="off" />
                 <span className="absolute left-3 top-3 text-on-surface-variant font-bold">$</span>
               </div>
               {renderError('hourlyRate')}
@@ -283,7 +283,7 @@ export default function MentorRegistration({ navigateTo }) {
               <div className="bg-surface-container-high rounded-xl p-4 sm:p-5 border border-outline-variant/10">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <h3 className="text-base sm:text-lg font-bold text-on-surface">Account Information</h3>
-                  <button type="button" onClick={() => setCurrentStep(1)} className="text-xs sm:text-sm font-semibold text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => setCurrentStep(1)} className="text-xs sm:text-sm font-semibold text-primary hover:underline min-h-[44px] min-w-[44px] flex items-center justify-center">Edit</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
@@ -300,7 +300,7 @@ export default function MentorRegistration({ navigateTo }) {
               <div className="bg-surface-container-high rounded-xl p-4 sm:p-5 border border-outline-variant/10">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <h3 className="text-base sm:text-lg font-bold text-on-surface">Professional Information</h3>
-                  <button type="button" onClick={() => setCurrentStep(2)} className="text-xs sm:text-sm font-semibold text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => setCurrentStep(2)} className="text-xs sm:text-sm font-semibold text-primary hover:underline min-h-[44px] min-w-[44px] flex items-center justify-center">Edit</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                   <div>
@@ -317,7 +317,7 @@ export default function MentorRegistration({ navigateTo }) {
               <div className="bg-surface-container-high rounded-xl p-4 sm:p-5 border border-outline-variant/10">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <h3 className="text-base sm:text-lg font-bold text-on-surface">CV / Resume</h3>
-                  <button type="button" onClick={() => setCurrentStep(3)} className="text-xs sm:text-sm font-semibold text-primary hover:underline">Edit</button>
+                  <button type="button" onClick={() => setCurrentStep(3)} className="text-xs sm:text-sm font-semibold text-primary hover:underline min-h-[44px] min-w-[44px] flex items-center justify-center">Edit</button>
                 </div>
                 <div className="text-sm">
                   {cvFile ? (
@@ -345,7 +345,7 @@ export default function MentorRegistration({ navigateTo }) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-surface overflow-y-auto">
       {/* Left Side — Brand Story */}
-      <div className="hidden lg:flex lg:w-[42%] xl:w-[40%] bg-gradient-to-br from-primary to-primary-fixed relative overflow-hidden flex-col justify-between p-8 xl:p-10">
+      <div className="hidden lg:flex lg:w-[42%] xl:w-[40%] brand-panel relative overflow-hidden flex-col justify-between p-8 xl:p-10">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-64 h-64 bg-on-primary-fixed rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-80 h-80 bg-on-primary-fixed rounded-full blur-3xl" />
@@ -399,6 +399,17 @@ export default function MentorRegistration({ navigateTo }) {
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary">Join as a Mentor</h1>
           <p className="text-on-surface-variant mt-1.5 sm:mt-2 text-sm sm:text-base">Share your wisdom and shape the next generation.</p>
+          <div className="mt-4 md:hidden">
+            <p className="text-on-surface-variant text-sm mb-2">Already have an account?</p>
+            <button
+              type="button"
+              onClick={() => navigateTo('login')}
+              className="inline-flex items-center gap-2 border border-outline-variant/20 px-4 py-2.5 rounded-xl font-semibold text-sm text-primary hover:bg-primary-container/20 transition-all min-h-[44px]"
+            >
+              <span className="material-symbols-outlined text-[16px]">login</span>
+              Sign In
+            </button>
+          </div>
         </div>
 
         {/* Progress Stepper */}
@@ -453,7 +464,7 @@ export default function MentorRegistration({ navigateTo }) {
               {/* Navigation Buttons */}
               <div className="flex items-center justify-between mt-6 sm:mt-8 gap-3 sm:gap-4">
                 {currentStep > 1 ? (
-                  <button type="button" onClick={handleBack} className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg border border-outline-variant/20 text-on-surface font-semibold text-sm sm:text-base hover:bg-surface-container-high transition-colors">
+                  <button type="button" onClick={handleBack} className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-3 rounded-lg border border-outline-variant/20 text-on-surface font-semibold text-sm sm:text-base hover:bg-surface-container-high transition-colors min-h-[44px]">
                     <span className="material-symbols-outlined text-[16px] sm:text-[18px]">arrow_back</span>
                     Back
                   </button>
@@ -462,12 +473,11 @@ export default function MentorRegistration({ navigateTo }) {
                 )}
 
                 {currentStep < 4 ? (
-                  <button type="button" onClick={handleNext} className="flex items-center gap-1.5 sm:gap-2 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg bg-primary text-on-primary font-bold text-sm sm:text-base hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md">
+                  <button type="button" onClick={handleNext} className="flex items-center gap-1.5 sm:gap-2 px-6 sm:px-8 py-3 rounded-lg bg-primary text-on-primary font-bold text-sm sm:text-base hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md min-h-[44px]">
                     Next
-                    <span className="material-symbols-outlined text-[16px] sm:text-[18px]">arrow_forward</span>
                   </button>
                 ) : (
-                  <button type="submit" disabled={loading} className="flex items-center gap-1.5 sm:gap-2 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg bg-primary text-on-primary font-bold text-sm sm:text-base hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={loading} className="flex items-center gap-1.5 sm:gap-2 px-6 sm:px-8 py-3 rounded-lg bg-primary text-on-primary font-bold text-sm sm:text-base hover:scale-[1.01] active:scale-[0.98] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]">
                     {loading ? (
                       <>
                         <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>

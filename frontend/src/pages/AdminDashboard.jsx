@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ProfileSettings from '../components/ProfileSettings';
+import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import {
   addTestimonial,
   addUser,
@@ -15,6 +16,7 @@ import {
   rejectMentor,
 } from '../utils/db';
 import { tokenManager } from '../utils/tokenManager';
+import Input from '../components/common/Input';
 import { getPublishedSiteContent, savePublishedSiteContent } from '../content/siteContent';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -34,6 +36,10 @@ const useTheme = () => {
   };
   return { theme, toggleTheme };
 };
+
+const Skeleton = ({ className = '' }) => (
+  <div className={`animate-pulse rounded bg-surface-variant/50 ${className}`} />
+);
 
 const emptyMemberForm = {
   role: 'mentee',
@@ -73,6 +79,7 @@ const AdminDashboard = ({ navigateTo }) => {
   const [testimonialForm, setTestimonialForm] = useState({ name: '', role: '', company: '', quote: '', avatar: '' });
   const [testimonialSuccess, setTestimonialSuccess] = useState('');
   const [contentStatus, setContentStatus] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const [contentEditor, setContentEditor] = useState({
     terms: { heroTitle: '', heroSummary: '', updatedAt: '', overview: '', sectionsJson: '' },
@@ -82,12 +89,19 @@ const AdminDashboard = ({ navigateTo }) => {
   });
 
   const refreshData = () => {
-    const db = getDB();
-    setMentors(getUsersByRole('mentor'));
-    setMentees(getUsersByRole('mentee'));
-    setBookings(db.bookings || []);
-    setNotifications(getNotifications());
-    setUser(getCurrentUser());
+    setLoading(true);
+    try {
+      const db = getDB();
+      setMentors(getUsersByRole('mentor'));
+      setMentees(getUsersByRole('mentee'));
+      setBookings(db.bookings || []);
+      setNotifications(getNotifications());
+      setUser(getCurrentUser());
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -250,6 +264,7 @@ const AdminDashboard = ({ navigateTo }) => {
   const submitReject = (event) => {
     event.preventDefault();
     rejectMentor(showRejectModal, rejectReason);
+    if (user?.id === showRejectModal) setUser({ ...user, status: 'rejected', rejectionReason: rejectReason });
     setShowRejectModal(null);
     setRejectReason('');
     refreshData();
@@ -294,7 +309,7 @@ const AdminDashboard = ({ navigateTo }) => {
         <button onClick={onDownload} className="rounded-full bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Download CSV</button>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {(mode === 'year' || mode === 'month') && <input type="number" min="2001" value={year} onChange={(event) => setYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" />}
+        {(mode === 'year' || mode === 'month') && <input type="text" inputMode="numeric" min="2001" value={year} onChange={(event) => setYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" autoComplete="off" />}
         {mode === 'month' && (
           <select value={month} onChange={(event) => setMonth(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3">
             {monthLabels.map((label, index) => <option key={label} value={String(index + 1).padStart(2, '0')}>{label}</option>)}
@@ -340,6 +355,14 @@ const AdminDashboard = ({ navigateTo }) => {
     setTimeout(() => setContentStatus(''), 3000);
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <p className="text-on-surface-variant">Please log in to access the admin dashboard.</p>
+      </div>
+    );
+  }
+
   const navItems = [
     { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
     { id: 'mentors', icon: 'groups', label: 'Mentors' },
@@ -381,10 +404,10 @@ const AdminDashboard = ({ navigateTo }) => {
   };
 
   const renderSidebar = () => (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
       <button className="mb-8 px-6 text-left" onClick={() => setActiveView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary">ProLign</h1>
-        <p className="text-sm font-semibold text-primary-fixed-dim">Modern Mentorship Admin</p>
+        <p className="text-sm font-semibold text-on-primary/80">Modern Mentorship Admin</p>
       </button>
       <nav className="flex-1 space-y-2 overflow-y-auto px-2">
         {navItems.map((item) => (
@@ -392,7 +415,7 @@ const AdminDashboard = ({ navigateTo }) => {
             key={item.id}
             onClick={() => setActiveView(item.id)}
             className={`group flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all ${
-              activeView === item.id ? 'scale-[0.98] bg-secondary-container text-on-secondary-container' : 'text-primary-fixed-dim hover:bg-primary-fixed-variant/20 hover:text-on-primary'
+              activeView === item.id ? 'scale-[0.98] bg-secondary-container text-on-secondary-container' : 'hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}
           >
             <span className="material-symbols-outlined mr-3 transition-transform group-hover:scale-110">{item.icon}</span>
@@ -401,11 +424,11 @@ const AdminDashboard = ({ navigateTo }) => {
         ))}
       </nav>
       <div className="mx-2 border-t border-on-primary/10 pt-4 space-y-1">
-        <button onClick={toggleTheme} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-primary-fixed-variant/20 hover:text-on-primary">
+        <button onClick={toggleTheme} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-on-primary transition-colors hover:bg-primary-fixed-variant/20">
           <span className="material-symbols-outlined mr-3">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
           {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
         </button>
-        <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-error/10 hover:text-error">
+        <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-on-primary transition-colors hover:bg-error/10 hover:text-error">
           <span className="material-symbols-outlined mr-3">logout</span>
           Logout
         </button>
@@ -416,20 +439,28 @@ const AdminDashboard = ({ navigateTo }) => {
   const renderDashboard = () => (
     <section className="space-y-8">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['school', 'Active Mentors', activeMentors.length],
-          ['diversity_3', 'Total Mentees', mentees.length],
-          ['assignment', 'Pending Mentors', pendingMentors.length],
-          ['person_add', 'User Signups', allMembers.length],
-        ].map(([icon, label, value]) => (
-          <div key={label} className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
-              <span className="material-symbols-outlined text-[22px] text-primary">{icon}</span>
-            </span>
-            <p className="text-2xl font-bold text-on-surface">{Number(value).toLocaleString()}</p>
-            <p className="mt-1 text-xs font-semibold text-on-surface-variant">{label}</p>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5">
+                <Skeleton className="mb-3 h-11 w-11" />
+                <Skeleton className="mb-2 h-7 w-24" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ))
+          : [
+              ['school', 'Active Mentors', activeMentors.length],
+              ['diversity_3', 'Total Mentees', mentees.length],
+              ['assignment', 'Pending Mentors', pendingMentors.length],
+              ['person_add', 'User Signups', allMembers.length],
+            ].map(([icon, label, value]) => (
+              <div key={label} className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
+                  <span className="material-symbols-outlined text-[22px] text-primary">{icon}</span>
+                </span>
+                <p className="text-2xl font-bold text-on-surface">{Number(value).toLocaleString()}</p>
+                <p className="mt-1 text-xs font-semibold text-on-surface-variant">{label}</p>
+              </div>
+            ))}
       </div>
       <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
         <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
@@ -456,7 +487,7 @@ const AdminDashboard = ({ navigateTo }) => {
             () => downloadCsv('registration-analytics', [['Label', 'Mentors', 'Mentees'], ...registrationsByMonth.map((item) => [item.label, item.mentors, item.mentees])])
           )}
         </div>
-        {renderLineChart(registrationsByMonth, 'stacked')}
+        {loading ? <Skeleton className="h-72 w-full" /> : renderLineChart(registrationsByMonth, 'stacked')}
       </div>
     </section>
   );
@@ -485,7 +516,33 @@ const AdminDashboard = ({ navigateTo }) => {
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/10">
+            {loading ? (
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-outline-variant/10">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                  <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                  <td className="px-6 py-4"><div className="flex justify-end"><Skeleton className="h-8 w-16" /></div></td>
+                </tr>
+              ))}
+            </tbody>
+          ) : members.length === 0 ? (
+            <tbody>
+              <tr>
+                <td colSpan={4} className="px-6 py-12 text-center text-sm text-on-surface-variant">No users found.</td>
+              </tr>
+            </tbody>
+          ) : (
+          <tbody className="divide-y divide-outline-variant/10">
               {members.map((member) => (
                 <tr key={member.id} className="transition-colors hover:bg-surface-container-low/50">
                   <td className="px-6 py-4">
@@ -512,6 +569,7 @@ const AdminDashboard = ({ navigateTo }) => {
                 </tr>
               ))}
             </tbody>
+          )}
           </table>
         </div>
       </section>
@@ -521,7 +579,26 @@ const AdminDashboard = ({ navigateTo }) => {
   const renderApplications = () => (
     <section className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
       <h3 className="mb-6 font-headline-md text-2xl font-bold text-on-surface">All Pending Approvals</h3>
-      {pendingMentors.length === 0 ? (
+      {loading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex flex-col justify-between gap-4 rounded-xl bg-surface-container-low p-4 md:flex-row md:items-center">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-20 rounded-lg" />
+                <Skeleton className="h-9 w-20 rounded-lg" />
+                <Skeleton className="h-9 w-20 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : pendingMentors.length === 0 ? (
         <p className="text-sm text-on-surface-variant">No pending applications at this time.</p>
       ) : (
         <div className="space-y-4">
@@ -537,7 +614,7 @@ const AdminDashboard = ({ navigateTo }) => {
               <div className="flex gap-2">
                 <button onClick={() => setSelectedMember(mentor)} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface-variant">Preview</button>
                 <button onClick={() => setShowRejectModal(mentor.id)} className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container">Reject</button>
-                <button onClick={() => { approveMentor(mentor.id); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
+                <button onClick={() => { approveMentor(mentor.id); if (user?.id === mentor.id) setUser({ ...user, status: 'approved' }); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
               </div>
             </div>
           ))}
@@ -549,6 +626,15 @@ const AdminDashboard = ({ navigateTo }) => {
   const renderEarnings = () => (
     <section className="space-y-8">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5">
+              <Skeleton className="mb-3 h-11 w-11 rounded-xl" />
+              <Skeleton className="mb-2 h-7 w-32" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          ))
+        ) : (<>
         <div className="rounded-2xl bg-primary p-5 text-on-primary transition-all hover:shadow-lg hover:scale-[1.01]">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-on-primary/10 mb-3">
             <span className="material-symbols-outlined text-[22px] text-on-primary">payments</span>
@@ -570,6 +656,7 @@ const AdminDashboard = ({ navigateTo }) => {
           <p className="text-2xl font-bold text-on-surface">${Math.round(totalRevenue / Math.max(1, bookings.length)).toLocaleString()}</p>
           <p className="mt-1 text-xs font-semibold text-on-surface-variant">Average Transaction</p>
         </div>
+        </>)}
       </div>
       <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
         <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -592,7 +679,9 @@ const AdminDashboard = ({ navigateTo }) => {
             () => downloadCsv('earning-analytics', [['Label', 'Revenue'], ...revenueData.map((item) => [item.label, item.value])])
           )}
         </div>
-        {revenueDateRange.error ? (
+        {loading ? (
+          <Skeleton className="h-72 w-full" />
+        ) : revenueDateRange.error ? (
           <div className="rounded-lg bg-error-container p-4 text-sm font-bold text-on-error-container">{revenueDateRange.error}</div>
         ) : (
           renderLineChart(revenueData)
@@ -673,7 +762,9 @@ const AdminDashboard = ({ navigateTo }) => {
                     <button className="text-xs font-bold text-secondary" onClick={() => { notifications.forEach((item) => markNotificationRead(item.id)); refreshData(); }}>Mark all read</button>
                   </div>
                   <div className="max-h-80 overflow-y-auto">
-                    {notifications.map((item) => (
+                    {notifications.length === 0 ? (
+                      <p className="p-4 text-center text-sm text-on-surface-variant">No notifications.</p>
+                    ) : notifications.map((item) => (
                       <div key={item.id} className={`border-b border-outline-variant/5 p-4 ${!item.read ? 'bg-primary/5' : ''}`}>
                         <div className="mb-1 flex justify-between gap-3">
                           <span className="text-sm font-bold text-on-surface">{item.title}</span>
@@ -695,7 +786,7 @@ const AdminDashboard = ({ navigateTo }) => {
                   <img className="w-full h-full object-cover" src={user.avatar} alt={user?.name} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-xs font-bold text-on-surface-variant">
-                    {(user?.name || 'A').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                    {(user?.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
@@ -748,7 +839,30 @@ const AdminDashboard = ({ navigateTo }) => {
                   <div className="font-semibold text-on-surface">{key === 'createdAt' ? new Date(selectedMember[key]).toLocaleString() : selectedMember[key] || 'Not set'}</div>
                 </div>
               ))}
+              {selectedMember.role === 'mentor' && (
+                <div className="rounded-lg bg-surface-container-low p-3 col-span-1 md:col-span-2">
+                  <div className="text-xs font-bold uppercase text-on-surface-variant">Experience Level (Auto-calculated)</div>
+                  <div className="mt-1">
+                    {(() => {
+                      const ml = getMentorLevel(selectedMember);
+                      const mlStyle = getMentorLevelStyle(ml.level);
+                      return (
+                        <div className={`mentor-level-badge mentor-level-${ml.level} ${mlStyle.wrapper}`}>
+                          {mlStyle.icon && <span className="material-symbols-outlined text-[10px]">{mlStyle.icon}</span>}
+                          {ml.label}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
+            {selectedMember.rejectionReason && (
+              <div className="mt-3 rounded-lg bg-error-container/20 p-3">
+                <div className="text-xs font-bold uppercase text-error">Rejection Reason</div>
+                <div className="text-sm font-semibold text-on-surface">{selectedMember.rejectionReason}</div>
+              </div>
+            )}
             <p className="mt-4 rounded-lg bg-surface-container-low p-3 text-sm text-on-surface-variant">{selectedMember.bio || 'No bio has been added yet.'}</p>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setSelectedMember(null)} className="rounded-lg bg-surface px-4 py-2 font-bold text-on-surface-variant">Close</button>
@@ -770,17 +884,17 @@ const AdminDashboard = ({ navigateTo }) => {
                 <option value="mentee">Mentee</option>
                 <option value="mentor">Mentor</option>
               </select>
-              <input value={memberForm.name} onChange={(event) => setMemberForm({ ...memberForm, name: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Full name" required />
-              <input type="email" value={memberForm.email} onChange={(event) => setMemberForm({ ...memberForm, email: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Email" required />
-              <input type="password" value={memberForm.password} onChange={(event) => setMemberForm({ ...memberForm, password: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Password" required />
-              <input value={memberForm.title} onChange={(event) => setMemberForm({ ...memberForm, title: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder={memberForm.role === 'mentor' ? 'Job title' : 'Current status'} />
-              <input value={memberForm.avatar} onChange={(event) => setMemberForm({ ...memberForm, avatar: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Image URL" />
-              <input value={memberForm.skills} onChange={(event) => setMemberForm({ ...memberForm, skills: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3 md:col-span-2" placeholder="Skills, comma separated" />
+              <Input label="Full name" value={memberForm.name} onChange={(event) => setMemberForm({ ...memberForm, name: event.target.value })} placeholder="Enter full name" required autoComplete="name" />
+              <Input label="Email" type="email" inputMode="email" value={memberForm.email} onChange={(event) => setMemberForm({ ...memberForm, email: event.target.value })} placeholder="Enter email address" required autoComplete="email" />
+              <Input label="Password" type="password" value={memberForm.password} onChange={(event) => setMemberForm({ ...memberForm, password: event.target.value })} placeholder="Enter password" required autoComplete="new-password" />
+              <Input label={memberForm.role === 'mentor' ? 'Job title' : 'Current status'} value={memberForm.title} onChange={(event) => setMemberForm({ ...memberForm, title: event.target.value })} placeholder={memberForm.role === 'mentor' ? 'e.g. Senior Engineer' : 'e.g. Looking for mentor'} autoComplete="organization-title" />
+              <Input label="Avatar URL" value={memberForm.avatar} onChange={(event) => setMemberForm({ ...memberForm, avatar: event.target.value })} placeholder="https://example.com/avatar.jpg" autoComplete="url" />
+              <Input label="Skills" value={memberForm.skills} onChange={(event) => setMemberForm({ ...memberForm, skills: event.target.value })} span="md:col-span-2" placeholder="React, Node.js, TypeScript" autoComplete="off" />
               {memberForm.role === 'mentor' && (
                 <>
-                  <input value={memberForm.company} onChange={(event) => setMemberForm({ ...memberForm, company: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Company" />
-                  <input value={memberForm.industry} onChange={(event) => setMemberForm({ ...memberForm, industry: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Industry" />
-                  <input type="number" value={memberForm.hourlyRate} onChange={(event) => setMemberForm({ ...memberForm, hourlyRate: event.target.value })} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Hourly rate" />
+                  <Input label="Company" value={memberForm.company} onChange={(event) => setMemberForm({ ...memberForm, company: event.target.value })} placeholder="e.g. Acme Corp" autoComplete="organization" />
+                  <Input label="Industry" value={memberForm.industry} onChange={(event) => setMemberForm({ ...memberForm, industry: event.target.value })} placeholder="e.g. Technology" autoComplete="off" />
+                  <Input label="Hourly rate" type="text" inputMode="decimal" value={memberForm.hourlyRate} onChange={(event) => setMemberForm({ ...memberForm, hourlyRate: event.target.value })} placeholder="e.g. 100" autoComplete="off" />
                 </>
               )}
             </div>
@@ -811,4 +925,5 @@ const AdminDashboard = ({ navigateTo }) => {
   );
 };
 
+export { AdminDashboard };
 export default AdminDashboard;
