@@ -78,8 +78,9 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-28 relative z-10">
           <div className="flex flex-col lg:flex-row gap-10 lg:items-center">
             <div className="flex-1">
-              <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-4 py-2 text-xs font-bold text-on-secondary-container mb-5">
-                <span className="material-symbols-outlined text-[16px]">lightbulb</span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-4 py-2 text-xs font-bold text-on-secondary-container mb-5 border border-outline-variant/10">
+                <span className="material-symbols-outlined text-[16px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>school</span>
+                <span className="font-bold border-r border-on-secondary-container/20 pr-2">ProLign</span>
                 How It Works
               </span>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary leading-tight mb-4">
@@ -90,7 +91,7 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => navigateTo('discovery')}
+                  onClick={() => navigateTo('find-mentors')}
                   className="inline-flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-md"
                 >
                   <span className="material-symbols-outlined text-lg">search</span>
@@ -177,47 +178,55 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* For Mentees */}
-            <div className="bg-surface rounded-2xl p-6 lg:p-8 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-primary text-2xl">school</span>
+            <div className="group relative bg-surface rounded-2xl p-6 lg:p-8 border border-outline-variant/10 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <span className="material-symbols-outlined text-primary text-2xl">school</span>
+                </div>
+                <h3 className="text-lg font-bold text-on-surface mb-4">For Mentees</h3>
+                <ul className="space-y-3 mb-6">
+                  {menteePath.map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
+                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => navigateTo('menteeRegistration')}
+                  className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-sm"
+                >
+                  Get Started as Mentee
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-on-surface mb-4">For Mentees</h3>
-              <ul className="space-y-3 mb-6">
-                {menteePath.map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => navigateTo('menteeRegistration')}
-                className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-sm"
-              >
-                Get Started as Mentee
-              </button>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/40 to-secondary/40 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
             </div>
 
             {/* For Mentors */}
-            <div className="bg-surface rounded-2xl p-6 lg:p-8 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-secondary text-2xl">workspace_premium</span>
+            <div className="group relative bg-surface rounded-2xl p-6 lg:p-8 border border-outline-variant/10 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-secondary/20 transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-secondary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <span className="material-symbols-outlined text-secondary text-2xl">workspace_premium</span>
+                </div>
+                <h3 className="text-lg font-bold text-on-surface mb-4">For Mentors</h3>
+                <ul className="space-y-3 mb-6">
+                  {mentorPath.map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
+                      <span className="w-6 h-6 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => navigateTo('mentorRegistration')}
+                  className="w-full py-3 bg-secondary text-on-secondary rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-sm"
+                >
+                  Become a Mentor
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-on-surface mb-4">For Mentors</h3>
-              <ul className="space-y-3 mb-6">
-                {mentorPath.map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-on-surface-variant">
-                    <span className="w-6 h-6 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => navigateTo('mentorRegistration')}
-                className="w-full py-3 bg-secondary text-on-secondary rounded-xl font-bold text-sm hover:brightness-110 transition-all shadow-sm"
-              >
-                Become a Mentor
-              </button>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-secondary/40 to-primary/40 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
             </div>
           </div>
         </div>
@@ -226,6 +235,10 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
       {/* Platform Features Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
         <div className="text-center mb-12">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary-container/50 px-4 py-2 text-xs font-bold text-on-primary-container mb-4 border border-primary/10">
+            <span className="material-symbols-outlined text-[16px]">school</span>
+            ProLign Platform
+          </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-primary mb-3">Platform Features</h2>
           <p className="text-on-surface-variant max-w-xl mx-auto">Everything you need for a successful mentorship experience.</p>
         </div>
@@ -233,13 +246,17 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
           {features.map((f, idx) => (
             <div
               key={idx}
-              className="bg-surface rounded-2xl p-5 border border-outline-variant/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group"
+              className="group relative bg-surface rounded-2xl p-6 border border-outline-variant/10 hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/20 transition-all duration-300 cursor-default overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-primary text-2xl">{f.icon}</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-container to-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                  <span className="material-symbols-outlined text-primary text-2xl">{f.icon}</span>
+                </div>
+                <h3 className="font-bold text-on-surface text-sm mb-1.5">{f.title}</h3>
+                <p className="text-on-surface-variant text-xs leading-relaxed">{f.description}</p>
               </div>
-              <h3 className="font-bold text-on-surface text-sm mb-1">{f.title}</h3>
-              <p className="text-on-surface-variant text-xs leading-relaxed">{f.description}</p>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/40 to-secondary/40 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
             </div>
           ))}
         </div>
@@ -337,7 +354,7 @@ export default function HowItWorks({ navigateTo, onHelpClick }) {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
-                onClick={() => navigateTo('discovery')}
+                onClick={() => navigateTo('find-mentors')}
                 className="inline-flex items-center gap-2 bg-on-primary text-primary px-6 py-3 rounded-xl font-bold text-sm hover:bg-on-primary/90 transition-all shadow-md"
               >
                 <span className="material-symbols-outlined text-lg">search</span>

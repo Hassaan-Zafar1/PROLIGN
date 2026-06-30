@@ -220,7 +220,7 @@ export default function Booking({ navigateTo, params }) {
         title="Choose a mentor first"
         description="Select a mentor from Discovery before booking a session."
         actionLabel="Browse Mentors"
-        onAction={() => navigateTo('discovery')}
+        onAction={() => navigateTo('find-mentors')}
       />
     );
   }
@@ -235,7 +235,7 @@ export default function Booking({ navigateTo, params }) {
           <div className="flex items-center gap-2 mt-1">
             {mentor.rating && (
               <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-on-surface-variant">
-                <span className="material-symbols-outlined text-[12px] text-amber-500">star</span>
+                <span className="material-symbols-outlined text-[12px] text-warning">star</span>
                 {mentor.rating}
               </span>
             )}
@@ -534,7 +534,7 @@ export default function Booking({ navigateTo, params }) {
             {renderSessionDetails()}
             {!paymentStep && (
               <div className="flex flex-col gap-2">
-                <Button variant="primary" size="lg" className="w-full" icon="arrow_forward"
+                <Button variant="primary" size="lg" className="w-full"
                   onClick={() => { if (!selectedTime) { setShowTimeAlert(true); return; } setPaymentStep(true); }}
                 >
                   Continue to Payment
