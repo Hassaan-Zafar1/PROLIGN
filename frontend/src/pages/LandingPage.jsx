@@ -52,10 +52,6 @@ const TestimonialCarousel = ({ testimonials }) => {
                       className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover ring-4 ring-surface relative z-10"
                       src={t.avatar || `https://ui-avatars.com/api/?name=${t.name}`}
                     />
-                    {/* Verified badge */}
-                    <div className="absolute -bottom-1 -right-1 z-20 w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center ring-[3px] ring-surface">
-                      <span className="material-symbols-outlined text-[12px]">verified</span>
-                    </div>
                   </div>
 
                   {/* Name + role */}
