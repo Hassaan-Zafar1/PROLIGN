@@ -32,7 +32,7 @@ api.interceptors.response.use(
       try {
         // Try to refresh token
         const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`,
+          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
@@ -47,7 +47,7 @@ api.interceptors.response.use(
         // Refresh failed, logout user
         tokenManager.clearTokens();
         errorHandler.handleAuthError('Session expired. Please login again.');
-        window.location.href = '/login';
+        window.location.reload();
         return Promise.reject(refreshError);
       }
     }
