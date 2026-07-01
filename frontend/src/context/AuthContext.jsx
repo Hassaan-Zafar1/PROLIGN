@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { tokenManager } from '../utils/tokenManager';
 import { authService } from '../services/authService';
-import { getDB, saveDB } from '../utils/db';
+import { getDB, saveDB, logout as dbLogout } from '../utils/db';
 
 // Not exported — only used internally and via useAuth hook
 const AuthContext = createContext();
@@ -66,14 +66,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    tokenManager.clearTokens();
+    setUser(null);
+    setIsAuthenticated(false);
+    try {
+      dbLogout();
+    } catch (e) {}
+
     try {
       await authService.logout();
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      tokenManager.clearTokens();
-      setUser(null);
-      setIsAuthenticated(false);
     }
   };
 

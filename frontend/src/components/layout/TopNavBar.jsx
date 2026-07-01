@@ -98,7 +98,7 @@ const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }
                   className="flex items-center space-x-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                 >
                   <img
-                    src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
+                    src={user.avatar || user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
                     alt={`${user.name || 'User'}'s avatar`}
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant"
                   />
@@ -183,7 +183,7 @@ const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
                       >
                         <img
-                          src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
+                          src={user.avatar || user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
                           alt={`${user.name || 'User'}'s avatar`}
                           className="h-8 w-8 rounded-full object-cover"
                         />

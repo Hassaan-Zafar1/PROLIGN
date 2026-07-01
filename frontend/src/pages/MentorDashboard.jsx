@@ -384,7 +384,7 @@ const MentorDashboard = ({ navigateTo }) => {
   ];
 
   const renderSidebar = () => (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
+    <aside className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
       <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
@@ -400,7 +400,7 @@ const MentorDashboard = ({ navigateTo }) => {
             onClick={() => setActiveView(item.id)}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
-                ? 'bg-secondary-container text-on-secondary-container scale-95' 
+                ? 'brand-olive-menu-active scale-95' 
                 : 'hover:text-on-primary hover:bg-primary-fixed-variant/20'
             }`}
           >
@@ -430,16 +430,16 @@ const MentorDashboard = ({ navigateTo }) => {
     const mlStyle = getMentorLevelStyle(ml.level);
     return (
       <>
-        <section className="relative overflow-hidden rounded-3xl bg-primary p-10 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm mb-8">
+        <section className="brand-olive-surface relative overflow-hidden rounded-3xl p-10 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm mb-8">
           <div className="relative z-10 space-y-4 text-center md:text-left">
             {ml.level && (
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-on-primary/10 bg-on-primary/15 text-on-primary">
+              <div className="brand-chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full border">
                 {mlStyle.icon && <span className="material-symbols-outlined text-[16px]">{mlStyle.icon}</span>}
                 <span className="font-label-sm text-sm font-semibold">Mentor Level: {ml.label}</span>
               </div>
             )}
             <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
-            <p className="text-on-primary/80 max-w-md">
+            <p className="brand-muted-text max-w-md">
             You have {upcomingSessions.length} upcoming sessions. Your recent mentees have rated you {user?.rating?.toFixed(1) || '5.0'} stars!
           </p>
         </div>
@@ -453,7 +453,7 @@ const MentorDashboard = ({ navigateTo }) => {
             <div className="relative flex items-center justify-center">
               <div className="w-24 h-24 rounded-full overflow-hidden ring-[3px] ring-on-primary/30 shadow-xl">
                 <img
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentor')}&background=4a5a2a&color=fff&size=200`}
+                  src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentor')}&background=4a5a2a&color=fff&size=200`}
                   alt={`${user?.name || 'Mentor'}'s profile photo`}
                   className="w-full h-full object-cover opacity-0 transition-opacity duration-500"
                   onLoad={(e) => e.target.classList.remove('opacity-0')}
@@ -1186,8 +1186,8 @@ const MentorDashboard = ({ navigateTo }) => {
 
             <div onClick={() => setActiveView('settings')} className="flex items-center gap-3 bg-surface-container px-4 py-2 rounded-full natural-shadow cursor-pointer hover:bg-surface-container-high transition-colors">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-variant border border-outline-variant/30">
-                {user?.avatar ? (
-                  <img className="w-full h-full object-cover" src={user.avatar} alt={user?.name} />
+                {user?.avatar || user?.profilePic ? (
+                  <img className="w-full h-full object-cover" src={user.avatar || user.profilePic} alt={user?.name} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-xs font-bold text-on-surface-variant">
                     {(user?.name || 'M').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
@@ -1205,14 +1205,14 @@ const MentorDashboard = ({ navigateTo }) => {
         {renderContent()}
         </div>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+      <nav className="brand-olive-surface fixed inset-x-0 bottom-0 z-40 border-t border-on-primary/10 px-2 py-2 backdrop-blur-md lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => { setActiveView(item.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={`flex flex-col items-center rounded-xl px-1 py-2 text-[11px] font-semibold ${
-                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+                activeView === item.id ? 'brand-olive-menu-active' : 'text-on-primary/75'
               }`}
             >
               <span className={`material-symbols-outlined text-[22px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
