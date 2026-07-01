@@ -347,8 +347,7 @@ function App() {
   const hideNavigation = hideNavPages.includes(currentRoute.page) ||
     (user?.role === 'mentee' && ['sessions', 'settings', 'analytics', 'dashboard/sessions', 'dashboard/settings', 'dashboard/bookings'].includes(currentRoute.page));
 
-  const noSidebarPages = ['mentorProfile', 'find-mentors', 'booking'];
-  const showSidebar = !hideNavigation && !!user && !noSidebarPages.includes(currentRoute.page);
+  const showSidebar = false;
 
   const fullWidthPages = ['home', 'landing', 'how-it-works',
     'terms', 'privacy', 'cookies', 'cookie-policy', 'find-mentors', 'mentorProfile', 'booking'];

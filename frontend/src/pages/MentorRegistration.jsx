@@ -160,6 +160,16 @@ export default function MentorRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
+      let cvData = null;
+      if (cvFile) {
+        cvData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ filename: cvFile.name, url: reader.result });
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(cvFile);
+        });
+      }
+
       const response = await authService.register({
         email: form.email,
         password: form.password,
@@ -167,6 +177,7 @@ export default function MentorRegistration({ navigateTo }) {
         name: form.name,
         linkedinUrl: form.linkedIn,
         hourlyRate: Number(form.hourlyRate),
+        cv: cvData,
       });
       
       navigateTo('verify-otp', { userId: response.userId });

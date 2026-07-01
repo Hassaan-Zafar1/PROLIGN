@@ -41,7 +41,11 @@ export default function OTPVerification({ navigateTo, params }) {
       }
       login(response.user, response.accessToken);
       const role = response.user.role;
-      if (role === 'mentor')      navigateTo('mentor-dashboard');
+      const status = response.user.status;
+      if (role === 'mentor') {
+        if (status === 'approved') navigateTo('mentor-dashboard');
+        else navigateTo('waiting-approval');
+      }
       else if (role === 'mentee') navigateTo('onboarding');
       else if (role === 'admin')  navigateTo('admindashboard');
       else                        navigateTo('home');
