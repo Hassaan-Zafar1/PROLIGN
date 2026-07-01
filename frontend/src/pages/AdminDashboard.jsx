@@ -91,18 +91,18 @@ const AdminDashboard = ({ navigateTo }) => {
 
   const refreshData = async () => {
     setLoading(true);
-    try {
-      // Try fetching from backend API first
-      const response = await adminService.getUsers();
-      const allUsers = response.users || [];
-      setMentors(allUsers.filter(u => u.role === 'mentor'));
-      setMentees(allUsers.filter(u => u.role === 'mentee'));
-      setNotifications(getNotifications());
-      setUser(getCurrentUser());
-      const db = getDB();
-      setBookings(db.bookings || []);
-    } catch (error) {
-      console.warn('Backend API unavailable, falling back to local data:', error.message);
+    // try {
+    //   // Try fetching from backend API first
+    //   const response = await adminService.getUsers();
+    //   const allUsers = response.users || [];
+    //   setMentors(allUsers.filter(u => u.role === 'mentor'));
+    //   setMentees(allUsers.filter(u => u.role === 'mentee'));
+    //   setNotifications(getNotifications());
+    //   setUser(getCurrentUser());
+    //   const db = getDB();
+    //   setBookings(db.bookings || []);
+    // } catch (error) {
+      // console.warn('Backend API unavailable, falling back to local data:', error.message);
       try {
         const db = getDB();
         setMentors(getUsersByRole('mentor'));
@@ -111,8 +111,8 @@ const AdminDashboard = ({ navigateTo }) => {
         setNotifications(getNotifications());
         setUser(getCurrentUser());
       } catch (err) {
-        console.error('Failed to refresh data:', err);
-      }
+        // console.error('Failed to refresh data:', err);
+      
     } finally {
       setLoading(false);
     }
@@ -357,7 +357,7 @@ const AdminDashboard = ({ navigateTo }) => {
     try {
       return JSON.parse(value);
     } catch {
-      return fallback;
+      // return fallback;
     }
   };
 

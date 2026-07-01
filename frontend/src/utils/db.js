@@ -34,7 +34,7 @@ const INITIAL_DATA = {
       rating: 4.7,
       reviews: 89,
       hourlyRate: 200,
-      avatar: `https://ui-avatars.com/api/?name=James+Wilson&background=354024&color=fff&size=200`,
+      // avatar: "",
       availability: ["Tuesday 4:00 PM", "Friday 9:00 AM"],
       bio: "15+ years of experience scaling engineering teams from 10 to 500+.",
       status: "approved"
