@@ -799,8 +799,8 @@ const AdminDashboard = ({ navigateTo }) => {
             </div>
             <button onClick={() => setActiveView('settings')} className="flex items-center gap-3 rounded-full bg-surface-container px-4 py-2 natural-shadow transition-colors hover:bg-surface-container-high">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-variant border border-outline-variant/30">
-                {user?.avatar ? (
-                  <img className="w-full h-full object-cover" src={user.avatar} alt={user?.name} />
+                {user?.avatar || user?.profilePic ? (
+                  <img className="w-full h-full object-cover" src={user.avatar || user.profilePic} alt={user?.name} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-xs font-bold text-on-surface-variant">
                     {(user?.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}

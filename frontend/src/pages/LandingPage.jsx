@@ -501,11 +501,13 @@ const LandingPage = ({ navigateTo }) => {
 
     if (mainRef.current) {
         const revealElements = mainRef.current.querySelectorAll('.reveal-on-scroll');
+        let testimonialRevealIndex = 0;
         revealElements.forEach((el, index) => {
             if (el.closest('#testimonials-section')) {
                 el.dataset.animation = 'slide-right';
                 el.classList.add('transition-all', 'duration-1000', 'opacity-0', '-translate-x-16');
-                el.style.transitionDelay = `${index * 150}ms`;
+                el.style.transitionDelay = `${testimonialRevealIndex * 100}ms`;
+                testimonialRevealIndex += 1;
             } else if (el.classList.contains('reveal-scale')) {
                 el.dataset.animation = 'scale-in';
                 el.classList.add('transition-all', 'duration-700', 'opacity-0', 'scale-90');
@@ -623,10 +625,9 @@ const LandingPage = ({ navigateTo }) => {
             <InteractiveButton
               burst
               onClick={() => navigateTo('mentorRegistration')}
-              className="group w-full sm:w-auto bg-secondary text-on-secondary px-8 py-4 rounded-xl font-headline-md text-lg font-bold hover:bg-secondary/90 active:scale-95 border border-on-primary/10 shadow-xl shadow-secondary/30"
+              className="group w-full sm:w-auto bg-secondary-fixed-dim text-on-secondary-fixed px-8 py-4 rounded-xl font-headline-md text-lg font-bold hover:bg-secondary-fixed-dim/90 active:scale-95 border border-secondary-fixed/10 shadow-xl shadow-secondary-fixed/20"
             >
               <span className="flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-on-secondary">school</span>
                 Become a Mentor
               </span>
             </InteractiveButton>
@@ -926,17 +927,17 @@ const LandingPage = ({ navigateTo }) => {
 
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
-            <div className="reveal-on-scroll inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-secondary/15 to-primary/15 px-5 py-2 text-xs font-bold text-secondary mb-4 shadow-sm backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-secondary/15 to-primary/15 px-5 py-2 text-xs font-bold text-secondary mb-4 shadow-sm backdrop-blur-sm">
               <span className="material-symbols-outlined text-[16px]">forum</span>
               Testimonials
             </div>
-            <h2 className="reveal-on-scroll font-headline-lg text-3xl md:text-4xl lg:text-5xl font-bold text-primary mt-3">
+            <h2 className="font-headline-lg text-3xl md:text-4xl lg:text-5xl font-bold text-primary mt-3">
               Voices of Success
             </h2>
-            <p className="reveal-on-scroll text-on-surface-variant max-w-xl mx-auto mt-4 text-base md:text-lg leading-relaxed">
+            <p className="text-on-surface-variant max-w-xl mx-auto mt-4 text-base md:text-lg leading-relaxed">
               Real stories from mentors and mentees who transformed their professional journey through ProLign
             </p>
-            <div className="reveal-on-scroll h-1 w-24 bg-gradient-to-r from-secondary to-primary mx-auto rounded-full mt-5" />
+            <div className="h-1 w-24 bg-gradient-to-r from-secondary to-primary mx-auto rounded-full mt-5" />
           </div>
 
           {testimonials.length > 0 && <TestimonialCarousel testimonials={testimonials} />}

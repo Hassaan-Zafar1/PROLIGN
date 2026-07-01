@@ -52,7 +52,7 @@ const SideNavBar = ({ navigateTo, currentPage, theme, toggleTheme }) => {
           aria-label="Go to settings"
         >
           <img
-            src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
+            src={user.avatar || user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4a5a2a&color=ffffff&size=64&bold=true`}
             alt={`${user.name || 'User'}'s avatar`}
             className="w-9 h-9 rounded-full object-cover border border-[var(--sidebar-border)] flex-shrink-0"
           />

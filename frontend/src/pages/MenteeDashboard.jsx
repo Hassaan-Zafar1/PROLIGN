@@ -447,7 +447,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const renderSidebar = () => (
     <aside
-      className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex"
+      className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex"
     >
       <button
         onClick={() => setView('dashboard')}
@@ -469,7 +469,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             onClick={() => setView(item.id)}
             className={`flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors ${
               activeView === item.id
-                ? 'bg-secondary-container text-on-secondary-container'
+                ? 'brand-olive-menu-active'
                 : 'hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}
           >
@@ -592,7 +592,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <img
             alt="User profile"
             className="h-10 w-10 rounded-full border-2 border-surface-container-highest object-cover"
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentee')}&background=4a5a2a&color=fff`}
+            src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentee')}&background=4a5a2a&color=fff`}
           />
         </button>
       </div>
@@ -719,23 +719,23 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const renderDashboard = () => (
     <div className="space-y-8">
-      <section className="relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-3xl bg-secondary p-6 text-center shadow-sm md:flex-row md:p-10 md:text-left">
+      <section className="brand-olive-surface relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-3xl p-6 text-center shadow-sm md:flex-row md:p-10 md:text-left">
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-on-secondary/10 bg-on-secondary-container/20 px-4 py-1.5 text-sm font-semibold text-on-primary">
+          <div className="brand-chip inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold">
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
             Skill Profile: {user?.skills?.[0] || 'Career Growth'}
           </div>
           <h2 className="font-headline-lg text-4xl font-bold text-on-primary sm:text-5xl">
             Welcome back, {user?.name?.split(' ')[0] || 'there'}!
           </h2>
-          <p className="max-w-xl text-primary-fixed-dim">
+          <p className="brand-muted-text max-w-xl">
             You have {sessionGroups.upcoming.length} upcoming sessions. Keep your momentum with focused calls, notes, and clear next steps.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button onClick={() => setView('sessions')} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
+            <button onClick={() => setView('sessions')} className={`${buttonClass} brand-olive-primary-action hover:opacity-90`}>
               View Sessions
             </button>
-            <button onClick={() => handleBookMentor()} className={`${buttonClass} bg-primary-fixed text-on-primary-fixed hover:opacity-90`}>
+            <button onClick={() => handleBookMentor()} className={`${buttonClass} brand-olive-secondary-action hover:opacity-90`}>
               Book Mentor
             </button>
           </div>
@@ -750,7 +750,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <div className="relative flex items-center justify-center">
             <div className="w-24 h-24 rounded-full overflow-hidden ring-[3px] ring-on-surface/15 shadow-xl bg-surface/10">
               <img
-                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=4a5a2a&color=fff&size=200`}
+                src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=4a5a2a&color=fff&size=200`}
                 alt={`${user?.name || 'User'}'s profile photo`}
                 className="w-full h-full object-cover opacity-0 transition-opacity duration-500"
                 onLoad={(e) => e.target.classList.remove('opacity-0')}
@@ -1552,14 +1552,14 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+      <nav className="brand-olive-surface fixed inset-x-0 bottom-0 z-40 border-t border-on-primary/10 px-2 py-2 backdrop-blur-md lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {navItems.slice(0, 5).map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
               className={`flex flex-col items-center rounded-xl px-1 py-2 text-[11px] font-semibold ${
-                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+                activeView === item.id ? 'brand-olive-menu-active' : 'text-on-primary/75'
               }`}
             >
               <span className={`material-symbols-outlined text-[22px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
