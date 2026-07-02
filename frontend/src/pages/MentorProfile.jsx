@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { getReviewsForMentor, getUserById, getCurrentUser, createBooking } from '../utils/db';
+import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const sessionTypes = [
@@ -16,6 +17,7 @@ const MentorProfile = ({ navigateTo, params }) => {
   const mentor = useMemo(() => getUserById(mentorId), [mentorId]);
   const reviews = useMemo(() => getReviewsForMentor(mentorId), [mentorId]);
   const user = getCurrentUser();
+  const mentorLevelInfo = useMemo(() => getMentorLevel(mentor), [mentor]);
 
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [selectedDateObj, setSelectedDateObj] = useState(new Date());
@@ -122,6 +124,15 @@ const MentorProfile = ({ navigateTo, params }) => {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-bold text-primary truncate">{mentor.name}</h1>
             <p className="text-base sm:text-lg text-on-surface-variant mt-1">{mentor.title} at {mentor.company}</p>
+            {(() => {
+              const mlStyle = getMentorLevelStyle(mentorLevelInfo.level);
+              return (
+                <div className={`mt-2.5 mentor-level-badge mentor-level-${mentorLevelInfo.level} ${mlStyle.wrapper}`}>
+                  {mlStyle.icon && <span className="material-symbols-outlined text-[12px]">{mlStyle.icon}</span>}
+                  {mentorLevelInfo.label}
+                </div>
+              );
+            })()}
 
             {/* Quick Stats Row */}
             <div className="flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 mt-3 sm:mt-4">
@@ -206,6 +217,32 @@ const MentorProfile = ({ navigateTo, params }) => {
                     <p className="text-[10px] lg:text-xs text-on-surface-variant font-medium">{stat.label}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Platform Enrollment / Level details */}
+          <section className="bg-surface rounded-2xl border border-outline-variant/10 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-5 sm:px-6 lg:px-8 py-4 border-b border-outline-variant/10">
+              <h2 className="text-lg lg:text-xl font-bold text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary">workspace_premium</span>
+                Enrollment Details
+              </h2>
+            </div>
+            <div className="p-5 sm:p-6 lg:p-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-surface-variant/30 rounded-xl p-4 border border-outline-variant/10 hover:bg-surface-variant/50 transition-colors">
+                  <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Registered Since</p>
+                  <p className="text-base font-bold text-primary mt-1">{mentorLevelInfo.since || 'Experience Level Unavailable'}</p>
+                </div>
+                <div className="bg-surface-variant/30 rounded-xl p-4 border border-outline-variant/10 hover:bg-surface-variant/50 transition-colors">
+                  <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Years on Platform</p>
+                  <p className="text-base font-bold text-primary mt-1">{mentorLevelInfo.yearsDisplay || 'Experience Level Unavailable'}</p>
+                </div>
+                <div className="bg-surface-variant/30 rounded-xl p-4 border border-outline-variant/10 hover:bg-surface-variant/50 transition-colors">
+                  <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Experience Level</p>
+                  <p className="text-base font-bold text-primary mt-1">{mentorLevelInfo.label}</p>
+                </div>
               </div>
             </div>
           </section>

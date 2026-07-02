@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 
-const Login = ({ navigateTo }) => {
+const Login = ({ navigateTo, initialView }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -12,6 +12,12 @@ const Login = ({ navigateTo }) => {
   const modalRef = useRef(null);
   const firstButtonRef = useRef(null);
   const { login } = useAuth();
+
+  useEffect(() => {
+    if (initialView === 'signup') {
+      setShowRoleModal(true);
+    }
+  }, [initialView]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,9 +77,9 @@ const Login = ({ navigateTo }) => {
   }, [showRoleModal]);
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row bg-background overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left Side — Brand Story */}
-      <div className="hidden md:flex md:w-full lg:w-[55%] xl:w-[60%] bg-gradient-to-br from-primary via-primary-container to-surface-dim relative overflow-hidden flex-col">
+      <div className="hidden md:flex md:w-full lg:w-[55%] xl:w-[60%] brand-panel relative overflow-hidden flex-col">
         {/* Decorative Elements */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-on-primary-fixed rounded-full blur-[100px]" />
@@ -153,7 +159,7 @@ const Login = ({ navigateTo }) => {
           <button
             type="button"
             onClick={() => navigateTo('home')}
-            className="inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors min-h-[44px]"
           >
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
             Home
@@ -168,10 +174,10 @@ const Login = ({ navigateTo }) => {
         </div>
 
         {/* Form Area */}
-        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-10 py-4 lg:py-0">
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-10 py-4 lg:py-0 overflow-y-auto">
           <div className="w-full max-w-[480px]">
             {/* Auth Card */}
-            <div className="bg-surface rounded-2xl lg:rounded-3xl shadow-[0_2px_24px_rgba(0,0,0,0.06)] border border-outline-variant/40 p-5 sm:p-7 lg:p-8">
+            <div className="bg-surface rounded-2xl lg:rounded-3xl shadow-sm border border-outline-variant/40 p-5 sm:p-7 lg:p-8">
               {/* Logo — Desktop only */}
               <div className="hidden lg:flex items-center gap-2.5 mb-6">
                 <span className="material-symbols-outlined text-primary text-2xl fill-icon">school</span>
@@ -210,6 +216,7 @@ const Login = ({ navigateTo }) => {
                       required
                       disabled={loading}
                       autoComplete="email"
+                      inputMode="email"
                       aria-label="Email address"
                     />
                     <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">mail</span>
@@ -238,7 +245,7 @@ const Login = ({ navigateTo }) => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 text-on-surface-variant/50 hover:text-on-surface transition-colors -mt-0.5"
                       tabIndex={-1}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
@@ -248,7 +255,7 @@ const Login = ({ navigateTo }) => {
                 </div>
 
                 {/* Remember Me + Forgot Password */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-y-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -260,8 +267,8 @@ const Login = ({ navigateTo }) => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => {}}
-                    className="text-sm font-semibold text-primary hover:text-primary-container transition-colors"
+                    onClick={() => navigateTo('forgot-password')}
+                    className="text-sm font-semibold text-primary hover:text-primary-container transition-colors min-h-[44px] flex items-center"
                     disabled={loading}
                   >
                     Forgot Password?
@@ -284,10 +291,7 @@ const Login = ({ navigateTo }) => {
                       <span>Logging in...</span>
                     </>
                   ) : (
-                    <>
-                      <span>Login</span>
-                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                    </>
+                    <span>Login</span>
                   )}
                 </button>
 
@@ -297,7 +301,7 @@ const Login = ({ navigateTo }) => {
                     Don't have an account?{' '}
                     <button
                       onClick={() => setShowRoleModal(true)}
-                      className="font-semibold text-primary hover:text-primary-container transition-colors"
+                      className="font-semibold text-primary hover:text-primary-container transition-colors min-h-[44px] inline-flex items-center"
                       disabled={loading}
                     >
                       Create Account
@@ -332,7 +336,7 @@ const Login = ({ navigateTo }) => {
             {/* Close button */}
             <button
               onClick={() => setShowRoleModal(false)}
-              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
+              className="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
               aria-label="Close modal"
             >
               <span className="material-symbols-outlined text-lg">close</span>
@@ -364,7 +368,6 @@ const Login = ({ navigateTo }) => {
                 </p>
                 <span className="inline-flex items-center gap-1.5 text-primary font-semibold text-sm">
                   Continue as Mentee
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </span>
               </button>
 
@@ -382,7 +385,6 @@ const Login = ({ navigateTo }) => {
                 </p>
                 <span className="inline-flex items-center gap-1.5 text-secondary font-semibold text-sm">
                   Continue as Mentor
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </span>
               </button>
             </div>

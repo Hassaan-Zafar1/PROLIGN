@@ -1,7 +1,7 @@
 import { getPublishedSiteContent } from '../content/siteContent';
 
 const shellCard =
-  'rounded-3xl border border-outline-variant/15 bg-surface-container-lowest shadow-[0_18px_60px_-28px_rgba(76,61,25,0.25)]';
+  'rounded-3xl border border-outline-variant/15 bg-surface-container-lowest shadow-xl';
 
 export default function TermsOfService({ navigateTo }) {
   const terms = getPublishedSiteContent('terms');
@@ -9,7 +9,7 @@ export default function TermsOfService({ navigateTo }) {
   return (
     <div className="min-h-screen bg-background text-on-surface">
       <section className="relative overflow-hidden border-b border-outline-variant/15">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(91,98,57,0.18),_transparent_38%),radial-gradient(circle_at_top_right,_rgba(32,42,16,0.12),_transparent_32%),linear-gradient(180deg,_rgba(255,248,243,0.96)_0%,_rgba(250,236,216,0.85)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary/5 via-primary/5 to-surface-container-high/60" />
         <div className="absolute -left-10 top-8 h-40 w-40 rounded-full bg-secondary/10 blur-3xl" />
         <div className="absolute right-0 top-20 h-56 w-56 rounded-full bg-primary/8 blur-3xl" />
 

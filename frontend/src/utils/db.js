@@ -17,7 +17,7 @@ const INITIAL_DATA = {
       rating: 4.9,
       reviews: 124,
       hourlyRate: 150,
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Dr.+Emily+Chen&background=202a10&color=fff&size=200`,
       availability: ["Monday 10:00 AM", "Wednesday 2:00 PM"],
       bio: "Passionate about AI ethics and mentoring the next generation of data scientists.",
       status: "approved",
@@ -34,7 +34,7 @@ const INITIAL_DATA = {
       rating: 4.7,
       reviews: 89,
       hourlyRate: 200,
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+      // avatar: "",
       availability: ["Tuesday 4:00 PM", "Friday 9:00 AM"],
       bio: "15+ years of experience scaling engineering teams from 10 to 500+.",
       status: "approved"
@@ -50,7 +50,7 @@ const INITIAL_DATA = {
       rating: 4.8,
       reviews: 54,
       hourlyRate: 120,
-      avatar: "https://randomuser.me/api/portraits/men/75.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Michael+Chang&background=5b6239&color=fff&size=200`,
       availability: ["Monday 1:00 PM", "Thursday 10:00 AM"],
       bio: "Helping engineers transition into product management.",
       status: "approved",
@@ -68,7 +68,7 @@ const INITIAL_DATA = {
       rating: 4.5,
       reviews: 32,
       hourlyRate: 90,
-      avatar: "https://randomuser.me/api/portraits/women/63.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Aisha+Patel&background=202a10&color=fff&size=200`,
       availability: ["Wednesday 9:00 AM"],
       bio: "Passionate about data-driven decision making.",
       status: "approved",
@@ -86,7 +86,7 @@ const INITIAL_DATA = {
       rating: 3.9,
       reviews: 12,
       hourlyRate: 60,
-      avatar: "https://randomuser.me/api/portraits/men/22.jpg",
+      avatar: `https://ui-avatars.com/api/?name=David+Reynolds&background=354024&color=fff&size=200`,
       availability: ["Friday 2:00 PM"],
       bio: "Self-taught developer eager to help beginners.",
       status: "approved",
@@ -104,7 +104,7 @@ const INITIAL_DATA = {
       rating: 5.0,
       reviews: 200,
       hourlyRate: 180,
-      avatar: "https://randomuser.me/api/portraits/women/90.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Sarah+Chen&background=5b6239&color=fff&size=200`,
       availability: ["Tuesday 11:00 AM", "Thursday 3:00 PM"],
       bio: "Designing the future of productivity software.",
       status: "approved",
@@ -122,7 +122,7 @@ const INITIAL_DATA = {
       rating: 0,
       reviews: 0,
       hourlyRate: 160,
-      avatar: "https://randomuser.me/api/portraits/women/26.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Sarah+Drasner&background=202a10&color=fff&size=200`,
       availability: ["Monday 10:00 AM"],
       bio: "Helping developers build better experiences.",
       status: "pending",
@@ -140,7 +140,7 @@ const INITIAL_DATA = {
       rating: 0,
       reviews: 0,
       hourlyRate: 110,
-      avatar: "https://randomuser.me/api/portraits/men/55.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Marcus+Holloway&background=354024&color=fff&size=200`,
       availability: ["Tuesday 2:00 PM"],
       bio: "Securing the future, one system at a time.",
       status: "pending",
@@ -155,7 +155,7 @@ const INITIAL_DATA = {
       password: "mentee123",
       title: "Computer Science Student",
       skills: ["JavaScript", "React"],
-      avatar: "https://randomuser.me/api/portraits/women/17.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Sarah+Jenkins&background=5b6239&color=fff&size=200`,
       createdAt: "2025-10-14T10:00:00Z"
     },
     {
@@ -164,7 +164,7 @@ const INITIAL_DATA = {
       role: "mentee",
       title: "Aspiring Product Manager",
       skills: ["Data Analysis", "Communication"],
-      avatar: "https://randomuser.me/api/portraits/men/41.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Alex+Johnson&background=202a10&color=fff&size=200`,
       createdAt: "2026-02-17T10:00:00Z"
     },
     {
@@ -173,7 +173,7 @@ const INITIAL_DATA = {
       role: "admin",
       email: "admin@prolign.com",
       password: "password123",
-      avatar: "https://randomuser.me/api/portraits/men/68.jpg",
+      avatar: `https://ui-avatars.com/api/?name=System+Admin&background=354024&color=fff&size=200`,
       createdAt: "2025-06-01T10:00:00Z"
     }
   ],
@@ -270,7 +270,7 @@ const INITIAL_DATA = {
       role: "Frontend Engineer",
       company: "TechNova",
       quote: "ProLign transformed my career. The insights I got on system design directly led to my promotion to Senior Engineer.",
-      avatar: "https://randomuser.me/api/portraits/men/52.jpg",
+      avatar: `https://ui-avatars.com/api/?name=David+K.&background=202a10&color=fff&size=200`,
       published: true
     },
     {
@@ -279,7 +279,7 @@ const INITIAL_DATA = {
       role: "Product Manager",
       company: "Innovate Inc.",
       quote: "My mentor helped me navigate the transition from engineering to product management seamlessly. The flexible scheduling was a lifesaver.",
-      avatar: "https://randomuser.me/api/portraits/women/33.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Elena+R.&background=5b6239&color=fff&size=200`,
       published: true
     },
     {
@@ -288,7 +288,7 @@ const INITIAL_DATA = {
       role: "Data Scientist",
       company: "Analytix Labs",
       quote: "The AI matching was spot-on. My mentor\u2019s guidance on machine learning pipelines saved me months of trial and error. I landed my dream role within weeks.",
-      avatar: "https://randomuser.me/api/portraits/men/8.jpg",
+      avatar: `https://ui-avatars.com/api/?name=Marcus+T.&background=202a10&color=fff&size=200`,
       published: true
     }
   ],
@@ -407,7 +407,7 @@ export const getDB = () => {
       metadataUpdated = true;
     }
     if (!user.avatar) {
-      user.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}`;
+      user.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=4a5a2a&color=fff`;
       metadataUpdated = true;
     }
   });
@@ -458,7 +458,7 @@ export const addUser = (data) => {
     ...data,
     id: `u${Date.now()}`,
     role: data.role || 'mentee',
-    status: data.role === 'mentor' ? (data.status || 'approved') : data.status,
+    status: data.role === 'mentor' ? (data.status || 'pending') : data.status,
     avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'User')}`,
     createdAt: new Date().toISOString()
   };

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { uploadService } from '../services/uploadService';
@@ -46,6 +46,8 @@ const makeInitialForm = (u) => ({
   company: u?.company || '',
   bio: u?.bio || '',
   linkedinUrl: u?.linkedinUrl || u?.linkedIn || '',
+  industry: u?.industry || '',
+
   experience: u?.experience ?? '',
   skills: toCSV(u?.skills),
   languages: toCSV(u?.languages?.length ? u.languages : ['English']),
@@ -69,7 +71,7 @@ const makeInitialForm = (u) => ({
 });
 
 const sectionFields = {
-  profile: ['name', 'phone', 'country', 'city', 'title', 'company', 'bio', 'linkedinUrl'],
+  profile: ['profilePic', 'name', 'phone', 'country', 'city', 'title', 'company', 'bio', 'linkedinUrl', 'industry'],
   career: ['experience', 'hourlyRate', 'skills', 'languages', 'certifications', 'availableSlots', 'weeklySchedule', 'preferredCategories'],
   learning: ['education', 'languages', 'skills', 'skillsToLearn', 'preferredCategories', 'careerGoals', 'learningInterests'],
   security: ['profileVisibility'],
@@ -79,18 +81,107 @@ const sectionFields = {
 const arrayFields = ['skills', 'languages', 'certifications', 'availableSlots', 'preferredCategories', 'skillsToLearn', 'learningInterests'];
 const numberFields = ['hourlyRate', 'experience'];
 
+const validateName = (v) => {
+  if (!v || !v.trim()) return '';
+  if (v.trim().length < 2) return 'Full name must be at least 2 characters';
+  if (v.length > 100) return 'Full name must be under 100 characters';
+  if (/[0-9]/.test(v)) return 'Full name cannot contain numbers';
+  if (/[^a-zA-Z\s\-'.]/.test(v)) return 'Full name contains invalid characters';
+  return '';
+};
+const validatePhone = (v) => {
+  if (!v) return '';
+  const digits = v.replace(/\D/g, '');
+  if (digits.length !== 11) return 'Phone number must contain exactly 11 digits';
+  return '';
+};
+const validateEmail = (v) => {
+  if (!v) return '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Please enter a valid email address';
+  return '';
+};
+const validateCountry = (v) => {
+  if (!v) return '';
+  if (/[0-9]/.test(v)) return 'Country cannot contain numbers';
+  if (/[^a-zA-Z\s]/.test(v)) return 'Country contains invalid characters';
+  return '';
+};
+const validateCity = (v) => {
+  if (!v) return '';
+  if (/[0-9]/.test(v)) return 'City cannot contain numbers';
+  if (/[^a-zA-Z\s-]/.test(v)) return 'City contains invalid characters';
+  return '';
+};
+const validateTitle = (v) => {
+  if (!v) return '';
+  if (v.length > 100) return 'Professional title must be under 100 characters';
+  return '';
+};
+const validateCompany = (v) => {
+  if (!v) return '';
+  if (/[^a-zA-Z0-9\s&.*,]/.test(v)) return 'Company contains invalid characters';
+  return '';
+};
+const validateLinkedIn = (v) => {
+  if (!v) return '';
+  if (!/^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(v)) return 'LinkedIn URL is invalid';
+  return '';
+};
+const validateBio = (v) => {
+  if (v && v.length > 1000) return 'Bio must be under 1000 characters';
+  return '';
+};
+const validateIndustry = (v) => {
+  if (!v) return '';
+  if (v.length > 100) return 'Industry must be under 100 characters';
+  return '';
+};
+const validators = {
+  name: validateName, phone: validatePhone, email: validateEmail,
+  country: validateCountry, city: validateCity, title: validateTitle,
+  company: validateCompany, linkedinUrl: validateLinkedIn, bio: validateBio,
+  industry: validateIndustry,
+};
+
 export default function ProfileSettings({ compact = false, onSaved, onAccountClosed, onThemeChange, initialTab }) {
   const { user, updateUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab || 'profile');
   const [form, setForm] = useState(() => makeInitialForm(user));
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const photoRef = useRef(null);
+  const formInitialized = useRef(false);
+  const initialFormRef = useRef(null);
 
   useEffect(() => {
-    if (user) setForm(makeInitialForm(user));
+    if (user && !formInitialized.current) {
+      const initial = makeInitialForm(user);
+      setForm(initial);
+      initialFormRef.current = initial;
+      formInitialized.current = true;
+    }
   }, [user]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialFormRef.current) return false;
+    return Object.keys(initialFormRef.current).some(
+      (key) => String(initialFormRef.current[key] ?? '') !== String(form[key] ?? '')
+    );
+  }, [form]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   const role = user?.role || 'mentee';
   const roleLabel = role === 'mentor' ? 'Mentor' : role === 'admin' ? 'Admin' : 'Mentee';
@@ -104,9 +195,39 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     );
   }
 
-  const setField = (f, v) => {
-    setStatus({ msg: '', type: '' });
+  const validateField = (field, value) => validators[field] ? validators[field](value) : '';
+
+  const setField = useCallback((f, v) => {
     setForm((p) => ({ ...p, [f]: v }));
+  }, []);
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  }, []);
+
+  const handleBlur = (field) => {
+    setTouched((p) => ({ ...p, [field]: true }));
+    const err = validateField(field, form[field]);
+    setErrors((p) => ({ ...p, [field]: err }));
+  };
+
+  const validateSection = (sectionId) => {
+    const fields = sectionFields[sectionId] || [];
+    const newErrors = {};
+    let hasError = false;
+    const touchedUpdate = {};
+    for (const field of fields) {
+      touchedUpdate[field] = true;
+      const fn = validators[field];
+      if (fn) {
+        const err = fn(form[field]);
+        if (err) { newErrors[field] = err; hasError = true; }
+      }
+    }
+    setErrors((p) => ({ ...p, ...newErrors }));
+    setTouched((p) => ({ ...p, ...touchedUpdate }));
+    return !hasError;
   };
 
   const showStatus = (msg, type = 'success') => {
@@ -115,6 +236,11 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
   };
 
   const saveSection = async (sectionId) => {
+    if (sectionId !== 'security' && sectionId !== 'notifications' && !validateSection(sectionId)) {
+      showStatus('Please fix the errors before saving.', 'error');
+      return;
+    }
+
     // ─── Security: Password Change ─────────────────────────────────────────────
     if (sectionId === 'security') {
       if (form.newPassword || form.currentPassword) {
@@ -134,12 +260,9 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
         setSaving(true);
         try {
           await userService.changePassword(form.currentPassword, form.newPassword);
-          setForm((prev) => ({
-            ...prev,
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: '',
-          }));
+          const clearedForm = { ...form, currentPassword: '', newPassword: '', confirmPassword: '' };
+          setForm(clearedForm);
+          initialFormRef.current = makeInitialForm(user);
           showStatus('Password changed successfully.');
         } catch (error) {
           showStatus(error.response?.data?.message || 'Failed to change password.', 'error');
@@ -156,7 +279,9 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
           profileVisibility: form.profileVisibility,
         });
         updateUser(response.user);
-        setForm(makeInitialForm(response.user));
+        const fresh = makeInitialForm(response.user);
+        setForm(fresh);
+        initialFormRef.current = fresh;
         showStatus('Privacy settings saved.');
       } catch (error) {
         showStatus(error.response?.data?.message || 'Failed to save.', 'error');
@@ -194,7 +319,9 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     try {
       const response = await userService.updateProfile(payload);
       updateUser(response.user);
-      setForm(makeInitialForm(response.user));
+      const freshForm = makeInitialForm(response.user);
+      setForm(freshForm);
+      initialFormRef.current = freshForm;
       onThemeChange?.(form.appearanceTheme);
       showStatus('Changes saved successfully.');
       onSaved?.();
@@ -224,7 +351,9 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
       const url = await uploadService.uploadImage(f);
       const response = await userService.updateProfile({ profilePic: url });
       updateUser(response.user);
-      setForm(makeInitialForm(response.user));
+      const photoForm = makeInitialForm(response.user);
+      setForm(photoForm);
+      initialFormRef.current = photoForm;
       showStatus('Profile photo updated!', 'success');
     } catch (error) {
       showStatus(error.message || 'Photo upload failed.', 'error');
@@ -270,7 +399,7 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     );
   };
 
-  const StatusBadge = () => status.msg ? (
+  const renderStatusBadge = () => status.msg ? (
     <span className={`mr-auto rounded-full px-3 py-1.5 text-xs font-bold animate-[fadeIn_0.2s] ${
       status.type === 'error'
         ? 'bg-error/10 text-error'
@@ -280,11 +409,11 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     </span>
   ) : null;
 
-  const SaveFooter = ({ sectionId }) => {
+  const renderSaveFooter = (sectionId) => {
     if (sectionId === 'account') return null;
     return (
       <div className="flex items-center justify-end gap-3 pt-4">
-        <StatusBadge />
+        {renderStatusBadge()}
         <Button
           variant="primary"
           size="md"
@@ -298,204 +427,242 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     );
   };
 
-  const SectionWrap = ({ sectionId, children }) => (
+  const renderSectionWrap = (sectionId, children) => (
     <div className="space-y-6">
       {children}
-      <SaveFooter sectionId={sectionId} />
+      {renderSaveFooter(sectionId)}
     </div>
   );
 
   // ─── Section Renderers ────────────────────────────────────────────────────────
 
-  const renderProfile = () => (
-    <SectionWrap sectionId="profile">
-      <Card title="Personal Information" icon="account_circle">
-        <div className="space-y-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <Avatar
-              src={form.profilePic}
-              name={form.name || roleLabel}
-              size="xl"
-              className="rounded-2xl ring-4 ring-surface-variant!"
-            />
-            <div className="flex-1 space-y-2">
-              <Input
-                label="Profile Photo URL"
-                value={form.profilePic}
-                onChange={(e) => setField('profilePic', e.target.value)}
-                placeholder="https://..."
-              />
-              <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
-              <Button variant="outline" size="sm" icon="upload" onClick={() => photoRef.current?.click()} disabled={saving}>
-                {saving ? 'Uploading...' : 'Upload Photo'}
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input label="Full Name" value={form.name} onChange={(e) => setField('name', e.target.value)} />
-            <Input label="Email Address" type="email" value={form.email} disabled />
-            <Input label="Phone Number" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
-            <Input label="Country" value={form.country} onChange={(e) => setField('country', e.target.value)} />
-            <Input label="City" value={form.city} onChange={(e) => setField('city', e.target.value)} />
+  const e = (field) => touched[field] ? errors[field] || '' : '';
+  const s = (field) => !!touched[field] && !errors[field] && form[field]?.length > 0;
+
+  const renderProfile = () => renderSectionWrap("profile", (
+    <Card title="Personal Information" icon="account_circle">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <Avatar
+            src={form.profilePic}
+            name={form.name || roleLabel}
+            size="xl"
+            className="rounded-2xl ring-4 ring-surface-variant!"
+          />
+          <div className="flex-1 space-y-2">
             <Input
-              label="Professional Title"
-              value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
-              placeholder="e.g. Senior Software Engineer"
+              label="Profile Photo URL"
+              name="profilePic"
+              value={form.profilePic}
+              onChange={handleChange}
+              placeholder="https://..."
             />
-            <Input label="Company / Organization" value={form.company} onChange={(e) => setField('company', e.target.value)} />
-            <Input
-              label="LinkedIn Profile"
-              value={form.linkedinUrl}
-              onChange={(e) => setField('linkedinUrl', e.target.value)}
-              placeholder="https://linkedin.com/in/your-profile"
-            />
+            <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
+            <Button variant="outline" size="sm" icon="upload" onClick={() => photoRef.current?.click()} disabled={saving}>
+              {saving ? 'Uploading...' : 'Upload Photo'}
+            </Button>
           </div>
-          <Textarea
-            label="Short Bio"
-            value={form.bio}
-            onChange={(e) => setField('bio', e.target.value)}
-            rows={3}
-            placeholder="Tell others about yourself and your background."
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input label="Full Name" name="name" value={form.name} onChange={handleChange} error={e('name')} success={s('name')} onBlur={() => handleBlur('name')} />
+          <Input label="Email Address" type="email" value={form.email} error={e('email')} success={s('email')} onBlur={() => handleBlur('email')} disabled />
+          <Input label="Phone Number" name="phone" value={form.phone} onChange={handleChange} error={e('phone')} success={s('phone')} onBlur={() => handleBlur('phone')} />
+          <Input label="Country" name="country" value={form.country} onChange={handleChange} error={e('country')} success={s('country')} onBlur={() => handleBlur('country')} />
+          <Input label="City" name="city" value={form.city} onChange={handleChange} error={e('city')} success={s('city')} onBlur={() => handleBlur('city')} />
+          <Input
+            label="Professional Title"
+            name="title"
+            value={form.title}
+            onChange={handleChange}
+            placeholder="e.g. Senior Software Engineer"
+            error={e('title')}
+            success={s('title')}
+            onBlur={() => handleBlur('title')}
+          />
+          <Input label="Company / Organization" name="company" value={form.company} onChange={handleChange} error={e('company')} success={s('company')} onBlur={() => handleBlur('company')} />
+          {role === 'mentor' && (
+            <Input label="Industry" name="industry" value={form.industry} onChange={handleChange} placeholder="e.g. Technology, Healthcare, Finance" error={e('industry')} success={s('industry')} onBlur={() => handleBlur('industry')} />
+          )}
+          <Input
+            label="LinkedIn Profile"
+            name="linkedinUrl"
+            value={form.linkedinUrl}
+            onChange={handleChange}
+            placeholder="https://linkedin.com/in/your-profile"
+            error={e('linkedinUrl')}
+            success={s('linkedinUrl')}
+            onBlur={() => handleBlur('linkedinUrl')}
           />
         </div>
-      </Card>
-    </SectionWrap>
-  );
-
-  const renderCareer = () => (
-    <SectionWrap sectionId="career">
-      <Card title="Mentorship Profile" icon="psychology">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Years of Experience"
-              type="number"
-              value={form.experience}
-              onChange={(e) => setField('experience', e.target.value)}
-            />
-            <Input
-              label="Session Price ($/hr)"
-              type="number"
-              value={form.hourlyRate}
-              onChange={(e) => setField('hourlyRate', e.target.value)}
-            />
-            <Input
-              label="Expertise Areas"
-              value={form.skills}
-              onChange={(e) => setField('skills', e.target.value)}
-              placeholder="Machine Learning, Leadership, Interviews"
-            />
-            <Input
-              label="Languages"
-              value={form.languages}
-              onChange={(e) => setField('languages', e.target.value)}
-              placeholder="English, Urdu"
-            />
-            <Input
-              label="Certifications"
-              value={form.certifications}
-              onChange={(e) => setField('certifications', e.target.value)}
-              placeholder="AWS Solutions Architect, PMP"
-            />
-            <Input
-              label="Available Days"
-              value={form.availableSlots}
-              onChange={(e) => setField('availableSlots', e.target.value)}
-              placeholder="Monday, Wednesday, Friday"
-            />
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Mentorship Categories</p>
-            <MultiChoice
-              field="preferredCategories"
-              options={['Career Guidance', 'Technical Coaching', 'Interview Preparation', 'Portfolio Review', 'Startup Mentoring', 'Leadership']}
-            />
-          </div>
+        <div className="relative">
+          <Textarea
+            label="Short Bio"
+            name="bio"
+            value={form.bio}
+            onChange={handleChange}
+            onBlur={() => handleBlur('bio')}
+            rows={3}
+            placeholder="Tell others about yourself and your background."
+            error={e('bio')}
+            success={s('bio')}
+          />
+          <span className="absolute bottom-3 right-3 text-xs text-on-surface-variant/60">{form.bio?.length || 0}/1000</span>
         </div>
-      </Card>
-    </SectionWrap>
-  );
+      </div>
+    </Card>
+  ));
 
-  const renderLearning = () => (
-    <SectionWrap sectionId="learning">
-      <Card title="Learning Profile" icon="school">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Education"
-              value={form.education}
-              onChange={(e) => setField('education', e.target.value)}
-              placeholder="BS Computer Science, bootcamp, self-taught"
-            />
-            <Input
-              label="Languages"
-              value={form.languages}
-              onChange={(e) => setField('languages', e.target.value)}
-              placeholder="English, Urdu"
-            />
-            <Input
-              label="Current Skills"
-              value={form.skills}
-              onChange={(e) => setField('skills', e.target.value)}
-              placeholder="JavaScript, React, Python"
-            />
-            <Input
-              label="Skills to Learn"
-              value={form.skillsToLearn}
-              onChange={(e) => setField('skillsToLearn', e.target.value)}
-              placeholder="System Design, Leadership, ML"
-            />
-            <Input
-              label="Preferred Categories"
-              value={form.preferredCategories}
-              onChange={(e) => setField('preferredCategories', e.target.value)}
-              placeholder="Career Guidance, Interview Prep"
-            />
-          </div>
+  const renderCareer = () => renderSectionWrap("career", (
+    <Card title="Mentorship Profile" icon="psychology">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input
+            label="Years of Experience"
+            name="experience"
+            type="text"
+            inputMode="numeric"
+            value={form.experience}
+            onChange={handleChange}
+            autoComplete="off"
+          />
+          <Input
+            label="Session Price ($/hr)"
+            name="hourlyRate"
+            type="text"
+            inputMode="decimal"
+            value={form.hourlyRate}
+            onChange={handleChange}
+            autoComplete="off"
+          />
+          <Input
+            label="Expertise Areas"
+            name="skills"
+            value={form.skills}
+            onChange={handleChange}
+            placeholder="Machine Learning, Leadership, Interviews"
+          />
+          <Input
+            label="Languages"
+            name="languages"
+            value={form.languages}
+            onChange={handleChange}
+            placeholder="English, Urdu"
+          />
+          <Input
+            label="Certifications"
+            name="certifications"
+            value={form.certifications}
+            onChange={handleChange}
+            placeholder="AWS Solutions Architect, PMP"
+          />
+          <Input
+            label="Available Days"
+            name="availableSlots"
+            value={form.availableSlots}
+            onChange={handleChange}
+            placeholder="Monday, Wednesday, Friday"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-semibold text-on-surface-variant">Mentorship Categories</p>
+          <MultiChoice
+            field="preferredCategories"
+            options={['Career Guidance', 'Technical Coaching', 'Interview Preparation', 'Portfolio Review', 'Startup Mentoring', 'Leadership']}
+          />
+        </div>
+      </div>
+    </Card>
+  ));
+
+  const renderLearning = () => renderSectionWrap("learning", (
+    <Card title="Learning Profile" icon="school">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input
+            label="Education"
+            name="education"
+            value={form.education}
+            onChange={handleChange}
+            placeholder="BS Computer Science, bootcamp, self-taught"
+          />
+          <Input
+            label="Languages"
+            name="languages"
+            value={form.languages}
+            onChange={handleChange}
+            placeholder="English, Urdu"
+          />
+          <Input
+            label="Current Skills"
+            name="skills"
+            value={form.skills}
+            onChange={handleChange}
+            placeholder="JavaScript, React, Python"
+          />
+          <Input
+            label="Skills to Learn"
+            name="skillsToLearn"
+            value={form.skillsToLearn}
+            onChange={handleChange}
+            placeholder="System Design, Leadership, ML"
+          />
+          <Input
+            label="Preferred Categories"
+            name="preferredCategories"
+            value={form.preferredCategories}
+            onChange={handleChange}
+            placeholder="Career Guidance, Interview Prep"
+          />
+        </div>
+        <div className="relative">
           <Textarea
             label="Career Goals"
+            name="careerGoals"
             value={form.careerGoals}
-            onChange={(e) => setField('careerGoals', e.target.value)}
+            onChange={handleChange}
             rows={3}
             placeholder="Where are you trying to go next?"
           />
-          <div>
-            <p className="mb-2 text-xs font-semibold text-on-surface-variant">Learning Interests</p>
-            <MultiChoice
-              field="learningInterests"
-              options={['Career Growth', 'Technical Skills', 'Interview Prep', 'Portfolio Building', 'Leadership', 'Startup Advice']}
-            />
-          </div>
+          <span className="absolute bottom-3 right-3 text-xs text-on-surface-variant/60">{form.careerGoals?.length || 0}/1000</span>
         </div>
-      </Card>
-    </SectionWrap>
-  );
+        <div>
+          <p className="mb-2 text-xs font-semibold text-on-surface-variant">Learning Interests</p>
+          <MultiChoice
+            field="learningInterests"
+            options={['Career Growth', 'Technical Skills', 'Interview Prep', 'Portfolio Building', 'Leadership', 'Startup Advice']}
+          />
+        </div>
+      </div>
+    </Card>
+  ));
 
-  const renderSecurity = () => (
-    <SectionWrap sectionId="security">
+  const renderSecurity = () => renderSectionWrap("security", (
+    <>
       <Card title="Change Password" icon="lock">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Input
               label="Current Password"
+              name="currentPassword"
               type="password"
               value={form.currentPassword}
-              onChange={(e) => setField('currentPassword', e.target.value)}
+              onChange={handleChange}
               placeholder="Enter current password"
             />
             <Input
               label="New Password"
+              name="newPassword"
               type="password"
               value={form.newPassword}
-              onChange={(e) => setField('newPassword', e.target.value)}
+              onChange={handleChange}
               placeholder="Min 8 characters"
             />
             <Input
               label="Confirm New Password"
+              name="confirmPassword"
               type="password"
               value={form.confirmPassword}
-              onChange={(e) => setField('confirmPassword', e.target.value)}
+              onChange={handleChange}
               placeholder="Repeat new password"
             />
           </div>
@@ -508,7 +675,8 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
         <Select
           label="Profile Visibility"
           value={form.profileVisibility}
-          onChange={(e) => setField('profileVisibility', e.target.value)}
+          onChange={handleChange}
+          name="profileVisibility"
           options={[
             { value: 'public', label: 'Public — visible to everyone' },
             { value: 'members', label: 'Members Only — visible to registered users' },
@@ -516,11 +684,11 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
           ]}
         />
       </Card>
-    </SectionWrap>
-  );
+    </>
+  ));
 
-  const renderNotifications = () => (
-    <SectionWrap sectionId="notifications">
+  const renderNotifications = () => renderSectionWrap("notifications", (
+    <>
       <Card title="Email Notifications" icon="mail">
         <div className="space-y-3">
           <Toggle
@@ -561,8 +729,8 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
           ))}
         </div>
       </Card>
-    </SectionWrap>
-  );
+    </>
+  ));
 
   const renderAccount = () => (
     <div className="space-y-6">
@@ -587,7 +755,7 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
             <span className="material-symbols-outlined text-xl text-on-error-container">chevron_right</span>
           </button>
           <div className="flex items-center justify-end pt-2">
-            <StatusBadge />
+            {renderStatusBadge()}
           </div>
         </div>
       </Card>

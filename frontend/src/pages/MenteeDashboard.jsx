@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
 import {
@@ -19,7 +20,8 @@ import {
   markNotificationRead,
   deleteNotification,
 } from '../utils/db';
-
+import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { useAuth } from '../context/AuthContext';
 const useTheme = () => {
   const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
   const toggleTheme = useCallback(() => {
@@ -58,19 +60,8 @@ const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 const cardClass = 'rounded-2xl border border-outline-variant/10 bg-surface-container shadow-sm';
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all active:scale-[0.98]';
 
-function EmptyState({ title, detail, action, onAction }) {
-  return (
-    <div className="flex flex-col items-center justify-center p-8 text-center">
-      <span className="material-symbols-outlined mb-3 text-4xl text-secondary">add_circle</span>
-      <p className="font-headline-md text-xl font-bold text-on-background">{title}</p>
-      {detail && <p className="mt-2 max-w-md text-sm text-on-surface-variant">{detail}</p>}
-      {action && (
-        <button onClick={onAction} className="mt-4 text-sm font-semibold text-secondary hover:underline">
-          {action}
-        </button>
-      )}
-    </div>
-  );
+function SkeletonBlock({ className = '' }) {
+  return <div className={`animate-pulse rounded bg-surface-container-high ${className}`} />;
 }
 
 function Modal({ children, onClose }) {
@@ -86,6 +77,7 @@ function Modal({ children, onClose }) {
 
 export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' }) {
   const { theme, toggleTheme, applyTheme } = useTheme();
+  const { logout } = useAuth();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
   const [mentors, setMentors] = useState([]);
@@ -104,29 +96,35 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [analyticsRange, setAnalyticsRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
-  const [showBookMentorModal, setShowBookMentorModal] = useState(false);
-
+  const [loading, setLoading] = useState(true);
+  const [savingNotes, setSavingNotes] = useState(false);
   const loadData = () => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    setMentors(getUsersByRole('mentor').filter((mentor) => mentor.status === 'approved'));
+    try {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+      setMentors(getUsersByRole('mentor').filter((mentor) => mentor.status === 'approved'));
 
-    if (!currentUser) return;
+      if (!currentUser) return;
 
-    setSessions(
-      getSessions()
-        .filter((session) => session.menteeId === currentUser.id)
-        .map((session) => ({ ...session, mentor: getUserById(session.mentorId) }))
-    );
+      setSessions(
+        getSessions()
+          .filter((session) => session.menteeId === currentUser.id)
+          .map((session) => ({ ...session, mentor: getUserById(session.mentorId) }))
+      );
 
-    setBookings(
-      getBookingsForUser(currentUser.id).map((booking) => ({
-        ...booking,
-        mentor: getUserById(booking.mentorId),
-      }))
-    );
+      setBookings(
+        getBookingsForUser(currentUser.id).map((booking) => ({
+          ...booking,
+          mentor: getUserById(booking.mentorId),
+        }))
+      );
 
-    setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser.id));
+      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser.id));
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -175,7 +173,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const recommendedMentors = mentors.slice(0, 4);
   const completedSessions = sessionGroups.past.length;
-  const mentorshipHours = Math.max(0, completedSessions * 1.5 + sessionGroups.upcoming.length);
+  const mentorshipHours = [...sessionGroups.past, ...sessionGroups.upcoming].reduce((sum, s) => sum + (s.duration || 1.5), 0);
 
   const analyticsDateRange = useMemo(() => {
     const year = Number(analyticsYear);
@@ -251,17 +249,15 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   };
 
   const handleLogout = () => {
-    dbLogout();
-    tokenManager.clearTokens();
+    logout();
     navigateTo('home');
   };
 
   const handleBookMentor = (mentorId) => {
     if (!mentorId) {
-      setShowBookMentorModal(true);
+      navigateTo('find-mentors');
       return;
     }
-    setShowBookMentorModal(false);
     navigateTo('booking', { mentorId });
   };
 
@@ -275,17 +271,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   };
 
   const addNotification = (userId, message, type = 'info') => {
-    const db = getDB();
-    const newNotification = {
-      id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-      userId,
-      message,
-      type,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    db.notifications = [...(db.notifications || []), newNotification];
-    saveDB(db);
+    try {
+      const db = getDB();
+      const newNotification = {
+        id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        userId,
+        message,
+        type,
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+      db.notifications = [...(db.notifications || []), newNotification];
+      saveDB(db);
+    } catch (err) {
+      console.error('Failed to add notification:', err);
+    }
   };
 
   const handleCancelSession = (session) => {
@@ -293,23 +293,31 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     const confirmed = window.confirm(`Cancel your session with ${session.mentor?.name || 'this mentor'}?`);
     if (!confirmed) return;
 
-    cancelSession(session.id);
-    addNotification(session.mentorId, `${user?.name} cancelled the session on ${session.dateTime || session.date} at ${session.time}.`, 'cancellation');
+    try {
+      cancelSession(session.id);
+      addNotification(session.mentorId, `${user?.name} cancelled the session on ${session.dateTime || session.date} at ${session.time}.`, 'cancellation');
 
-    const matchingBooking = bookings.find(
-      (booking) => booking.mentorId === session.mentorId && booking.menteeId === user?.id
-    );
-    if (matchingBooking) {
-      updateBookingStatus(matchingBooking.id, 'Cancelled');
+      const matchingBooking = bookings.find(
+        (booking) => booking.mentorId === session.mentorId && booking.menteeId === user?.id
+      );
+      if (matchingBooking) {
+        updateBookingStatus(matchingBooking.id, 'Cancelled');
+      }
+
+      loadData();
+    } catch (err) {
+      console.error('Failed to cancel session:', err);
     }
-
-    loadData();
   };
 
   const handleAcceptNewTiming = (session) => {
-    updateSessionStatus(session.id, 'Confirmed');
-    addNotification(session.mentorId, `${user?.name} accepted your proposed timing. The session is confirmed.`, 'info');
-    loadData();
+    try {
+      updateSessionStatus(session.id, 'Confirmed');
+      addNotification(session.mentorId, `${user?.name} accepted your proposed timing. The session is confirmed.`, 'info');
+      loadData();
+    } catch (err) {
+      console.error('Failed to accept timing:', err);
+    }
   };
 
   const handleProposeNewTimeMentee = (session) => {
@@ -317,17 +325,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     if (!newDate) return;
     const newTime = prompt('Enter new time (e.g. 02:00 PM):', session.time || '');
     if (!newTime) return;
-    const db = getDB();
-    const found = (db.sessions || []).find(s => s.id === session.id);
-    if (found) {
-      found.dateTime = newDate;
-      found.date = newDate;
-      found.time = newTime;
-      found.status = 'Rescheduled';
+    try {
+      const db = getDB();
+      const found = (db.sessions || []).find(s => s.id === session.id);
+      if (found) {
+        found.dateTime = newDate;
+        found.date = newDate;
+        found.time = newTime;
+        found.status = 'Rescheduled';
+      }
+      saveDB(db);
+      addNotification(session.mentorId, `${user?.name} proposed an alternative time: ${newDate} at ${newTime}.`, 'reschedule');
+      loadData();
+    } catch (err) {
+      console.error('Failed to propose new time:', err);
     }
-    saveDB(db);
-    addNotification(session.mentorId, `${user?.name} proposed an alternative time: ${newDate} at ${newTime}.`, 'reschedule');
-    loadData();
   };
 
   const openRatingModal = (session) => {
@@ -341,21 +353,25 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     if (!ratingSession || ratingSession.isRated || !user) return;
 
     setRatingSaving(true);
-    const result = addReview(
-      ratingSession.mentorId,
-      user.id,
-      user.name,
-      ratingScore,
-      ratingText,
-      ratingSession.id
-    );
+    try {
+      const result = addReview(
+        ratingSession.mentorId,
+        user.id,
+        user.name,
+        ratingScore,
+        ratingText,
+        ratingSession.id
+      );
 
-    if (result.success) {
-      loadData();
-      setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
+      if (result.success) {
+        loadData();
+        setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
+      }
+    } catch (err) {
+      console.error('Failed to submit rating:', err);
+    } finally {
+      setRatingSaving(false);
     }
-
-    setRatingSaving(false);
   };
 
   const openNotesModal = (session) => {
@@ -368,12 +384,19 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     event.preventDefault();
     if (!notesSession) return;
 
-    const updatedSessions = getSessions().map((session) =>
-      session.id === notesSession.id ? { ...session, notes: notesDraft } : session
-    );
-    saveSessions(updatedSessions);
-    setNotesSession(null);
-    loadData();
+    setSavingNotes(true);
+    try {
+      const updatedSessions = getSessions().map((session) =>
+        session.id === notesSession.id ? { ...session, notes: notesDraft } : session
+      );
+      saveSessions(updatedSessions);
+      setNotesSession(null);
+      loadData();
+    } catch (err) {
+      console.error('Failed to save notes:', err);
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const getStatusClass = (status) => {
@@ -422,9 +445,9 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     );
   };
 
-  const Sidebar = () => (
+  const renderSidebar = () => (
     <aside
-      className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex"
+      className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex"
     >
       <button
         onClick={() => setView('dashboard')}
@@ -435,7 +458,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </span>
         <span>
           <span className="block font-headline-md text-xl font-bold leading-none text-on-primary">ProLign</span>
-          <span className="mt-1 block text-xs font-semibold text-primary-fixed-dim opacity-80">Modern Mentorship</span>
+          <span className="mt-1 block text-xs font-semibold text-on-primary/80">Modern Mentorship</span>
         </span>
       </button>
 
@@ -446,7 +469,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             onClick={() => setView(item.id)}
             className={`flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-colors ${
               activeView === item.id
-                ? 'bg-secondary-container text-on-secondary-container'
+                ? 'brand-olive-menu-active'
                 : 'hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}
           >
@@ -485,7 +508,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     </aside>
   );
 
-  const Header = () => (
+  const renderHeader = () => (
     <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-4 border-b border-outline-variant/10 bg-background/90 px-4 py-3 backdrop-blur-md sm:px-6">
       <h1 className="text-lg font-bold text-on-background">Dashboard</h1>
 
@@ -569,48 +592,56 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <img
             alt="User profile"
             className="h-10 w-10 rounded-full border-2 border-surface-container-highest object-cover"
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentee')}&background=6750A4&color=fff`}
+            src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentee')}&background=4a5a2a&color=fff`}
           />
         </button>
       </div>
     </header>
   );
 
-  const MentorCard = ({ mentor }) => (
-    <article className={`${cardClass} min-w-[280px] snap-start p-6 transition-shadow hover:shadow-md`}>
-      <div className="flex flex-col items-center space-y-4 text-center">
-        <img
-          alt={mentor.name}
-          className="h-20 w-20 rounded-full border-4 border-background object-cover"
-          src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`}
-        />
-        <div>
-          <h4 className="font-headline-md text-xl font-bold text-on-background">{mentor.name}</h4>
-          <p className="text-sm font-semibold text-on-surface-variant">{mentor.title || mentor.industry}</p>
-        </div>
-        {renderStars(mentor.rating || 5)}
-        <div className="flex w-full items-center justify-between border-t border-outline-variant/20 pt-4">
-          <span className="font-headline-md text-lg font-bold text-on-background">${mentor.hourlyRate || 120}/hr</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleViewMentor(mentor.id)}
-              className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}
-            >
-              Profile
-            </button>
-            <button
-              onClick={() => handleBookMentor(mentor.id)}
-              className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}
-            >
-              Book
-            </button>
+  const renderMentorCard = (mentor) => {
+    const ml = getMentorLevel(mentor);
+    const mlStyle = getMentorLevelStyle(ml.level);
+    return (
+      <article className={`${cardClass} min-w-[280px] snap-start p-6 transition-shadow hover:shadow-md`}>
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <img
+            alt={mentor.name}
+            className="h-20 w-20 rounded-full border-4 border-background object-cover"
+            src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`}
+          />
+          <div>
+            <h4 className="font-headline-md text-xl font-bold text-on-background">{mentor.name}</h4>
+            <p className="text-sm font-semibold text-on-surface-variant">{mentor.title || mentor.industry}</p>
+            <div className={`mt-1.5 mentor-level-badge mentor-level-${ml.level} ${mlStyle.wrapper}`}>
+              {mlStyle.icon && <span className="material-symbols-outlined text-[10px]">{mlStyle.icon}</span>}
+              {ml.label}
+            </div>
+          </div>
+          {renderStars(mentor.rating || 5)}
+          <div className="flex w-full items-center justify-between border-t border-outline-variant/20 pt-4">
+            <span className="font-headline-md text-lg font-bold text-on-background">{mentor.hourlyRate ? `$${mentor.hourlyRate}/hr` : '—'}</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleViewMentor(mentor.id)}
+                className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}
+              >
+                Profile
+              </button>
+              <button
+                onClick={() => handleBookMentor(mentor.id)}
+                className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}
+              >
+                Book
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </article>
-  );
+      </article>
+    );
+  };
 
-  const SessionRow = ({ session, compact = false }) => {
+  const renderSessionRow = (session, compact = false) => {
     const isConfirmed = ['confirmed', 'scheduled'].includes(session.statusLabel);
     const isPending = session.statusLabel === 'pending';
     const isCompleted = session.statusLabel === 'completed';
@@ -688,31 +719,50 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const renderDashboard = () => (
     <div className="space-y-8">
-      <section className="relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-3xl bg-secondary p-6 text-center shadow-sm md:flex-row md:p-10 md:text-left">
+      <section className="brand-olive-surface relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-3xl p-6 text-center shadow-sm md:flex-row md:p-10 md:text-left">
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-on-secondary/10 bg-on-secondary-container/20 px-4 py-1.5 text-sm font-semibold text-on-primary">
+          <div className="brand-chip inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold">
             <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
             Skill Profile: {user?.skills?.[0] || 'Career Growth'}
           </div>
           <h2 className="font-headline-lg text-4xl font-bold text-on-primary sm:text-5xl">
             Welcome back, {user?.name?.split(' ')[0] || 'there'}!
           </h2>
-          <p className="max-w-xl text-primary-fixed-dim">
+          <p className="brand-muted-text max-w-xl">
             You have {sessionGroups.upcoming.length} upcoming sessions. Keep your momentum with focused calls, notes, and clear next steps.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button onClick={() => setView('sessions')} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
+            <button onClick={() => setView('sessions')} className={`${buttonClass} brand-olive-primary-action hover:opacity-90`}>
               View Sessions
             </button>
-            <button onClick={() => handleBookMentor()} className={`${buttonClass} bg-primary-fixed text-on-primary-fixed hover:opacity-90`}>
+            <button onClick={() => handleBookMentor()} className={`${buttonClass} brand-olive-secondary-action hover:opacity-90`}>
               Book Mentor
             </button>
           </div>
         </div>
-        <div className="relative z-10 hidden lg:flex h-48 w-48 items-center justify-center rounded-full bg-secondary-container/30 p-4">
-          <div className="flex h-full w-full items-center justify-center rounded-full bg-secondary-container/50">
-            <span className="material-symbols-outlined fill-icon text-6xl text-on-secondary-container">psychology</span>
+        {/* Profile image with rings */}
+        <div className="relative z-10 hidden lg:flex h-48 w-48 items-center justify-center">
+          {/* Concentric decorative rings */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-secondary-container/40 to-primary-container/20 animate-pulse-soft" />
+          <div className="absolute inset-4 rounded-full bg-gradient-to-br from-secondary-container/60 to-primary-container/30 backdrop-blur-sm" />
+          <div className="absolute inset-8 rounded-full bg-surface/10 backdrop-blur-sm border border-outline-variant/10" />
+          {/* Profile photo */}
+          <div className="relative flex items-center justify-center">
+            <div className="w-24 h-24 rounded-full overflow-hidden ring-[3px] ring-on-surface/15 shadow-xl bg-surface/10">
+              <img
+                src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=4a5a2a&color=fff&size=200`}
+                alt={`${user?.name || 'User'}'s profile photo`}
+                className="w-full h-full object-cover opacity-0 transition-opacity duration-500"
+                onLoad={(e) => e.target.classList.remove('opacity-0')}
+                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=4a5a2a&color=fff&size=200`; e.target.onError = null; }}
+                loading="lazy"
+              />
+            </div>
           </div>
+          {/* Floating accent icons */}
+          <span className="absolute -top-2 -right-2 material-symbols-outlined text-lg text-secondary-container/70 animate-float" style={{ animationDelay: '0.5s' }}>trending_up</span>
+          <span className="absolute -bottom-1 -left-1 material-symbols-outlined text-lg text-primary-container/70 animate-float" style={{ animationDelay: '1s' }}>school</span>
+          <span className="absolute top-1/2 -right-6 material-symbols-outlined text-sm text-tertiary-container/60 animate-float" style={{ animationDelay: '1.5s' }}>star</span>
         </div>
       </section>
 
@@ -725,7 +775,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </div>
         <div className="-mx-2 flex snap-x gap-6 overflow-x-auto px-2 pb-4">
           {recommendedMentors.map((mentor) => (
-            <MentorCard key={mentor.id} mentor={mentor} />
+            <React.Fragment key={mentor.id}>{renderMentorCard(mentor)}</React.Fragment>
           ))}
         </div>
       </section>
@@ -735,9 +785,9 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <h3 className="font-headline-md text-2xl font-bold text-on-background">Upcoming Sessions</h3>
           <div className="overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface-container-low">
             {sessionGroups.upcoming.length > 0 ? (
-              sessionGroups.upcoming.slice(0, 3).map((session) => <SessionRow key={session.id} session={session} />)
+              sessionGroups.upcoming.slice(0, 3).map((session) => <React.Fragment key={session.id}>{renderSessionRow(session)}</React.Fragment>)
             ) : (
-              <EmptyState title="No upcoming sessions" action="Browse Mentors" onAction={() => handleBookMentor()} />
+              <EmptyState title="No upcoming sessions" actionLabel="Browse Mentors" onAction={() => handleBookMentor()} />
             )}
           </div>
         </section>
@@ -770,7 +820,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                 </div>
               ))
             ) : (
-              <EmptyState title="No completed sessions yet" action="Book Session" onAction={() => handleBookMentor()} />
+              <EmptyState title="No completed sessions yet" actionLabel="Book Session" onAction={() => handleBookMentor()} />
             )}
             <button onClick={() => setView('sessions')} className="w-full rounded-lg border border-outline-variant/10 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest">
               View History
@@ -816,7 +866,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                   className="h-12 w-12 rounded-xl object-cover"
                   src={session.mentor?.avatar || `https://ui-avatars.com/api/?name=${session.mentor?.name}`}
                 />
-                {isLive && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-surface animate-pulse" />}
+                {isLive && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-secondary ring-2 ring-surface animate-pulse" />}
               </div>
             </div>
             <div className="flex-1 min-w-0">
@@ -889,7 +939,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-on-surface">{session.mentor?.name}</p>
                 {session.isRated && session.rating && (
-                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-500">
+                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-warning">
                     <span className="material-symbols-outlined text-[12px]">star</span>
                     {session.rating}
                   </span>
@@ -955,17 +1005,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     const renderSessionList = () => {
       if (sessionTab === 'upcoming') {
         if (visibleSessions.length === 0) {
-          return (
-            <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
-              <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">event_available</span>
-              <p className="text-sm font-bold text-on-surface">No upcoming sessions</p>
-              <p className="mt-1 text-xs text-on-surface-variant">Book a mentor to start your journey.</p>
-              <button onClick={() => handleBookMentor()} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02]">
-                <span className="material-symbols-outlined text-[14px]">add</span>
-                Book New Session
-              </button>
-            </div>
-          );
+          return <EmptyState icon="event_available" title="No upcoming sessions" description="Book a mentor to start your journey." actionLabel="Book New Session" onAction={() => handleBookMentor()} />;
         }
         return (
           <div className="space-y-3">
@@ -975,13 +1015,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       }
       if (sessionTab === 'past') {
         if (visibleSessions.length === 0) {
-          return (
-            <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
-              <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">history</span>
-              <p className="text-sm font-bold text-on-surface">No past sessions yet</p>
-              <p className="mt-1 text-xs text-on-surface-variant">Complete your first session to see it here.</p>
-            </div>
-          );
+          return <EmptyState icon="history" title="No past sessions yet" description="Complete your first session to see it here." />;
         }
         return (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -990,13 +1024,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         );
       }
       if (visibleSessions.length === 0) {
-        return (
-          <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-10 text-center">
-            <span className="material-symbols-outlined mb-3 text-5xl text-on-surface/15">cancel</span>
-            <p className="text-sm font-bold text-on-surface">No cancelled sessions</p>
-            <p className="mt-1 text-xs text-on-surface-variant">All your sessions are on track.</p>
-          </div>
-        );
+        return <EmptyState icon="cancel" title="No cancelled sessions" description="All your sessions are on track." />;
       }
       return (
         <div className="space-y-2">
@@ -1093,20 +1121,13 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             )}
 
             {sessionTab === 'upcoming' && sessionGroups.upcoming.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low py-16 text-center">
-                <span className="material-symbols-outlined mb-4 text-6xl text-on-surface/10">event_available</span>
-                <p className="text-lg font-bold text-on-surface">No upcoming sessions scheduled</p>
-                <p className="mt-2 text-sm text-on-surface-variant max-w-sm mx-auto">Start your mentorship journey today. Find a mentor and book your first session.</p>
-                <div className="mt-6 flex justify-center gap-3">
-                  <button onClick={() => handleBookMentor()} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02]">
-                    <span className="material-symbols-outlined text-[18px]">search</span>
-                    Find Mentors
-                  </button>
-                  <button onClick={() => handleBookMentor()} className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-high">
-                    Book Session
-                  </button>
-                </div>
-              </div>
+              <EmptyState
+                icon="event_available"
+                title="No upcoming sessions scheduled"
+                description="Start your mentorship journey today. Find a mentor and book your first session."
+                actionLabel="Find Mentors"
+                onAction={() => handleBookMentor()}
+              />
             )}
 
             <div>
@@ -1184,7 +1205,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                         <p className="text-xs font-bold text-on-surface truncate">{session.mentor?.name}</p>
                         <div className="flex items-center gap-0.5">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <span key={i} className={`material-symbols-outlined text-[10px] ${i < session.rating ? 'text-amber-500' : 'text-on-surface/15'}`}>star</span>
+                            <span key={i} className={`material-symbols-outlined text-[10px] ${i < session.rating ? 'text-warning' : 'text-on-surface/15'}`}>star</span>
                           ))}
                         </div>
                       </div>
@@ -1231,11 +1252,13 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {(analyticsMode === 'year' || analyticsMode === 'month') && (
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               min="2001"
               value={analyticsYear}
               onChange={(event) => setAnalyticsYear(event.target.value)}
               className="rounded-lg border border-outline-variant/30 bg-surface p-3"
+              autoComplete="off"
               placeholder="Year above 2000"
             />
           )}
@@ -1350,9 +1373,9 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
               <span className="material-symbols-outlined text-[22px] text-primary">credit_card</span>
             </span>
-            <p className="text-lg font-bold text-on-surface truncate">Visa •••• 4587</p>
+            <p className="text-lg font-bold text-on-surface truncate">{user?.paymentMethod || '—'}</p>
             <p className="mt-1 text-xs font-semibold text-on-surface-variant">Payment Method</p>
-            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Default card</p>
+            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">{user?.paymentMethod ? 'Default card' : 'Not set'}</p>
           </div>
         </div>
 
@@ -1471,7 +1494,44 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     );
   };
 
+  const renderSkeletonDashboard = () => (
+    <div className="space-y-8">
+      <SkeletonBlock className="h-48 w-full rounded-3xl" />
+      <div className="space-y-4">
+        <SkeletonBlock className="h-6 w-64" />
+        <div className="flex gap-6 overflow-x-auto">
+          {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-80 w-[280px] shrink-0 rounded-2xl" />)}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-4 xl:col-span-2">
+          <SkeletonBlock className="h-6 w-48" />
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => <SkeletonBlock key={i} className="h-20 w-full rounded-2xl" />)}
+          </div>
+        </div>
+        <div className="space-y-4">
+          <SkeletonBlock className="h-6 w-32" />
+          <SkeletonBlock className="h-72 w-full rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  );
+
   const renderContent = () => {
+    if (loading) return renderSkeletonDashboard();
+    if (!user) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+          <span className="material-symbols-outlined text-6xl text-on-surface/20 mb-4">person_off</span>
+          <h2 className="text-2xl font-bold text-on-surface mb-2">Not Logged In</h2>
+          <p className="text-on-surface-variant mb-6 max-w-md">Please sign in to access your mentee dashboard.</p>
+          <button onClick={() => navigateTo('home')} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
+            Go to Home
+          </button>
+        </div>
+      );
+    }
     if (activeView === 'sessions') return renderSessions();
     if (activeView === 'analytics') return renderAnalytics();
     if (activeView === 'payments') return renderPayments();
@@ -1481,36 +1541,25 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   return (
     <div className="min-h-screen bg-surface font-body-md">
-      <Sidebar />
+      {renderSidebar()}
 
       <main className="min-h-screen lg:pl-64 bg-surface">
-        <Header />
+        {renderHeader()}
         <div className="mx-auto w-full max-w-[1440px] space-y-8 p-4 pb-28 sm:p-6 lg:p-8">
           {renderContent()}
         </div>
 
-        <footer className="border-t border-outline-variant/10 bg-inverse-surface py-8 text-surface-dim">
-          <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-4 px-6 md:flex-row">
-            <div className="text-center md:text-left">
-              <span className="font-headline-md text-2xl font-bold text-surface-container-lowest">ProLign</span>
-              <p className="mt-2 text-sm">(c) 2024 ProLign. All rights reserved.</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-5 text-sm font-semibold">
-              <button onClick={() => navigateTo('privacy')} className="hover:text-primary-fixed">Privacy Policy</button>
-              <button onClick={() => navigateTo('terms')} className="hover:text-primary-fixed">Terms of Service</button>
-            </div>
-          </div>
-        </footer>
+
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+      <nav className="brand-olive-surface fixed inset-x-0 bottom-0 z-40 border-t border-on-primary/10 px-2 py-2 backdrop-blur-md lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {navItems.slice(0, 5).map((item) => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
               className={`flex flex-col items-center rounded-xl px-1 py-2 text-[11px] font-semibold ${
-                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+                activeView === item.id ? 'brand-olive-menu-active' : 'text-on-primary/75'
               }`}
             >
               <span className={`material-symbols-outlined text-[22px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
@@ -1552,7 +1601,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                     onClick={() => setRatingScore(star)}
                     className="transition-transform hover:scale-105 disabled:cursor-default disabled:hover:scale-100"
                   >
-                    <span className={`material-symbols-outlined text-5xl ${star <= ratingScore ? 'fill-icon text-secondary' : 'text-outline-variant'}`}>
+                    <span className={`material-symbols-outlined text-5xl ${star <= ratingScore ? 'fill-icon text-secondary' : 'text-on-surface-variant/30'}`}>
                       star
                     </span>
                   </button>
@@ -1616,62 +1665,13 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
               className="w-full resize-none rounded-2xl border border-outline-variant/20 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30"
               placeholder="Add agenda items, questions, and follow-up notes..."
             />
-            <button type="submit" className={`${buttonClass} w-full bg-primary py-3 text-on-primary hover:opacity-90`}>
-              Save Notes
+            <button type="submit" disabled={savingNotes} className={`${buttonClass} w-full bg-primary py-3 text-on-primary hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60`}>
+              {savingNotes ? 'Saving...' : 'Save Notes'}
             </button>
           </form>
         </Modal>
       )}
 
-      {showBookMentorModal && (
-        <Modal onClose={() => setShowBookMentorModal(false)}>
-          <div className="space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">Book a session</p>
-                <h3 className="mt-2 font-headline-md text-2xl font-bold text-on-surface">Choose a mentor</h3>
-                <p className="mt-1 text-sm text-on-surface-variant">{mentors.length} mentor{mentors.length !== 1 ? 's' : ''} available</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowBookMentorModal(false)}
-                className="material-symbols-outlined rounded-full p-2 text-on-surface-variant hover:bg-surface-container"
-              >
-                close
-              </button>
-            </div>
-            <div className="grid max-h-[60vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
-              {mentors.map((mentor) => (
-                <div key={mentor.id} className="rounded-2xl border border-outline-variant/10 bg-surface-container p-4 transition-shadow hover:shadow-md">
-                  <div className="flex items-center gap-4">
-                    <img
-                      alt={mentor.name}
-                      className="h-14 w-14 rounded-full border-2 border-surface-container-highest object-cover"
-                      src={mentor.avatar || `https://ui-avatars.com/api/?name=${mentor.name}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-headline-md text-lg font-bold text-on-surface">{mentor.name}</h4>
-                      <p className="truncate text-sm text-on-surface-variant">{mentor.title || mentor.industry}</p>
-                      <div className="mt-1 flex items-center gap-1 text-xs text-secondary">
-                        <span className="material-symbols-outlined fill-icon text-[14px]">star</span>
-                        <span className="font-semibold">{Number(mentor.rating || 5).toFixed(1)}</span>
-                        <span className="mx-1 text-outline-variant">·</span>
-                        <span className="font-semibold">${mentor.hourlyRate || 120}/hr</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleBookMentor(mentor.id)}
-                      className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary transition-opacity hover:opacity-90"
-                    >
-                      Book
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
