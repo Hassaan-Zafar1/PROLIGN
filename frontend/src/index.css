@@ -280,8 +280,8 @@ td {
 
 /* ---- Top Navigation Bar ---- */
 nav.sticky {
-  background-color: rgba(245, 243, 238, 0.92) !important;
-  border-bottom-color: rgba(200, 194, 178, 0.3) !important;
+  background-color: rgba(11, 11, 12, 0.92) !important;
+  border-bottom-color: rgba(54, 54, 56, 0.5) !important;
 }
 nav.sticky a,
 nav.sticky button:not([class*="bg-"]) {
@@ -289,7 +289,21 @@ nav.sticky button:not([class*="bg-"]) {
 }
 nav.sticky a:hover,
 nav.sticky button:not([class*="bg-"]):hover {
-  color: var(--color-primary);
+  color: var(--color-primary-fixed-dim);
+}
+nav.sticky .text-primary {
+  color: var(--color-primary-fixed-dim) !important;
+}
+nav.sticky .text-on-surface-variant,
+nav.sticky .material-symbols-outlined {
+  color: var(--color-on-surface-variant) !important;
+}
+nav.sticky .bg-primary {
+  background-color: var(--color-primary-fixed-dim) !important;
+  color: var(--color-on-primary) !important;
+}
+nav.sticky .bg-primary:hover {
+  filter: brightness(1.08);
 }
 
 /* ---- Glassmorphism (nav, modals) ---- */
