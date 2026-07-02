@@ -274,7 +274,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[9px] md:text-[10px] font-semibold text-on-surface-variant/60 bg-surface-container-high px-2 py-0.5 rounded-full">Step 2 of 3</span>
-          <button onClick={() => setShowMobileTranscript(!showMobileTranscript)} className="md:hidden flex items-center justify-center w-7 h-7 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors">
+          <button onClick={() => setShowMobileTranscript(!showMobileTranscript)} className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors">
             <span className="material-symbols-outlined text-sm">{showMobileTranscript ? 'mic' : 'chat'}</span>
           </button>
         </div>
@@ -309,17 +309,17 @@ const MenteeOnboarding = ({ navigateTo }) => {
             )}
           </div>
 
-          <p className="text-xs md:text-sm font-bold text-on-surface text-center px-2 leading-snug max-w-[220px]">
+              <p className="text-xs md:text-sm font-bold text-on-surface text-center px-2 leading-snug max-w-[180px] sm:max-w-[220px]">
             {transcript.length <= 1
               ? "Tell me what motivated you to seek mentorship today."
               : "How would you describe your ideal career path in five years?"}
           </p>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={toggleListening}
-              disabled={!speechSupported}
-              className={`relative w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm ${
+          <button
+            onClick={toggleListening}
+            disabled={!speechSupported}
+            className={`relative w-10 h-10 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm ${
                 isListening
                   ? 'bg-error text-on-error scale-110 shadow-md shadow-error/30'
                   : 'bg-surface-container-high text-on-surface-variant hover:text-primary hover:bg-primary-container'
@@ -334,19 +334,19 @@ const MenteeOnboarding = ({ navigateTo }) => {
             <div className="flex items-center gap-1 px-2 py-1 bg-surface-container-high rounded-full">
               <button
                 onClick={() => setMuted(!muted)}
-                className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors ${muted ? 'text-on-surface-variant' : 'text-primary bg-primary-container'}`}
+                className={`w-9 h-9 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-colors ${muted ? 'text-on-surface-variant' : 'text-primary bg-primary-container'}`}
                 aria-label={muted ? 'Unmute AI voice' : 'Mute AI voice'}
                 title={muted ? 'Unmute' : 'Mute'}
               >
                 <span className="material-symbols-outlined text-sm md:text-base fill-icon">{muted ? 'volume_off' : 'volume_up'}</span>
               </button>
               {(isAiSpeaking || isPaused) && (
-                <button onClick={isPaused ? resumeSpeaking : pauseSpeaking} className="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-colors" aria-label={isPaused ? 'Resume' : 'Pause'} title={isPaused ? 'Resume' : 'Pause'}>
+                <button onClick={isPaused ? resumeSpeaking : pauseSpeaking} className="w-9 h-9 md:w-8 md:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-colors" aria-label={isPaused ? 'Resume' : 'Pause'} title={isPaused ? 'Resume' : 'Pause'}>
                   <span className="material-symbols-outlined text-sm md:text-base fill-icon">{isPaused ? 'play_arrow' : 'pause'}</span>
                 </button>
               )}
               {lastAiTextRef.current && !isAiSpeaking && !isPaused && (
-                <button onClick={replayLast} className="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-colors" aria-label="Replay" title="Replay">
+                <button onClick={replayLast} className="w-9 h-9 md:w-8 md:h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-container transition-colors" aria-label="Replay" title="Replay">
                   <span className="material-symbols-outlined text-sm md:text-base fill-icon">replay</span>
                 </button>
               )}
@@ -383,7 +383,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
                   )}
                   <span className="text-[9px] text-on-surface-variant/30">{formatTime(msg.timestamp)}</span>
                 </div>
-                <div className={`px-3 py-2 text-xs md:text-sm leading-relaxed max-w-[70%] shadow-sm ${
+                <div className={`px-3 py-2 text-xs md:text-sm leading-relaxed max-w-[70%] break-words shadow-sm ${
                   msg.role === 'user'
                     ? 'bg-primary text-on-primary rounded-[16px] rounded-br-[4px]'
                     : 'bg-secondary-container/70 text-on-secondary-container rounded-[16px] rounded-bl-[4px]'
@@ -422,7 +422,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
           <button
             onClick={toggleListening}
             disabled={!speechSupported}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 ${isListening ? 'bg-error text-on-error shadow-md animate-pulse' : 'bg-surface-container-high text-on-surface-variant hover:text-primary hover:bg-primary-container'} disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${isListening ? 'bg-error text-on-error shadow-md animate-pulse' : 'bg-surface-container-high text-on-surface-variant hover:text-primary hover:bg-primary-container'} disabled:opacity-40 disabled:cursor-not-allowed`}
             aria-label={isListening ? 'Stop listening' : 'Start listening'}
             title="Ctrl+M to toggle"
           >
@@ -431,7 +431,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || isListening}
-            className="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-sm"
+            className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-sm"
             aria-label="Send message"
           >
             <span className="material-symbols-outlined text-base fill-icon">send</span>
@@ -441,7 +441,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
         {/* Nav Footer (60px) */}
         <div className="flex items-center justify-between px-3 md:px-5 py-2 border-t border-outline-variant/10 max-w-6xl mx-auto h-[44px]">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigateTo('dashboard')} className="text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors font-medium">Exit</button>
+            <button onClick={() => navigateTo('dashboard')} className="text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors font-medium min-h-[44px] flex items-center">Exit</button>
             {typeof window !== 'undefined' && !speechSupported && (
               <span className="text-[9px] text-on-surface-variant/30 italic">Voice not available</span>
             )}
@@ -450,10 +450,9 @@ const MenteeOnboarding = ({ navigateTo }) => {
             {hasAiReplied ? (
               <button onClick={() => setStep(3)} className="text-[10px] md:text-xs font-bold bg-secondary/10 text-secondary hover:bg-secondary/20 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1">
                 Continue
-                <span className="material-symbols-outlined text-xs">arrow_forward</span>
               </button>
             ) : (
-              <button onClick={() => setStep(3)} className="text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors font-medium flex items-center gap-1">
+                <button onClick={() => setStep(3)} className="text-[10px] text-on-surface-variant/40 hover:text-on-surface-variant transition-colors font-medium flex items-center gap-1 min-h-[44px]">
                 Skip
                 <span className="material-symbols-outlined text-xs">skip_next</span>
               </button>
@@ -469,7 +468,7 @@ const MenteeOnboarding = ({ navigateTo }) => {
       {step === 1 && (
         <div className="h-full overflow-y-auto flex items-start justify-center p-4 sm:p-6">
           <div className="w-full max-w-lg bg-surface-container-lowest rounded-[20px] border border-outline-variant/10 shadow-sm overflow-hidden mt-4 md:mt-8">
-            <div className="bg-gradient-to-r from-primary to-primary-fixed px-5 py-5 text-on-primary text-center">
+            <div className="brand-panel-horizontal px-5 py-5 text-on-primary text-center">
               <span className="material-symbols-outlined text-3xl mb-2 fill-icon">psychology</span>
               <h1 className="text-xl font-bold mb-1">AI Career Assessment</h1>
               <p className="text-on-primary/80 text-xs">Let's tailor your ProLign experience to your goals.</p>
@@ -512,9 +511,8 @@ const MenteeOnboarding = ({ navigateTo }) => {
                   <span className="material-symbols-outlined text-sm">arrow_back</span>
                   Back to Home
                 </button>
-                <button onClick={() => setStep(2)} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary-container hover:shadow-lg transition-all shadow-md flex items-center gap-1.5">
+                <button onClick={() => setStep(2)} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary-container hover:shadow-lg transition-all shadow-md flex items-center gap-1.5 min-h-[44px]">
                   Next Step
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
                 </button>
               </div>
             </div>
@@ -544,11 +542,11 @@ const MenteeOnboarding = ({ navigateTo }) => {
                 </p>
               </div>
               <div className="flex justify-between w-full pt-4 border-t border-outline-variant/20">
-                <button onClick={() => setStep(2)} className="text-on-surface-variant hover:text-primary transition-colors font-medium flex items-center gap-1.5 text-xs">
+                <button onClick={() => setStep(2)} className="text-on-surface-variant hover:text-primary transition-colors font-medium flex items-center gap-1.5 text-xs min-h-[44px]">
                   <span className="material-symbols-outlined text-sm">arrow_back</span>
                   Back
                 </button>
-                <button onClick={finishOnboarding} className="px-6 py-2.5 bg-secondary text-on-secondary rounded-xl font-bold text-sm hover:bg-secondary-container hover:text-on-secondary-container hover:shadow-lg transition-all shadow-md flex items-center gap-1.5">
+                <button onClick={finishOnboarding} className="px-6 py-2.5 bg-secondary text-on-secondary rounded-xl font-bold text-sm hover:bg-secondary-container hover:text-on-secondary-container hover:shadow-lg transition-all shadow-md flex items-center gap-1.5 min-h-[44px]">
                   Go to Dashboard
                   <span className="material-symbols-outlined text-sm">check</span>
                 </button>

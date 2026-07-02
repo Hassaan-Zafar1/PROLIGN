@@ -1,5 +1,5 @@
 const Card = ({ title, description, icon, children, className = '' }) => (
-  <div className={`rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden ${className}`}>
+  <div className={`rounded-2xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
     {(title || icon) && (
       <div className="flex items-center gap-4 border-b border-outline-variant/10 px-6 py-5">
         {icon && (
