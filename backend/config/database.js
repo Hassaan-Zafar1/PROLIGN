@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { env } from "./env.js";
+// import { createInitialAdmin } from "./seedAdmin.js"; 
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
@@ -12,6 +13,10 @@ async function connectDB(attempt = 1) {
     });
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     setupListeners();
+     // ─── Seed Admin ─────────────────────────────────────────────────────────
+    // await createInitialAdmin(); 
+
+
   } catch (error) {
     console.error(`❌ Connection attempt ${attempt} failed: ${error.message}`);
     if (attempt >= MAX_RETRIES) {

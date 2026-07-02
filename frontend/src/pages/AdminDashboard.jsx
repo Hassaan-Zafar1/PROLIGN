@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ProfileSettings from '../components/ProfileSettings';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { useAuth } from '../context/AuthContext';
 import {
   addTestimonial,
   addUser,
@@ -56,6 +57,7 @@ const emptyMemberForm = {
 };
 
 const AdminDashboard = ({ navigateTo }) => {
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
@@ -272,6 +274,7 @@ const AdminDashboard = ({ navigateTo }) => {
   const handleLogout = () => {
     dbLogout();
     tokenManager.clearTokens();
+    logout();
     navigateTo('home');
   };
 
