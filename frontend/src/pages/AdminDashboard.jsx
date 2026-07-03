@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import ProfileSettings from '../components/ProfileSettings';
+// import ProfileSettings from '../components/ProfileSettings';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -391,7 +391,7 @@ const AdminDashboard = ({ navigateTo }) => {
     { id: 'mentees', icon: 'person', label: 'Mentees' },
     { id: 'applications', icon: 'assignment', label: 'Applications' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
-    { id: 'settings', icon: 'settings', label: 'Settings' },
+    // { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
   const renderLineChart = (data, mode = 'single') => {
@@ -747,7 +747,7 @@ const AdminDashboard = ({ navigateTo }) => {
       case 'mentees': return renderMemberList('mentee');
       case 'applications': return renderApplications();
       case 'earnings': return renderEarnings();
-      case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
+      // case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
       default: return renderDashboard();
     }
   };
