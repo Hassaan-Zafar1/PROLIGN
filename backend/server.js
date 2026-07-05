@@ -41,9 +41,9 @@ app.use("/api", globalLimiter);
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
-    message: "MentorMentee API is running",
+    message: "ProLign API is running",
     environment: env.NODE_ENV,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString(),  
   });
 });
 

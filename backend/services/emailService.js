@@ -24,9 +24,9 @@ transporter.verify((error) => {
  */
 export async function sendOTPEmail(toEmail, otp) {
   await transporter.sendMail({
-    from: `"MentorMentee" <${env.EMAIL_FROM}>`,
+    from: `"ProLign" <${env.EMAIL_FROM}>`,
     to: toEmail,
-    subject: "Verify your email — MentorMentee",
+    subject: "Verify your email — ProLign",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
         <h2 style="color: #2d6a4f;">Verify your email</h2>
@@ -47,9 +47,9 @@ export async function sendPasswordResetEmail(toEmail, resetToken) {
   const resetURL = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
   await transporter.sendMail({
-    from: `"MentorMentee" <${env.EMAIL_FROM}>`,
+    from: `"ProLign" <${env.EMAIL_FROM}>`,
     to: toEmail,
-    subject: "Password reset request — MentorMentee",
+    subject: "Password reset request — ProLign",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
         <h2 style="color: #2d6a4f;">Reset your password</h2>

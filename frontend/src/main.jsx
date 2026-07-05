@@ -12,5 +12,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <App />
       </AuthProvider>
     </NotificationProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )
