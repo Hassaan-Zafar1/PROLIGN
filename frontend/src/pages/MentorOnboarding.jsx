@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mentorProfileService } from '../services/mentorProfileService';
 
@@ -34,7 +34,6 @@ export default function MentorOnboarding({ navigateTo }) {
   const [buildDone, setBuildDone] = useState(false);
   const [buildError, setBuildError] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const started = useRef(false);
 
   // Animate the timeline through to the last stage (which keeps spinning until
   // the real build resolves below).
@@ -52,10 +51,21 @@ export default function MentorOnboarding({ navigateTo }) {
     return () => clearInterval(id);
   }, [buildDone]);
 
-  // Kick off the real profile build exactly once.
+  // Kick off the real profile build.
+  //
+  // IMPORTANT: no `started`/"run once" ref guard here. In React 18 StrictMode
+  // (see main.jsx), every effect runs mount → cleanup → mount again in dev.
+  // A "run once" ref combined with a cleanup that flips `cancelled = true`
+  // means the *first* (immediately-cleaned-up) run is the only one that ever
+  // actually fires the request, and its own cleanup permanently disables its
+  // `finish()` before the response arrives — the UI then hangs at 80% forever,
+  // regardless of any network timeout, because the state update itself is
+  // suppressed. The `cancelled` flag alone already handles StrictMode's
+  // double-invoke correctly: the aborted first run's completion safely no-ops,
+  // and the second, real run's `cancelled` starts fresh and DOES complete.
+  // (This does mean the backend POST fires twice in dev under StrictMode —
+  // harmless here since building the profile is idempotent.)
   useEffect(() => {
-    if (started.current) return undefined;
-    started.current = true;
     let cancelled = false;
 
     const finish = () => {
