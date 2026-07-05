@@ -149,6 +149,14 @@ export default function MentorRegistration({ navigateTo }) {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    // The whole wizard shares one <form>, so its submit event can in principle
+    // fire while an earlier step is still showing (e.g. a password manager's
+    // autofill-triggered submit, or a stray Enter keypress). Only the Review
+    // step (4) may actually submit — this makes that impossible to bypass
+    // regardless of what triggered the submit event.
+    if (currentStep !== 4) return;
+
     setApiError('');
 
     const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), { cv: true });
@@ -472,7 +480,15 @@ export default function MentorRegistration({ navigateTo }) {
               </div>
             )}
 
-            <form onSubmit={handleRegister} noValidate>
+            <form
+              onSubmit={handleRegister}
+              noValidate
+              onKeyDown={(e) => {
+                // Prevent Enter in any field from implicitly submitting the
+                // shared <form> while an earlier wizard step is showing.
+                if (e.key === 'Enter' && currentStep < 4) e.preventDefault();
+              }}
+            >
               <div className="bg-surface-container-low p-5 sm:p-8 rounded-2xl shadow-sm border border-outline-variant/10">
                 {renderStepContent()}
               </div>

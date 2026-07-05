@@ -151,6 +151,11 @@ export async function buildMentorProfile(req, res, next) {
   try {
     const user = req.user; // full doc (minus password) from `protect`
 
+    console.log(
+      `[mentor-profile-build] user=${user._id} cv=${user.cv?.url ? "present" : "MISSING"}`,
+      user.cv?.url ? `(${user.cv.url})` : "— was a CV uploaded at registration?"
+    );
+
     const { profile, text, meta } = await buildProfileFromSources({
       cv: user.cv,
       name: user.name,
@@ -167,6 +172,9 @@ export async function buildMentorProfile(req, res, next) {
     if (profile.education?.length) updates.education = profile.education.join(" | ");
     if (profile.summary && !user.bio) updates.bio = profile.summary;
     if (text && text.trim()) updates["cv.parsedText"] = text.slice(0, 20000);
+
+    console.log(`[mentor-profile-build] fields to update:`, Object.keys(updates));
+    meta.textLength = text?.length || 0;
 
     const updated = await User.findByIdAndUpdate(
       user._id,

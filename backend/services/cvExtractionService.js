@@ -22,13 +22,16 @@
  * return whatever we could derive (often just the registration name/linkedin).
  */
 
+const log = (...args) => console.log("[cv-extract]", ...args);
+
 // Parser libs are optional. We import them lazily so the service still works
 // (with reduced extraction) before `npm install` adds them.
 async function loadPdfParser() {
   try {
     const mod = await import("pdf-parse/lib/pdf-parse.js");
     return mod.default || mod;
-  } catch {
+  } catch (err) {
+    log("pdf-parse not available:", err.message);
     return null;
   }
 }
@@ -36,20 +39,33 @@ async function loadDocxParser() {
   try {
     const mod = await import("mammoth");
     return mod.default || mod;
-  } catch {
+  } catch (err) {
+    log("mammoth not available:", err.message);
     return null;
   }
 }
 
 // ─── Stage 1: CV → text ────────────────────────────────────────────────────────
 export async function getTextFromCV(cv) {
-  if (!cv) return "";
+  if (!cv) {
+    log("no cv object on user — nothing to extract");
+    return "";
+  }
   // If we already have parsed text cached on the user, prefer it.
-  if (cv.parsedText && cv.parsedText.trim().length > 0) return cv.parsedText;
-  if (!cv.url) return "";
+  if (cv.parsedText && cv.parsedText.trim().length > 0) {
+    log(`using cached parsedText (${cv.parsedText.length} chars)`);
+    return cv.parsedText;
+  }
+  if (!cv.url) {
+    log("cv object has no url — was the upload actually saved at registration?");
+    return "";
+  }
 
   // Node 18+ has global fetch; guard for older runtimes.
-  if (typeof fetch !== "function") return "";
+  if (typeof fetch !== "function") {
+    log("global fetch unavailable on this Node runtime — upgrade to Node 18+");
+    return "";
+  }
 
   try {
     // Bound the download — an unreachable/slow CV URL must not hang the whole
@@ -58,31 +74,52 @@ export async function getTextFromCV(cv) {
     const timeout = setTimeout(() => controller.abort(), 10000);
     let res;
     try {
+      log("fetching CV from", cv.url);
       res = await fetch(cv.url, { signal: controller.signal });
     } finally {
       clearTimeout(timeout);
     }
-    if (!res.ok) return "";
+    if (!res.ok) {
+      // This is the #1 real-world cause: Cloudinary blocks unauthenticated
+      // delivery of "raw" resources (PDF/DOC) by default on newer accounts
+      // (a security change from April 2024). If you see 401/403 here, go to
+      // Cloudinary Console → Settings → Security → and either disable
+      // "Restricted media types" for raw/PDF delivery, or switch this upload
+      // preset to deliver as `type: authenticated` and sign the fetch.
+      log(`CV fetch failed: HTTP ${res.status} ${res.statusText} — likely a Cloudinary delivery restriction, see comment above`);
+      return "";
+    }
     const buffer = Buffer.from(await res.arrayBuffer());
     const name = (cv.filename || cv.url || "").toLowerCase();
+    log(`downloaded ${buffer.length} bytes, filename="${cv.filename}", content-type="${res.headers.get("content-type")}"`);
 
     if (name.endsWith(".pdf") || res.headers.get("content-type")?.includes("pdf")) {
       const pdfParse = await loadPdfParser();
-      if (!pdfParse) return "";
+      if (!pdfParse) {
+        log("pdf-parse missing — run `npm install` in backend/ to enable PDF text extraction");
+        return "";
+      }
       const data = await pdfParse(buffer);
+      log(`pdf-parse extracted ${data.text?.length || 0} chars from ${data.numpages || "?"} page(s)`);
       return data.text || "";
     }
 
     if (name.endsWith(".docx")) {
       const mammoth = await loadDocxParser();
-      if (!mammoth) return "";
+      if (!mammoth) {
+        log("mammoth missing — run `npm install` in backend/ to enable DOCX text extraction");
+        return "";
+      }
       const { value } = await mammoth.extractRawText({ buffer });
+      log(`mammoth extracted ${value?.length || 0} chars`);
       return value || "";
     }
 
     // .doc (legacy) and unknown types — best effort as UTF-8 text.
+    log("unrecognized file type — falling back to raw UTF-8 decode (works poorly for legacy .doc)");
     return buffer.toString("utf8");
-  } catch {
+  } catch (err) {
+    log("CV fetch/parse threw:", err.name, err.message);
     return "";
   }
 }
@@ -128,12 +165,16 @@ const CERT_KEYWORDS = [
 const COMPANY_REGEX =
   /\b([A-Z][A-Za-z0-9&.\-]*(?:\s+[A-Z][A-Za-z0-9&.\-]*){0,4}\s+(?:Inc\.?|LLC|Ltd\.?|Corp\.?|Technologies|Labs|Systems|GmbH|PLC|Consulting))\b/g;
 
+// Includes LinkedIn's own "Save to PDF" export headers (e.g. "Top Skills",
+// "Licenses & Certifications") — mentors commonly upload that export as their
+// CV, and unlike scraping linkedin.com, parsing a file the mentor themselves
+// downloaded and chose to upload is entirely compliant.
 const SECTION_HEADERS = {
   summary: ["summary", "professional summary", "profile", "about", "objective"],
   experience: ["experience", "work experience", "employment", "professional experience"],
   education: ["education", "academic", "qualifications"],
-  skills: ["skills", "technical skills", "core competencies", "technologies"],
-  certifications: ["certifications", "certificates", "licenses"],
+  skills: ["skills", "technical skills", "core competencies", "technologies", "top skills"],
+  certifications: ["certifications", "certificates", "licenses", "licenses & certifications", "licenses and certifications"],
 };
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
@@ -264,11 +305,18 @@ export async function buildProfileFromSources({ cv, name, linkedinUrl } = {}) {
   try {
     text = await getTextFromCV(cv);
     meta.cvParsed = Boolean(text && text.trim().length > 0);
-  } catch {
+  } catch (err) {
+    log("buildProfileFromSources: getTextFromCV threw unexpectedly:", err.message);
     meta.cvParsed = false;
   }
 
   const structured = extractStructured(text, { name });
+  log(
+    `extraction summary — cvParsed=${meta.cvParsed}, textLength=${text.length},`,
+    `skills=${structured.skills.length}, companies=${structured.companies.length},`,
+    `education=${structured.education.length}, certifications=${structured.certifications.length},`,
+    `experience=${structured.experience}`
+  );
 
   // ── LinkedIn seam (Task 4, priority 2) ──────────────────────────────────────
   // We deliberately do NOT scrape LinkedIn (against their ToS / legal + privacy
