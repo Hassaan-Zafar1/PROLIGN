@@ -1,5 +1,8 @@
 ﻿import { useEffect, useMemo, useState, useCallback } from 'react';
-import { createBooking, getCurrentUser, getSessions, getUserById, getUsersByRole } from '../utils/db';
+// Sessions/booking creation still use the mock DB (Task 6 — scheduling);
+// mentor identity now comes from the backend via the mentor hook.
+import { createBooking, getCurrentUser, getSessions } from '../utils/db';
+import { useMentor } from '../hooks/useMentors';
 import { Button, Card, Modal, Input, Textarea, Avatar, EmptyState } from '../components/common';
 
 const dateKey = (date) => {
@@ -52,7 +55,7 @@ export default function Booking({ navigateTo, params }) {
   const [sessionTopic, setSessionTopic] = useState('');
   const [sessionNotes, setSessionNotes] = useState('');
   const [confirmedBooking, setConfirmedBooking] = useState(null);
-  const [mentor, setMentor] = useState(null);
+  const { mentor, loading: mentorLoading } = useMentor(params?.mentorId);
   const [cardName, setCardName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -60,12 +63,6 @@ export default function Booking({ navigateTo, params }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState(false);
   const [showTimeAlert, setShowTimeAlert] = useState(false);
-
-  useEffect(() => {
-    const mentorId = params?.mentorId;
-    const selectedMentor = getUserById(mentorId) || getUsersByRole('mentor').find((item) => item.status === 'approved');
-    setMentor(selectedMentor || null);
-  }, [params]);
 
   const rawAvailabilitySlots = mentor?.availabilitySlots || {};
   const availabilitySlots = useMemo(() => {
@@ -212,6 +209,17 @@ export default function Booking({ navigateTo, params }) {
       });
     }, 800);
   };
+
+  if (mentorLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <span className="material-symbols-outlined text-primary text-3xl animate-spin">progress_activity</span>
+          <p className="text-sm text-on-surface-variant">Loading mentor...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!mentor) {
     return (

@@ -52,6 +52,10 @@ import authRoutes from "./routes/auth.js";
 app.use("/api/auth", authRoutes);
 import userRoutes from "./routes/user.js";
 app.use("/api/user", userRoutes);
+import mentorRoutes from "./routes/mentor.js";
+app.use("/api/mentors", mentorRoutes);
+import interviewRoutes from "./routes/interview.js";
+app.use("/api/interview", interviewRoutes);
 
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);

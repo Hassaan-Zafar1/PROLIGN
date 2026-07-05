@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { authService } from '../services/authService';
+import { uploadService } from '../services/uploadService';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validateLinkedIn = (url) => /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(url.trim());
@@ -160,14 +161,17 @@ export default function MentorRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
+      // Upload the CV to Cloudinary and store only the small { url, filename }
+      // reference (keeps the request body tiny and lets the backend fetch + parse
+      // it later — Task 4). If Cloudinary isn't configured or the upload fails,
+      // we continue without a CV rather than blocking onboarding.
       let cvData = null;
       if (cvFile) {
-        cvData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({ filename: cvFile.name, url: reader.result });
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(cvFile);
-        });
+        try {
+          cvData = await uploadService.uploadCV(cvFile);
+        } catch (uploadErr) {
+          console.warn('CV upload failed, continuing without CV:', uploadErr.message);
+        }
       }
 
       const response = await authService.register({
@@ -180,6 +184,7 @@ export default function MentorRegistration({ navigateTo }) {
         cv: cvData,
       });
       
+      sessionStorage.setItem('otpUserId', response.userId);
       navigateTo('verify-otp', { userId: response.userId });
     } catch (error) {
       console.error('Registration failed:', error);

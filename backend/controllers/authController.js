@@ -92,7 +92,7 @@ function buildUserResponse(user) {
 
 export async function register(req, res, next) {
   try {
-    const { email, password, role, name, linkedinUrl, hourlyRate } = req.body;
+    const { email, password, role, name, linkedinUrl, hourlyRate, cv } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({
@@ -132,6 +132,10 @@ export async function register(req, res, next) {
       role,
       ...(name && { name }),
       ...(linkedinUrl && { linkedinUrl }),
+      // Mentor onboarding data captured at signup. CV is a small Cloudinary
+      // reference ({ url, filename }) — not the file bytes — so it fits the body.
+      ...(hourlyRate != null && hourlyRate !== "" && { hourlyRate: Number(hourlyRate) }),
+      ...(cv?.url && { cv: { url: cv.url, filename: cv.filename || null, uploadedAt: new Date() } }),
     });
 
     const otp = await generateAndSaveOTP(user._id);

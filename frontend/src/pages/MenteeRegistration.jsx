@@ -145,6 +145,7 @@ export default function MenteeRegistration({ navigateTo }) {
         linkedinUrl: form.linkedIn,
       });
       
+      sessionStorage.setItem('otpUserId', response.userId);
       navigateTo('verify-otp', { userId: response.userId });
     } catch (error) {
       console.error('Registration failed:', error);

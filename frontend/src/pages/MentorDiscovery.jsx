@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { getUsersByRole } from '../utils/db';
+import { useMentors } from '../hooks/useMentors';
 import { getMentorLevel, getMentorLevelStyle, MENTOR_LEVEL_OPTIONS } from '../utils/mentorLevel';
 
 const EXPERTISE_OPTIONS = [
@@ -145,7 +145,9 @@ const SingleSelectDropdown = ({ label, options, value, onChange }) => {
 };
 
 const MentorDiscovery = ({ navigateTo }) => {
-  const [allMentors] = useState(() => getUsersByRole('mentor'));
+  // Mentors now come from the backend (service layer) instead of the mock DB.
+  // We fetch the listable set and keep the existing client-side filtering/sorting.
+  const { mentors: allMentors, loading, error, refetch } = useMentors({ limit: 100 });
   const [filterOpen, setFilterOpen] = useState(false);
 
   const [filters, setFilters] = useState({
@@ -524,6 +526,42 @@ const MentorDiscovery = ({ navigateTo }) => {
           </div>
 
           {/* Results Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-surface rounded-2xl p-5 border border-outline-variant/10 animate-pulse">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-xl bg-surface-container-high" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-surface-container-high rounded w-2/3" />
+                      <div className="h-3 bg-surface-container-high rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="h-3 bg-surface-container-high rounded w-full mb-2" />
+                  <div className="h-3 bg-surface-container-high rounded w-4/5 mb-4" />
+                  <div className="flex gap-1.5 mb-4">
+                    <div className="h-5 w-14 bg-surface-container-high rounded-full" />
+                    <div className="h-5 w-14 bg-surface-container-high rounded-full" />
+                  </div>
+                  <div className="pt-4 border-t border-outline-variant/10 flex items-center justify-between">
+                    <div className="h-6 w-16 bg-surface-container-high rounded" />
+                    <div className="h-10 w-28 bg-surface-container-high rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="py-16 text-center flex flex-col items-center gap-4 bg-surface rounded-2xl border border-dashed border-outline-variant/30">
+              <span className="material-symbols-outlined text-5xl text-error/60">cloud_off</span>
+              <div>
+                <p className="text-lg text-on-surface-variant font-semibold mb-1">Couldn't load mentors</p>
+                <p className="text-sm text-on-surface-variant/70">Please check your connection and try again.</p>
+              </div>
+              <button onClick={refetch} className="mt-2 min-h-[44px] px-5 py-2.5 bg-secondary text-on-secondary font-semibold text-sm rounded-xl hover:brightness-110 transition-all">
+                Retry
+              </button>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {sortedMentors.length > 0 ? sortedMentors.map(mentor => (
               <article key={mentor.id} className="bg-surface rounded-2xl p-5 border border-outline-variant/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col">
@@ -619,6 +657,7 @@ const MentorDiscovery = ({ navigateTo }) => {
               </div>
             )}
           </div>
+          )}
         </section>
       </div>
     </div>

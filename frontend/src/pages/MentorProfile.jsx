@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react';
-import { getReviewsForMentor, getUserById, getCurrentUser, createBooking } from '../utils/db';
+// Reviews & booking still use the mock DB (Tasks 6 & later); mentor identity
+// now comes from the backend via the mentor service/hook.
+import { getReviewsForMentor, getCurrentUser, createBooking } from '../utils/db';
+import { useMentor } from '../hooks/useMentors';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -13,8 +16,8 @@ const sessionTypes = [
 const dateKey = (date) => date.toISOString().split('T')[0];
 
 const MentorProfile = ({ navigateTo, params }) => {
-  const mentorId = params?.mentorId || 'u1';
-  const mentor = useMemo(() => getUserById(mentorId), [mentorId]);
+  const mentorId = params?.mentorId;
+  const { mentor, loading, error } = useMentor(mentorId);
   const reviews = useMemo(() => getReviewsForMentor(mentorId), [mentorId]);
   const user = getCurrentUser();
   const mentorLevelInfo = useMemo(() => getMentorLevel(mentor), [mentor]);
@@ -95,8 +98,30 @@ const MentorProfile = ({ navigateTo, params }) => {
     }, 800);
   };
 
-  if (!mentor) {
-    return <div className="p-8 text-center text-on-surface-variant">Loading mentor profile...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <span className="material-symbols-outlined text-primary text-3xl animate-spin">progress_activity</span>
+          <p className="text-sm text-on-surface-variant">Loading mentor profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !mentor) {
+    return (
+      <div className="py-16 text-center flex flex-col items-center gap-4">
+        <span className="material-symbols-outlined text-5xl text-on-surface-variant/40">person_off</span>
+        <div>
+          <p className="text-lg text-on-surface-variant font-semibold mb-1">Mentor not found</p>
+          <p className="text-sm text-on-surface-variant/70">This mentor may no longer be available.</p>
+        </div>
+        <button onClick={() => navigateTo('find-mentors')} className="mt-2 min-h-[44px] px-5 py-2.5 bg-primary text-on-primary font-semibold text-sm rounded-xl hover:brightness-110 transition-all">
+          Browse mentors
+        </button>
+      </div>
+    );
   }
 
   return (
