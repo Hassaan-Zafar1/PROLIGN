@@ -7,7 +7,7 @@ export async function updateProfile(req, res, next) {
     console.log("📩 Update profile body:", req.body); // ← add this
     // Fields allowed to be updated
     const allowedFields = [
-      "name", "phone", "country", "city", "title",
+      "name", "country", "city", "title",
       "company", "bio", "linkedinUrl", "profilePic",
       "skills", "languages", "certifications", "hourlyRate",
       "experience", "preferredCategories", "availableSlots",
@@ -57,7 +57,6 @@ export async function updateProfile(req, res, next) {
         role: user.role,
         profilePic: user.profilePic,
         linkedinUrl: user.linkedinUrl,
-        phone: user.phone,
         country: user.country,
         city: user.city,
         title: user.title,

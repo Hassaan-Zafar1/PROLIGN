@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const workExperienceSchema = new Schema(
@@ -101,6 +101,5 @@ mentorProfileSchema.index({ averageRating: -1, totalReviews: -1 });
 mentorProfileSchema.index({ isApproved: 1, isActive: 1 });
 mentorProfileSchema.index({ "currentCompany.name": 1 });
 
-module.exports =
-  mongoose.models.MentorProfile ||
+export default mongoose.models.MentorProfile ||
   mongoose.model("MentorProfile", mentorProfileSchema);

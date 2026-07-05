@@ -58,21 +58,35 @@ export default function MentorOnboarding({ navigateTo }) {
     started.current = true;
     let cancelled = false;
 
+    const finish = () => {
+      if (cancelled) return;
+      cancelled = true; // guard against the watchdog firing after a late resolution
+      setActiveStage(BUILD_STAGES.length);
+      setBuildDone(true);
+    };
+
+    // The axios client already times out (see config/api.js), so this call
+    // settles on its own within ~20s even if the backend hangs. This watchdog
+    // is a second, independent safety net — onboarding must NEVER be able to
+    // spin forever, whatever goes wrong on the network/server side.
+    const watchdog = setTimeout(() => {
+      setBuildError(true);
+      finish();
+    }, 25000);
+
     mentorProfileService.buildProfile()
       .then((res) => {
-        if (cancelled) return;
         if (res?.user) updateUser(res.user);
       })
       .catch(() => {
-        if (!cancelled) setBuildError(true); // non-blocking — still proceed
+        setBuildError(true); // non-blocking — still proceed
       })
       .finally(() => {
-        if (cancelled) return;
-        setActiveStage(BUILD_STAGES.length);
-        setBuildDone(true);
+        clearTimeout(watchdog);
+        finish();
       });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(watchdog); };
   }, [updateUser]);
 
   // Auto-continue to the dashboard shortly after completion.

@@ -52,7 +52,16 @@ export async function getTextFromCV(cv) {
   if (typeof fetch !== "function") return "";
 
   try {
-    const res = await fetch(cv.url);
+    // Bound the download — an unreachable/slow CV URL must not hang the whole
+    // profile-build request (and therefore the onboarding UI) indefinitely.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let res;
+    try {
+      res = await fetch(cv.url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!res.ok) return "";
     const buffer = Buffer.from(await res.arrayBuffer());
     const name = (cv.filename || cv.url || "").toLowerCase();

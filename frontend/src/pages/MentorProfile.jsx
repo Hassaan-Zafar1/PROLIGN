@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 // now comes from the backend via the mentor service/hook.
 import { getReviewsForMentor, getCurrentUser, createBooking } from '../utils/db';
 import { useMentor } from '../hooks/useMentors';
+import { errorHandler } from '../utils/errorHandler';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -74,14 +75,14 @@ const MentorProfile = ({ navigateTo, params }) => {
   const total = basePrice + fee;
 
   const handleBook = () => {
-    if (!user) { alert('Please login first to book a session.'); navigateTo('login'); return; }
-    if (!selectedTime) { alert('Please select an available time slot.'); return; }
+    if (!user) { errorHandler.notify('Please login first to book a session.'); navigateTo('login'); return; }
+    if (!selectedTime) { errorHandler.notify('Please select an available time slot.'); return; }
     setIsPaymentOpen(true);
   };
 
   const handlePaymentSubmit = (event) => {
     event.preventDefault();
-    if (!cardName || !cardNumber || !expiry || !cvv) { alert('Please fill in all payment details.'); return; }
+    if (!cardName || !cardNumber || !expiry || !cvv) { errorHandler.notify('Please fill in all payment details.'); return; }
     setIsProcessing(true);
     setTimeout(() => {
       const booking = createBooking({

@@ -20,24 +20,9 @@ import { tokenManager } from '../utils/tokenManager';
 import Input from '../components/common/Input';
 import { getPublishedSiteContent, savePublishedSiteContent } from '../content/siteContent';
 import { adminService } from '../services/adminService';
+import { useTheme } from '../hooks/useTheme';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  };
-  return { theme, toggleTheme };
-};
 
 const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse rounded bg-surface-variant/50 ${className}`} />

@@ -47,7 +47,6 @@ const userSchema = new mongoose.Schema(
     },
 
     // ── Extended Profile ──────────────────────────────────────────────────────
-    phone:   { type: String, default: null },
     country: { type: String, default: null },
     city:    { type: String, default: null },
     title:   { type: String, default: null },

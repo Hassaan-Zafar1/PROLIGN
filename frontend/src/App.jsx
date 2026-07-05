@@ -7,6 +7,7 @@ import { useAuth } from './context/AuthContext';
 import { useAppNavigate } from './routes/useAppNavigate';
 import { routeKeyForPath } from './routes/routeConfig';
 import AppRoutes from './routes/AppRoutes';
+import { ErrorBoundary } from './components/common';
 
 // App-wide floating widgets — lazy so they don't weigh down initial load.
 const AIChatWidget = lazy(() => import('./components/AIChatWidget'));
@@ -94,7 +95,10 @@ function App() {
         <main className={`flex-1 w-full ${
           !hideNavigation && !isFullWidthPage ? 'p-4 md:p-8 max-w-7xl mx-auto' : ''
         }`}>
-          <AppRoutes openChatbot={() => setIsChatbotOpen(true)} />
+          {/* Keyed on the route so navigating away from a crashed page recovers it */}
+          <ErrorBoundary key={location.pathname}>
+            <AppRoutes openChatbot={() => setIsChatbotOpen(true)} />
+          </ErrorBoundary>
         </main>
       </div>
 

@@ -52,14 +52,21 @@ export async function submitInterview(req, res, next) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
-    // Best-effort mapping of known question ids onto the mentee's profile.
+    // Map known question ids onto the mentee's profile — these are exactly the
+    // fields the mentor recommendation seam (recommendationService) reads, so
+    // every interview answer here is doing real matching work, not just being
+    // archived in the conversation log above.
     const byId = Object.fromEntries(answers.map((a) => [a.id, a.answer]));
     const updates = { isProfileComplete: true, onboardingStep: "complete" };
     if (byId.career_goal) {
       updates.careerGoals = Array.isArray(byId.career_goal) ? byId.career_goal.join(", ") : String(byId.career_goal);
     }
     if (byId.current_skills) updates.skills = toArray(byId.current_skills);
-    if (byId.interests) updates.learningInterests = toArray(byId.interests);
+    if (byId.skills_to_learn) updates.skillsToLearn = toArray(byId.skills_to_learn);
+    if (byId.focus_areas) {
+      updates.preferredCategories = toArray(byId.focus_areas);
+      updates.learningInterests = toArray(byId.focus_areas);
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

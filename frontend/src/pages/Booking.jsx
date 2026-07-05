@@ -3,6 +3,7 @@
 // mentor identity now comes from the backend via the mentor hook.
 import { createBooking, getCurrentUser, getSessions } from '../utils/db';
 import { useMentor } from '../hooks/useMentors';
+import { errorHandler } from '../utils/errorHandler';
 import { Button, Card, Modal, Input, Textarea, Avatar, EmptyState } from '../components/common';
 
 const dateKey = (date) => {
@@ -172,16 +173,16 @@ export default function Booking({ navigateTo, params }) {
   const handlePaymentSubmit = (event) => {
     event.preventDefault();
     if (!cardName || !cardNumber || !expiry || !cvv) {
-      alert('Please fill in all payment details.');
+      errorHandler.notify('Please fill in all payment details.');
       return;
     }
     if (!user) {
-      alert('Please login first to book a session.');
+      errorHandler.notify('Please login first to book a session.');
       navigateTo('login');
       return;
     }
     if (!mentor || !selectedTime) {
-      alert('Please select an available mentor slot first.');
+      errorHandler.notify('Please select an available mentor slot first.');
       return;
     }
     setIsProcessing(true);

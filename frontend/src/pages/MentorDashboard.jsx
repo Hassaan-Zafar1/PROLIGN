@@ -21,6 +21,7 @@ import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { getMentorProfileCompletion } from '../utils/profileCompletion';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -45,22 +46,6 @@ const getAvailableSlots = (dateStr) => {
     if (ampm === 'AM' && hour === 12) hour = 0;
     return hour > minHour || (hour === minHour && minute > 0);
   });
-};
-
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  };
-  return { theme, toggleTheme };
 };
 
 const MentorDashboard = ({ navigateTo }) => {

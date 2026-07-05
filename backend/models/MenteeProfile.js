@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const selfRatedSkillSchema = new Schema(
@@ -112,6 +112,5 @@ menteeProfileSchema.index({ "skillProfile.skills": 1 });    // multikey
 menteeProfileSchema.index({ "skillProfile.domains": 1 });   // multikey
 menteeProfileSchema.index({ "skillProfile.careerGoals": 1 });
 
-module.exports =
-  mongoose.models.MenteeProfile ||
+export default mongoose.models.MenteeProfile ||
   mongoose.model("MenteeProfile", menteeProfileSchema);

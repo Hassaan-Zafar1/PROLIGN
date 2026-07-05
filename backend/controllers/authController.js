@@ -50,7 +50,6 @@ function buildUserResponse(user) {
     createdAt: user.createdAt,
 
     // ✅ Extended profile
-    phone: user.phone,
     country: user.country,
     city: user.city,
     title: user.title,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
@@ -23,27 +23,7 @@ import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { recommendationService } from '../services/recommendationService';
 import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  }, []);
-  const applyTheme = useCallback((t) => {
-    const next = t === 'Dark' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('prolign-theme', next);
-  }, []);
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  return { theme, toggleTheme, applyTheme };
-};
+import { useTheme } from '../hooks/useTheme';
 
 const normalizeView = (view) => {
   return view || 'dashboard';
@@ -99,25 +79,38 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [analyticsRange, setAnalyticsRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
+  // Recommended mentors via the recommendation SEAM (all mentors for now; AI
+  // model plugs in later). Forwards the mentee's interview-derived profile so
+  // a real matching model can use it once enabled.
+  const loadRecommendedMentors = (forUser) => {
+    recommendationService.getRecommendedMentors({
+      limit: 100,
+      menteeId: forUser?.id,
+      skills: forUser?.skills,
+      preferredCategories: forUser?.preferredCategories,
+      careerGoals: forUser?.careerGoals,
+    })
+      .then(({ mentors: list }) => setMentors(list))
+      .catch(() => setMentors([]));
+  };
+
   const loadData = () => {
     try {
       // Mentee profile (incl. learning goals from the Task 7 interview) is now
       // backend-driven via /auth/me; fall back to the cached user offline.
       authService.getCurrentUser()
-        .then((backendUser) => { updateUser(backendUser); setUser(backendUser); })
-        .catch(() => setUser(authUser || getCurrentUser()));
+        .then((backendUser) => {
+          updateUser(backendUser);
+          setUser(backendUser);
+          loadRecommendedMentors(backendUser);
+        })
+        .catch(() => {
+          const cachedUser = authUser || getCurrentUser();
+          setUser(cachedUser);
+          loadRecommendedMentors(cachedUser);
+        });
 
       const currentUser = authUser || getCurrentUser();
-
-      // Recommended mentors via the recommendation SEAM (all mentors for now;
-      // AI model plugs in later). Mentee context is forwarded for future use.
-      recommendationService.getRecommendedMentors({
-        limit: 100,
-        menteeId: currentUser?.id,
-      })
-        .then(({ mentors }) => setMentors(mentors))
-        .catch(() => setMentors([]));
-
       if (!currentUser) return;
 
       setSessions(

@@ -12,6 +12,11 @@ import { interviewService } from '../services/interviewService';
  * via the interview service. When the platform's AI model is ready it can (a)
  * generate/adapt these questions and (b) process the stored responses — no UI
  * change required here.
+ *
+ * Every question here maps to a real field the mentee's profile persists
+ * (see interviewController.js's mapping) so the answers actually feed the
+ * mentor recommendation seam (recommendationService) rather than sitting
+ * unused in the raw conversation log.
  */
 
 // ── Question framework ─────────────────────────────────────────────────────────
@@ -19,11 +24,10 @@ import { interviewService } from '../services/interviewService';
 const INTERVIEW_QUESTIONS = [
   { id: 'career_goal', type: 'textarea', prompt: "What's your primary career goal right now?", placeholder: 'e.g. Become a senior backend engineer within 2 years', icon: 'flag' },
   { id: 'current_skills', type: 'tags', prompt: 'Which skills do you already have?', placeholder: 'Type a skill and press Enter', icon: 'psychology' },
+  { id: 'skills_to_learn', type: 'tags', prompt: 'Which skills do you want to develop?', placeholder: 'e.g. System Design, Public Speaking', icon: 'trending_up' },
+  { id: 'focus_areas', type: 'tags', prompt: 'Which areas are you looking for mentorship in?', placeholder: 'e.g. Machine Learning, Product Management', icon: 'interests' },
   { id: 'experience_level', type: 'choice', prompt: 'How would you describe your experience level?', options: ['Beginner', 'Junior', 'Mid-level', 'Senior'], icon: 'stairs' },
-  { id: 'learning_style', type: 'choice', prompt: 'How do you prefer to learn?', options: ['1:1 mentoring', 'Hands-on projects', 'Structured curriculum', 'Peer discussion'], icon: 'school' },
-  { id: 'interests', type: 'tags', prompt: 'What areas are you most interested in?', placeholder: 'e.g. Machine Learning, Product', icon: 'interests' },
   { id: 'available_time', type: 'choice', prompt: 'How much time can you commit weekly?', options: ['1–2 hours', '3–5 hours', '5–10 hours', '10+ hours'], icon: 'schedule' },
-  { id: 'challenges', type: 'textarea', prompt: "What's the biggest challenge you're facing?", placeholder: 'Tell us what you’re struggling with', icon: 'lightbulb' },
 ];
 
 const hasAnswer = (q, value) =>
