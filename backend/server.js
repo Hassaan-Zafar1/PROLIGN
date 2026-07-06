@@ -12,9 +12,24 @@ import { extractClientInfo } from "./middleware/auth.js";
 const app = express();
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
+// In development, Vite silently picks the next free port (5174, 5175, ...)
+// whenever 5173 is already taken by another running dev server — a single
+// hardcoded FRONTEND_URL then rejects every request with an opaque CORS error
+// that looks like a backend outage. Accept any localhost port in dev; in
+// production this still strictly allows only the configured FRONTEND_URL.
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // same-origin / server-to-server / curl requests
+  if (origin === env.FRONTEND_URL) return true;
+  if (env.NODE_ENV !== "production" && /^https?:\/\/localhost:\d+$/.test(origin)) return true;
+  return false;
+};
+
 app.use(
   cors({
-    origin: [env.FRONTEND_URL],
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true, // Allow cookies (refresh token)
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -28,9 +43,13 @@ app.use(cookieParser());
 app.use(passport.initialize());
 app.use(extractClientInfo);
 // ─── Global Rate Limiter ──────────────────────────────────────────────────────
+// 100 req/15min is far too low for active local development (a single page can
+// fire several /api calls, and the auth flow alone makes multiple) — it caused
+// intermittent 429s that surfaced as "registration failed / no OTP". Use a
+// generous cap in dev and the strict production value only in production.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: env.NODE_ENV === "production" ? 100 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many requests, slow down." },
@@ -56,6 +75,8 @@ import mentorRoutes from "./routes/mentor.js";
 app.use("/api/mentors", mentorRoutes);
 import interviewRoutes from "./routes/interview.js";
 app.use("/api/interview", interviewRoutes);
+import adminRoutes from "./routes/admin.js";
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);

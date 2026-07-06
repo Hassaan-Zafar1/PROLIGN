@@ -99,7 +99,7 @@ export default function MentorOnboarding({ navigateTo }) {
     return () => { cancelled = true; clearTimeout(watchdog); };
   }, [updateUser]);
 
-  // Auto-continue to the dashboard shortly after completion.
+  // Auto-continue to the dashboard shortly after completion (no approval gate).
   useEffect(() => {
     if (!buildDone) return undefined;
     const t = setTimeout(() => navigateTo('mentor-dashboard'), 2200);

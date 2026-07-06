@@ -49,7 +49,7 @@ export async function submitInterview(req, res, next) {
         conversation,
         // generatedProfile intentionally untouched — the AI model populates it later.
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
     );
 
     // Map known question ids onto the mentee's profile — these are exactly the
@@ -71,7 +71,7 @@ export async function submitInterview(req, res, next) {
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password -refreshTokens");
 
     await logAudit({

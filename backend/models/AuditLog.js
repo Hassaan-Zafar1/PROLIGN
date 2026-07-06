@@ -22,6 +22,7 @@ const auditLogSchema = new Schema(
         "mentor_rejected",
         "user_banned",
         "user_unbanned",
+        "user_deleted",
         "session_cancelled",
         "refund_issued",
         "payout_triggered",
@@ -29,6 +30,9 @@ const auditLogSchema = new Schema(
         "review_flagged",
         "admin_login",
         "profile_updated",
+        "password_changed",
+        "mentor_profile_built",
+        "mentee_interview_completed",
       ],
       required: true,
     },
@@ -36,7 +40,7 @@ const auditLogSchema = new Schema(
     targetId:   { type: Schema.Types.ObjectId, default: null },
     targetType: {
       type: String,
-      enum: ["user", "session", "payment", "review", "mentor_profile", "none"],
+      enum: ["user", "session", "payment", "review", "mentor_profile", "ai_assessment", "none"],
       default: "user",
     },
 

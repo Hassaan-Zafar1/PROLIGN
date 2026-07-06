@@ -179,7 +179,7 @@ export async function buildMentorProfile(req, res, next) {
     const updated = await User.findByIdAndUpdate(
       user._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password -refreshTokens");
 
     await logAudit({

@@ -177,6 +177,45 @@ const SECTION_HEADERS = {
   certifications: ["certifications", "certificates", "licenses", "licenses & certifications", "licenses and certifications"],
 };
 
+// Extra headers (esp. LinkedIn sidebar blocks) that should terminate a section
+// scan even though we don't extract from them directly.
+const STOP_HEADERS = [
+  ...Object.values(SECTION_HEADERS).flat(),
+  "contact", "languages", "honors", "honors-awards", "honors & awards",
+  "interests", "publications", "projects", "volunteering", "volunteer experience",
+  "awards", "recommendations", "activity",
+];
+
+// Role/title keywords used to detect a professional title line.
+const ROLE_KEYWORDS = [
+  "software engineer", "full stack", "full-stack", "frontend", "front-end", "backend", "back-end",
+  "developer", "engineer", "data scientist", "data analyst", "machine learning",
+  "product manager", "project manager", "program manager", "designer", "ux", "ui",
+  "consultant", "analyst", "architect", "tech lead", "team lead", "lead", "director",
+  "manager", "scientist", "specialist", "head of", "founder", "co-founder", "ceo",
+  "cto", "coo", "devops", "sre", "qa engineer", "mobile developer", "researcher",
+];
+
+// Coarse title/skills → industry mapping (first match wins).
+const INDUSTRY_MAP = [
+  { industry: "Data & AI", keywords: ["data scien", "machine learning", "ml engineer", "artificial intelligence", "data analyst", "data engineer", "nlp", "deep learning"] },
+  { industry: "Product Management", keywords: ["product manager", "product management", "product owner"] },
+  { industry: "Design", keywords: ["ux", "ui", "designer", "product design"] },
+  { industry: "Cybersecurity", keywords: ["security", "penetration", "cybersecurity", "infosec"] },
+  { industry: "Cloud & DevOps", keywords: ["devops", "cloud", "site reliability", "sre", "infrastructure", "kubernetes"] },
+  { industry: "Marketing", keywords: ["marketing", "seo", "growth", "brand"] },
+  { industry: "Finance", keywords: ["finance", "financial", "accountant", "investment", "banking"] },
+  // Broad software bucket last so more specific industries win first.
+  { industry: "Software Engineering", keywords: ["software", "developer", "full stack", "frontend", "backend", "web developer", "mobile developer", "engineer"] },
+];
+
+// Countries we recognize in a "City, Region, Country" location line.
+const KNOWN_COUNTRIES = [
+  "pakistan", "united states", "usa", "united kingdom", "uk", "india", "canada",
+  "australia", "germany", "france", "netherlands", "united arab emirates", "uae",
+  "saudi arabia", "singapore", "ireland", "spain", "italy", "sweden", "switzerland",
+];
+
 // ─── Small helpers ─────────────────────────────────────────────────────────────
 const uniq = (arr) => [...new Set(arr)];
 const titleCase = (s) =>
@@ -188,13 +227,12 @@ function findSectionLines(lines, headerAliases) {
     headerAliases.some((h) => l === h || l.startsWith(`${h}:`) || l === `${h}s`)
   );
   if (start === -1) return [];
-  const allHeaders = Object.values(SECTION_HEADERS).flat();
   const out = [];
   for (let i = start + 1; i < lines.length; i++) {
     const l = lines[i].trim();
     if (!l) continue;
-    // Stop at the next section header.
-    if (allHeaders.includes(l.toLowerCase().replace(/:$/, ""))) break;
+    // Stop at the next section header (incl. LinkedIn sidebar blocks).
+    if (STOP_HEADERS.includes(l.toLowerCase().replace(/:$/, ""))) break;
     out.push(l);
     if (out.length > 40) break;
   }

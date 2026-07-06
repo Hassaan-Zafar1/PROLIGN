@@ -47,11 +47,12 @@ const userSchema = new mongoose.Schema(
     },
 
     // ── Extended Profile ──────────────────────────────────────────────────────
-    country: { type: String, default: null },
-    city:    { type: String, default: null },
-    title:   { type: String, default: null },
-    company: { type: String, default: null },
-    bio:     { type: String, default: null },
+    country:  { type: String, default: null },
+    city:     { type: String, default: null },
+    title:    { type: String, default: null },
+    company:  { type: String, default: null },
+    industry: { type: String, default: null }, // shown on mentor cards/profile
+    bio:      { type: String, default: null },
 
     // ── Profile Basics ────────────────────────────────────────────────────────
     profilePic:  { type: String, default: null },
@@ -124,6 +125,15 @@ const userSchema = new mongoose.Schema(
       ref: "MentorProfile",
       default: null,
     },
+
+    // ── Mentor Approval (admin moderation) ────────────────────────────────────
+    // Mentee/admin accounts leave this null — only mentors go through approval.
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", null],
+      default: null,
+    },
+    rejectionReason: { type: String, default: null },
 
     // ── Account State ─────────────────────────────────────────────────────────
     isActive:    { type: Boolean, default: true },

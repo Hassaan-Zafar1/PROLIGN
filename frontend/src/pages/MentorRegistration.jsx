@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { authService } from '../services/authService';
 import { uploadService } from '../services/uploadService';
+import { extractCvText } from '../utils/cvText';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validateLinkedIn = (url) => /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(url.trim());
@@ -169,16 +170,22 @@ export default function MentorRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
-      // Upload the CV to Cloudinary and store only the small { url, filename }
-      // reference (keeps the request body tiny and lets the backend fetch + parse
-      // it later — Task 4). If Cloudinary isn't configured or the upload fails,
-      // we continue without a CV rather than blocking onboarding.
+      // Process the CV two ways, both best-effort (neither blocks signup):
+      //   1. Upload to Cloudinary for storage/download → { url, filename }.
+      //   2. Extract the text HERE in the browser and send it as parsedText,
+      //      so the backend can build the profile even when Cloudinary blocks
+      //      its server-side download of raw PDFs (the recurring 401).
       let cvData = null;
       if (cvFile) {
-        try {
-          cvData = await uploadService.uploadCV(cvFile);
-        } catch (uploadErr) {
-          console.warn('CV upload failed, continuing without CV:', uploadErr.message);
+        const [uploadResult, parsedText] = await Promise.all([
+          uploadService.uploadCV(cvFile).catch((uploadErr) => {
+            console.warn('CV upload failed, continuing without stored file:', uploadErr.message);
+            return null;
+          }),
+          extractCvText(cvFile),
+        ]);
+        if (uploadResult || parsedText) {
+          cvData = { ...(uploadResult || {}), ...(parsedText && { parsedText }) };
         }
       }
 

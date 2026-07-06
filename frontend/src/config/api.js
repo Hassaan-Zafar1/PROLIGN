@@ -3,7 +3,7 @@ import { tokenManager } from '../utils/tokenManager';
 import { errorHandler } from '../utils/errorHandler';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   withCredentials: true, // Allow cookies to be sent
   // Without this, a hung backend request (e.g. a slow external fetch inside a
   // controller) leaves the caller waiting forever with no error and no UI

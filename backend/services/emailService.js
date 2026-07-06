@@ -21,23 +21,38 @@ transporter.verify((error) => {
 
 /**
  * Sends an OTP verification email.
+ *
+ * In development the OTP is always printed to the server console, and email
+ * failures are swallowed — so a flaky/rate-limited SMTP provider never blocks
+ * you from completing signup (just read the code from the terminal). In
+ * production, a send failure propagates so the caller can surface a real error.
  */
 export async function sendOTPEmail(toEmail, otp) {
-  await transporter.sendMail({
-    from: `"ProLign" <${env.EMAIL_FROM}>`,
-    to: toEmail,
-    subject: "Verify your email — ProLign",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-        <h2 style="color: #2d6a4f;">Verify your email</h2>
-        <p>Use the OTP below to complete your registration. It expires in <strong>${env.OTP_EXPIRY_MINUTES} minutes</strong>.</p>
-        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1b4332; margin: 24px 0;">
-          ${otp}
+  if (env.NODE_ENV !== "production") {
+    console.log(`📧 [dev] OTP for ${toEmail}: ${otp}`);
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"ProLign" <${env.EMAIL_FROM}>`,
+      to: toEmail,
+      subject: "Verify your email — ProLign",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+          <h2 style="color: #2d6a4f;">Verify your email</h2>
+          <p>Use the OTP below to complete your registration. It expires in <strong>${env.OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+          <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1b4332; margin: 24px 0;">
+            ${otp}
+          </div>
+          <p style="color: #777; font-size: 13px;">If you didn't request this, ignore this email.</p>
         </div>
-        <p style="color: #777; font-size: 13px;">If you didn't request this, ignore this email.</p>
-      </div>
-    `,
-  });
+      `,
+    });
+  } catch (err) {
+    console.error(`❌ Failed to send OTP email to ${toEmail}:`, err.message);
+    if (env.NODE_ENV === "production") throw err;
+    // dev: OTP was logged above — don't block the flow.
+  }
 }
 
 /**

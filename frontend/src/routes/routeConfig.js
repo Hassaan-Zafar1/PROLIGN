@@ -108,7 +108,9 @@ export const routeKeyForPath = (pathname) => {
  */
 export const homeRouteKeyForUser = (user) => {
   if (!user) return 'home';
-  if (user.role === 'mentor') return user.status === 'pending' ? 'waiting-approval' : 'mentor-dashboard';
+  // Mentors go straight to their dashboard after onboarding — admin approval
+  // is tracked (status) for admin visibility but does not gate mentor access.
+  if (user.role === 'mentor') return 'mentor-dashboard';
   if (user.role === 'admin') return 'admindashboard';
   if (user.role === 'mentee') return user.isProfileComplete ? 'mentee-dashboard' : 'interview';
   return 'home';

@@ -4,10 +4,9 @@ import { logAudit } from "../services/auditLogService.js";
 // ─── Update Profile ───────────────────────────────────────────────────────────
 export async function updateProfile(req, res, next) {
   try {
-    console.log("📩 Update profile body:", req.body); // ← add this
     // Fields allowed to be updated
     const allowedFields = [
-      "name", "country", "city", "title",
+      "name", "country", "city", "title", "industry",
       "company", "bio", "linkedinUrl", "profilePic",
       "skills", "languages", "certifications", "hourlyRate",
       "experience", "preferredCategories", "availableSlots",
@@ -61,6 +60,7 @@ export async function updateProfile(req, res, next) {
         city: user.city,
         title: user.title,
         company: user.company,
+        industry: user.industry,
         bio: user.bio,
         skills: user.skills,
         languages: user.languages,

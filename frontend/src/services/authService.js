@@ -5,61 +5,45 @@ import { errorHandler } from '../utils/errorHandler';
 export const authService = {
   // Register new user — pass full userData object
   register: async (userData) => {
-    try {
-      const response = await api.post('/auth/register', userData);
-      errorHandler.handleSuccess('Registration successful! Check your email for OTP.');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/register', userData);
+    errorHandler.handleSuccess('Registration successful! Check your email for OTP.');
+    return response.data;
   },
 
   // Verify OTP — pass as object
   verifyOTP: async (userId, otp) => {
-    try {
-      const response = await api.post('/auth/verify-otp', { userId, otp });
-      const { accessToken, user } = response.data;
-      tokenManager.setAccessToken(accessToken);
-      tokenManager.setUser(user);
-      errorHandler.handleSuccess('Email verified! Welcome!');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/verify-otp', { userId, otp });
+    const { accessToken, user } = response.data;
+    tokenManager.setAccessToken(accessToken);
+    tokenManager.setUser(user);
+    errorHandler.handleSuccess('Email verified! Welcome!');
+    return response.data;
   },
 
   // Resend OTP
   resendOTP: async (userId) => {
-    try {
-      const response = await api.post('/auth/resend-otp', { userId });
-      errorHandler.handleSuccess('OTP resent to your email');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/resend-otp', { userId });
+    errorHandler.handleSuccess('OTP resent to your email');
+    return response.data;
   },
 
   // Login — pass as object
   login: async (credentials) => {
-    try {
-      const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/auth/login', credentials);
 
-      // If email not verified, backend returns userId for OTP flow
-      if (response.data.userId) {
-        return response.data;
-      }
-
-      const { accessToken, user } = response.data;
-      tokenManager.setAccessToken(accessToken);
-      tokenManager.setUser(user);
-      errorHandler.handleSuccess('Logged in successfully!');
+    // If email not verified, backend returns userId for OTP flow
+    if (response.data.userId) {
       return response.data;
-    } catch (error) {
-      throw error;
     }
+
+    const { accessToken, user } = response.data;
+    tokenManager.setAccessToken(accessToken);
+    tokenManager.setUser(user);
+    errorHandler.handleSuccess('Logged in successfully!');
+    return response.data;
   },
 
-  // Logout
+  // Logout — clear tokens even if the network call fails
   logout: async () => {
     try {
       await api.post('/auth/logout');
@@ -73,46 +57,30 @@ export const authService = {
 
   // Refresh token
   refreshToken: async () => {
-    try {
-      const response = await api.post('/auth/refresh');
-      const { accessToken } = response.data;
-      tokenManager.setAccessToken(accessToken);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/refresh');
+    const { accessToken } = response.data;
+    tokenManager.setAccessToken(accessToken);
+    return response.data;
   },
 
   // Forgot password
   forgotPassword: async (email) => {
-    try {
-      const response = await api.post('/auth/forgot-password', { email });
-      errorHandler.handleSuccess('Password reset link sent to your email');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/forgot-password', { email });
+    errorHandler.handleSuccess('Password reset link sent to your email');
+    return response.data;
   },
 
   // Reset password — pass as object
   resetPassword: async (resetData) => {
-    try {
-      const response = await api.post('/auth/reset-password', resetData);
-      errorHandler.handleSuccess('Password reset successfully! Please login.');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.post('/auth/reset-password', resetData);
+    errorHandler.handleSuccess('Password reset successfully! Please login.');
+    return response.data;
   },
 
   // Get current user
   getCurrentUser: async () => {
-    try {
-      const response = await api.get('/auth/me');
-      return response.data.user;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.get('/auth/me');
+    return response.data.user;
   },
 
   // Google login redirect

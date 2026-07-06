@@ -79,9 +79,9 @@ const SessionsRoute = () => {
 // A mentor still awaiting approval shouldn't reach the mentor dashboard directly
 // (preserves the historical status check); route them to the waiting screen.
 const MentorDashboardRoute = () => {
-  const { user } = useAuth();
   const navigateTo = useAppNavigate();
-  if (user?.status === 'pending') return <Navigate to="/waiting-approval" replace />;
+  // Mentors access their dashboard immediately after onboarding — approval
+  // status is admin-side only and no longer blocks access here.
   return <MentorDashboard navigateTo={navigateTo} />;
 };
 
