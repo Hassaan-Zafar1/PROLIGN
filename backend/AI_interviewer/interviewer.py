@@ -17,8 +17,10 @@ import os
 import io
 import csv
 import json
+import sys
 import uuid
 import re
+from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 from typing import Optional
@@ -26,7 +28,16 @@ from groq import Groq
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# One .env for the whole backend, lives at backend/.env — this file is at
+# backend/AI_interviewer/interviewer.py, so parents[1] is the backend root.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_ROOT / ".env")
+
+# datacleaning.py lives in the sibling Mentor_Mentee_Match folder — it's the
+# single source of truth for cleaning logic, shared by the interview pipeline
+# and the bulk CSV pipeline.
+sys.path.append(str(BACKEND_ROOT / "Mentor_Mentee_Match"))
+from datacleaning import clean_mentee_record
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -174,6 +185,7 @@ class InterviewSession:
     current_question: int = 0
     history: list = field(default_factory=list)   # list of Message dicts (raw answers live here)
     profile: Optional[dict] = None
+    mentee_id: Optional[str] = None   # set once the cleaned mentee record is saved to `mentees`
     is_complete: bool = False
 
 
@@ -238,14 +250,19 @@ class MongoSessionStore:
     """
 
     def __init__(self, uri: Optional[str] = None, db_name: Optional[str] = None):
-        uri = uri or os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-        db_name = db_name or os.environ.get("MONGODB_DB_NAME", "prolign")
+        uri = uri or os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+        db_name = db_name or os.environ.get("MONGO_DB_NAME", "prolign")
         self.client = MongoClient(uri)
         self.db = self.client[db_name]
         self.sessions = self.db["interview_sessions"]
         self.profiles = self.db["mentee_profiles"]
+        self.mentees = self.db["mentees"]
         self.sessions.create_index("session_id", unique=True)
         self.profiles.create_index("session_id", unique=True)
+        # sparse: bulk-imported mentees have no session_id, so this only
+        # enforces uniqueness among interview-sourced records.
+        self.mentees.create_index("session_id", unique=True, sparse=True)
+        self.mentees.create_index("mentee_id")
 
     def save(self, session: InterviewSession):
         doc = asdict(session)
@@ -266,6 +283,40 @@ class MongoSessionStore:
         doc = asdict(profile)
         doc["_id"] = profile.session_id
         self.profiles.replace_one({"_id": profile.session_id}, doc, upsert=True)
+
+    def save_mentee_record(self, profile: MenteeProfile) -> dict:
+        """
+        Build a mentee record shaped like the bulk-upload schema (mentee_id,
+        pipe-joined skill strings, etc.), run it through the same EDA cleaning
+        used for the CSV pipeline, and upsert it into the `mentees` collection —
+        keyed by session_id so re-completing a session updates rather than
+        duplicates.
+        """
+        existing = self.mentees.find_one({"session_id": profile.session_id})
+        mentee_id = existing["mentee_id"] if existing else f"MT-{uuid.uuid4().hex[:8].upper()}"
+
+        record = {
+            "mentee_id": mentee_id,
+            "full_name": profile.full_name,
+            "university": profile.university,
+            "degree": profile.degree,
+            "experience_level": profile.experience_level,
+            "domain_interest": profile.domain_interest,
+            "target_role": profile.target_role,
+            "target_company_tier": profile.target_company_tier,
+            "target_industry": profile.target_industry,
+            "bio": profile.bio,
+            "tech_skills": " | ".join(profile.tech_skills),
+            "domain_skills": " | ".join(profile.domain_skills),
+            "soft_skills": " | ".join(profile.soft_skills),
+            "source": "interview",
+            "session_id": profile.session_id,
+            "generated_at": profile.generated_at,
+        }
+        record = clean_mentee_record(record)  # adds cleaned_* fields + mentee_experience_years
+
+        self.mentees.replace_one({"session_id": profile.session_id}, record, upsert=True)
+        return record
 
     def all_profiles(self) -> list:
         return list(self.profiles.find({}, {"_id": 0}))
@@ -376,6 +427,8 @@ class InterviewOrchestrator:
             if profile:
                 session.profile = asdict(profile)
                 self.store.save_profile(profile)
+                record = self.store.save_mentee_record(profile)
+                session.mentee_id = record["mentee_id"]
 
         session.history.append(Message(role="assistant", content=raw_reply))
 

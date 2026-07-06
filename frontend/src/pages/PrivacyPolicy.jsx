@@ -1,7 +1,7 @@
 import { getPublishedSiteContent } from '../content/siteContent';
 
 const shellCard =
-  'rounded-3xl border border-outline-variant/15 bg-surface-container-lowest shadow-[0_18px_60px_-28px_rgba(76,61,25,0.25)]';
+  'rounded-3xl border border-outline-variant/15 bg-surface-container-lowest shadow-xl';
 
 export default function PrivacyPolicy({ navigateTo }) {
   const privacy = getPublishedSiteContent('privacy');
@@ -9,7 +9,7 @@ export default function PrivacyPolicy({ navigateTo }) {
   return (
     <div className="min-h-screen bg-background text-on-surface">
       <section className="relative overflow-hidden border-b border-outline-variant/15">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(91,98,57,0.16),_transparent_40%),radial-gradient(circle_at_top_right,_rgba(32,42,16,0.12),_transparent_34%),linear-gradient(180deg,_rgba(255,248,243,0.96)_0%,_rgba(245,230,211,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary/5 via-primary/5 to-surface-container-high/60" />
         <div className="absolute left-0 top-16 h-44 w-44 rounded-full bg-secondary/10 blur-3xl" />
         <div className="absolute right-8 top-24 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
 
@@ -135,8 +135,8 @@ export default function PrivacyPolicy({ navigateTo }) {
                     onClick={() => navigateTo(link.route)}
                     className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
                   >
-                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    {link.label}
+                <span className="material-symbols-outlined text-[16px]">check</span>
+              {link.label}
                   </button>
                 ))}
               </div>

@@ -25,7 +25,7 @@ const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct',
 
 const AnimatedNumber = ({ value, prefix = '', suffix = '' }) => {
   const [display, setDisplay] = useState(0);
-  useMemo(() => {
+  useEffect(() => {
     const target = Number(value) || 0;
     const duration = 600;
     const start = performance.now();

@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { getUsersByRole } from '../utils/db';
+import { getMentorLevel, getMentorLevelStyle, MENTOR_LEVEL_OPTIONS } from '../utils/mentorLevel';
 
 const EXPERTISE_OPTIONS = [
   'Software Engineering',
@@ -35,7 +36,7 @@ const RATING_OPTIONS = [
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const SORT_OPTIONS = ['Relevance', 'Highest Rating', 'Price: Low to High', 'Price: High to Low', 'Most Experienced'];
+const SORT_OPTIONS = ['Relevance', 'Highest Rating', 'Price: Low to High', 'Price: High to Low', 'Most Experienced', 'Newest Mentors', 'Oldest Mentors', 'Junior First', 'Intermediate First', 'Senior First'];
 
 const useClickOutside = (handler) => {
   const ref = useRef(null);
@@ -79,7 +80,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange, displayCount 
             return (
               <label
                 key={opt}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                className={`flex items-center gap-3 px-3 min-h-[44px] py-2.5 rounded-lg cursor-pointer transition-colors ${
                   checked ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
@@ -153,7 +154,8 @@ const MentorDiscovery = ({ navigateTo }) => {
     priceTiers: [],
     minRating: 0,
     days: [],
-    languages: []
+    languages: [],
+    mentorLevel: 'all'
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -191,7 +193,8 @@ const MentorDiscovery = ({ navigateTo }) => {
       priceTiers: [],
       minRating: 0,
       days: [],
-      languages: []
+      languages: [],
+      mentorLevel: 'all'
     });
     setSearchQuery('');
     setSortBy('Relevance');
@@ -205,6 +208,7 @@ const MentorDiscovery = ({ navigateTo }) => {
     if (filters.minRating > 0) count++;
     if (filters.days.length) count++;
     if (filters.languages.length) count++;
+    if (filters.mentorLevel !== 'all') count++;
     return count;
   }, [filters]);
 
@@ -264,6 +268,11 @@ const MentorDiscovery = ({ navigateTo }) => {
         if (!match) return false;
       }
 
+      if (filters.mentorLevel !== 'all') {
+        const { level } = getMentorLevel(m);
+        if (level !== filters.mentorLevel) return false;
+      }
+
       return true;
     });
   }, [allMentors, filters, debouncedSearchQuery]);
@@ -275,6 +284,16 @@ const MentorDiscovery = ({ navigateTo }) => {
       case 'Price: Low to High': return list.sort((a, b) => a.hourlyRate - b.hourlyRate);
       case 'Price: High to Low': return list.sort((a, b) => b.hourlyRate - a.hourlyRate);
       case 'Most Experienced': return list.sort((a, b) => (b.experience || 0) - (a.experience || 0));
+      case 'Newest Mentors': return list.sort((a, b) => new Date(b.registeredAt || b.createdAt || 0) - new Date(a.registeredAt || a.createdAt || 0));
+      case 'Oldest Mentors': return list.sort((a, b) => new Date(a.registeredAt || a.createdAt || 0) - new Date(b.registeredAt || b.createdAt || 0));
+      case 'Junior First': return list.sort((a, b) => getMentorLevel(a).exact - getMentorLevel(b).exact);
+      case 'Senior First': return list.sort((a, b) => getMentorLevel(b).exact - getMentorLevel(a).exact);
+      case 'Intermediate First': return list.sort((a, b) => {
+        const la = getMentorLevel(a).level, lb = getMentorLevel(b).level;
+        if (la === 'intermediate' && lb !== 'intermediate') return -1;
+        if (lb === 'intermediate' && la !== 'intermediate') return 1;
+        return 0;
+      });
       default: return list;
     }
   }, [filteredMentors, sortBy]);
@@ -287,7 +306,7 @@ const MentorDiscovery = ({ navigateTo }) => {
           Filters
         </h3>
         {activeFilterCount > 0 && (
-          <button onClick={resetFilters} className="text-xs text-secondary hover:underline font-semibold">Clear All</button>
+          <button onClick={resetFilters} className="text-xs text-secondary hover:underline font-semibold min-h-[44px] px-2 flex items-center">Clear All</button>
         )}
       </div>
 
@@ -382,11 +401,25 @@ const MentorDiscovery = ({ navigateTo }) => {
         />
       </div>
 
+      {/* Experience Level (Part 19) */}
+      <div>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">workspace_premium</span>
+          Experience Level
+        </h4>
+        <SingleSelectDropdown
+          label="Level"
+          options={MENTOR_LEVEL_OPTIONS.map(opt => ({ label: opt.label, value: opt.id }))}
+          value={filters.mentorLevel}
+          onChange={(value) => setFilters(prev => ({ ...prev, mentorLevel: value }))}
+        />
+      </div>
+
       <div className="h-px bg-outline-variant/20" />
 
       <button
         onClick={resetFilters}
-        className="w-full py-2.5 bg-surface-container-high text-on-surface font-semibold text-sm rounded-xl hover:bg-surface-variant transition-colors"
+        className="w-full min-h-[44px] py-2.5 bg-surface-container-high text-on-surface font-semibold text-sm rounded-xl hover:bg-surface-variant transition-colors"
       >
         Reset All Filters
       </button>
@@ -420,7 +453,7 @@ const MentorDiscovery = ({ navigateTo }) => {
                 className="w-full sm:w-72 h-11 bg-surface border border-outline-variant/30 rounded-xl pl-11 pr-10 text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary transition-all placeholder:text-on-surface-variant/50"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface">
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 text-on-surface-variant/60 hover:text-on-surface">
                   <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               )}
@@ -445,7 +478,7 @@ const MentorDiscovery = ({ navigateTo }) => {
             <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-surface shadow-2xl p-6 overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg text-primary">Filters</h3>
-                <button onClick={() => setFilterOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1">
+                <button onClick={() => setFilterOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-on-surface-variant hover:text-on-surface">
                   <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
@@ -461,7 +494,7 @@ const MentorDiscovery = ({ navigateTo }) => {
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setFilterOpen(true)}
-                className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-surface rounded-xl border border-outline-variant/30 text-sm font-semibold hover:bg-surface-container-high transition-colors"
+                className="lg:hidden flex items-center gap-2 min-h-[44px] px-4 py-2.5 bg-surface rounded-xl border border-outline-variant/30 text-sm font-semibold hover:bg-surface-container-high transition-colors"
               >
                 <span className="material-symbols-outlined text-lg">filter_list</span>
                 Filters
@@ -481,7 +514,7 @@ const MentorDiscovery = ({ navigateTo }) => {
               <select
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
-                className="bg-surface border border-outline-variant/30 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-secondary focus:border-secondary outline-none cursor-pointer"
+                className="bg-surface border border-outline-variant/30 rounded-xl px-3 min-h-[44px] py-2 text-sm font-semibold focus:ring-2 focus:ring-secondary focus:border-secondary outline-none cursor-pointer"
               >
                 {SORT_OPTIONS.map(opt => (
                   <option key={opt}>{opt}</option>
@@ -502,6 +535,16 @@ const MentorDiscovery = ({ navigateTo }) => {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-base font-bold text-primary truncate">{mentor.name}</h3>
                     <p className="text-xs text-on-surface-variant truncate">{mentor.title || mentor.industry}</p>
+                    {(() => {
+                      const ml = getMentorLevel(mentor);
+                      const mlStyle = getMentorLevelStyle(ml.level);
+                      return (
+                        <div className={`mt-1.5 mentor-level-badge mentor-level-${ml.level} ${mlStyle.wrapper}`}>
+                          {mlStyle.icon && <span className="material-symbols-outlined text-[10px]">{mlStyle.icon}</span>}
+                          {ml.label}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <span className="bg-secondary/10 text-secondary px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap">
                     {mentor.industry}
@@ -559,7 +602,7 @@ const MentorDiscovery = ({ navigateTo }) => {
               </article>
             )) : (
               <div className="col-span-full py-16 text-center flex flex-col items-center gap-4 bg-surface rounded-2xl border border-dashed border-outline-variant/30">
-                <span className="material-symbols-outlined text-5xl text-outline-variant">person_search</span>
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant/40">person_search</span>
                 <div>
                   <p className="text-lg text-on-surface-variant font-semibold mb-1">
                     {debouncedSearchQuery.trim() ? 'No mentors match your search' : 'No Mentors Found'}
@@ -570,7 +613,7 @@ const MentorDiscovery = ({ navigateTo }) => {
                       : 'Try adjusting your filters to discover more mentors.'}
                   </p>
                 </div>
-                <button onClick={resetFilters} className="mt-2 px-5 py-2.5 bg-secondary text-on-secondary font-semibold text-sm rounded-xl hover:brightness-110 transition-all">
+                <button onClick={resetFilters} className="mt-2 min-h-[44px] px-5 py-2.5 bg-secondary text-on-secondary font-semibold text-sm rounded-xl hover:brightness-110 transition-all">
                   Reset Filters
                 </button>
               </div>

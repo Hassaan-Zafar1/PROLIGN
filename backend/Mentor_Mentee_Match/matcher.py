@@ -1,8 +1,12 @@
+import os
 import re
+from pathlib import Path
 from collections import Counter
 
 import numpy as np
 import pandas as pd
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
 try:
     from sentence_transformers import SentenceTransformer, util
@@ -11,6 +15,11 @@ except Exception:
     util = None
 
 from datacleaning import clean_text, encode_experience_level
+
+# One .env for the whole backend, lives at backend/.env — this file is at
+# backend/Mentor_Mentee_Match/matcher.py, so parents[1] is the backend root.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_ROOT / ".env")
 
 
 ROLE_MAP = {
@@ -91,23 +100,59 @@ def parse_skills(skill_str):
 class MentorMatcher:
     def __init__(
         self,
-        mentor_path="mentor_dataset_cleaned.csv",
-        mentee_path="mentees_dataset_cleaned.csv",
+        mongo_uri=None,
+        mongo_db=None,
+        mentor_collection="mentors",
+        mentee_collection="mentees",
         model_name="all-MiniLM-L6-v2",
     ):
-        self.mentor_df = pd.read_csv(mentor_path)
-        self.mentee_df = pd.read_csv(mentee_path)
+        self._uri = mongo_uri or os.environ.get("MONGO_URI") or "mongodb://localhost:27017"
+        self._db_name = mongo_db or os.environ.get("MONGO_DB_NAME") or "prolign"
+        self._mentor_collection = mentor_collection
+        self._mentee_collection = mentee_collection
         self.model_name = model_name
 
-        print(f"Loaded mentor columns: {list(self.mentor_df.columns)}")
-        print(f"Loaded mentee columns: {list(self.mentee_df.columns)}")
+        client = MongoClient(self._uri)
+        db = client[self._db_name]
+        self.mentor_df = pd.DataFrame(list(db[mentor_collection].find({}, {"_id": 0})))
+        self.mentee_df = pd.DataFrame(list(db[mentee_collection].find({}, {"_id": 0})))
+        client.close()
 
-        self._recover_matching_fields()
-        self._prepare_numeric_fields()
+        if self.mentor_df.empty:
+            raise ValueError(f"No documents found in '{self._db_name}.{mentor_collection}'")
+        if self.mentee_df.empty:
+            raise ValueError(f"No documents found in '{self._db_name}.{mentee_collection}'")
+
+        print(f"Loaded {len(self.mentor_df)} mentors from '{self._db_name}.{mentor_collection}'")
+        print(f"Loaded {len(self.mentee_df)} mentees from '{self._db_name}.{mentee_collection}'")
+        print(f"Mentor columns: {list(self.mentor_df.columns)}")
+        print(f"Mentee columns: {list(self.mentee_df.columns)}")
+
+        self._recover_mentor_fields()
+        self._recover_mentee_fields()
+        self._prepare_mentor_numeric_fields()
+        self._prepare_mentee_numeric_fields()
         self._load_similarity_model()
         self._precompute_mentor_embeddings()
 
-    def _recover_matching_fields(self):
+    def refresh_mentees(self):
+        """
+        Reload just the mentee collection from MongoDB. Call this before matching
+        if mentees may have been added since this MentorMatcher was created (e.g.
+        a long-lived API process where interviews complete after startup).
+        Cheap — does not touch the mentor embeddings or reload the ML model.
+        """
+        client = MongoClient(self._uri)
+        self.mentee_df = pd.DataFrame(
+            list(client[self._db_name][self._mentee_collection].find({}, {"_id": 0}))
+        )
+        client.close()
+        if self.mentee_df.empty:
+            raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}'")
+        self._recover_mentee_fields()
+        self._prepare_mentee_numeric_fields()
+
+    def _recover_mentor_fields(self):
         self.mentor_df["match_current_role"] = self.mentor_df.apply(
             lambda row: recover_missing_value(row, "current_role", "bio", ROLE_MAP), axis=1
         )
@@ -118,6 +163,7 @@ class MentorMatcher:
             lambda row: recover_missing_value(row, "domain_tag", "bio", DOMAIN_MAP), axis=1
         )
 
+    def _recover_mentee_fields(self):
         self.mentee_df["match_target_role"] = self.mentee_df.apply(
             lambda row: recover_missing_value(row, "target_role", "bio", ROLE_MAP), axis=1
         )
@@ -131,7 +177,7 @@ class MentorMatcher:
         if "target_company_tier" not in self.mentee_df.columns:
             self.mentee_df["target_company_tier"] = ""
 
-    def _prepare_numeric_fields(self):
+    def _prepare_mentor_numeric_fields(self):
         self.mentor_df["experience_years"] = pd.to_numeric(
             self.mentor_df.get("experience_years", 0), errors="coerce"
         ).fillna(0)
@@ -139,7 +185,10 @@ class MentorMatcher:
         self.mentor_df["total_sessions"] = pd.to_numeric(
             self.mentor_df.get("total_sessions", 0), errors="coerce"
         ).fillna(0)
+        self.mentor_df["rating_norm"] = min_max_normalize(self.mentor_df["avg_rating"])
+        self.mentor_df["sessions_norm"] = min_max_normalize(self.mentor_df["total_sessions"])
 
+    def _prepare_mentee_numeric_fields(self):
         if "mentee_experience_years" not in self.mentee_df.columns:
             self.mentee_df["mentee_experience_years"] = self.mentee_df.get("experience_level", "").apply(
                 encode_experience_level
@@ -147,9 +196,6 @@ class MentorMatcher:
         self.mentee_df["mentee_experience_years"] = pd.to_numeric(
             self.mentee_df["mentee_experience_years"], errors="coerce"
         ).fillna(0)
-
-        self.mentor_df["rating_norm"] = min_max_normalize(self.mentor_df["avg_rating"])
-        self.mentor_df["sessions_norm"] = min_max_normalize(self.mentor_df["total_sessions"])
 
     def _load_similarity_model(self):
         if SentenceTransformer is None:

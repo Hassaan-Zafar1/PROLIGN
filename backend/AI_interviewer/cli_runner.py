@@ -11,8 +11,11 @@ from dotenv import load_dotenv
 import argparse
 import os
 import sys
+from pathlib import Path
 from interviewer import InterviewOrchestrator, InterviewSession, get_progress
-load_dotenv()
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_ROOT / ".env")
 
 RESET  = "\033[0m"
 BOLD   = "\033[1m"

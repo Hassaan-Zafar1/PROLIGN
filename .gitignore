@@ -1,0 +1,8 @@
+
+# Environment files
+.env
+backend/.env
+**/.env
+
+# Large archives
+*.zip

@@ -14,6 +14,8 @@ const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:
  *  - Every raw answer (typed or transcribed) is stored server-side in MongoDB via
  *    /sessions/{id}/messages; on completion the flat mentee profile is fetched from
  *    /sessions/{id}/profile
+ *  - After completion, ranked mentor matches + skill-gap recommendations are
+ *    fetched from /sessions/{id}/matches and shown to the mentee
  */
 const VoiceInterviewer = ({ onComplete }) => {
   const [session, setSession] = useState(null);
@@ -28,6 +30,9 @@ const VoiceInterviewer = ({ onComplete }) => {
   const [muted, setMuted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [matches, setMatches] = useState(null);       // { mentee, top_mentors, skill_recommendations }
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchError, setMatchError] = useState('');
   const [error, setError] = useState('');
 
   const mediaRecorderRef = useRef(null);
@@ -71,6 +76,28 @@ const VoiceInterviewer = ({ onComplete }) => {
     }
   };
 
+  // ── Mentor matching (runs after the interview completes) ─────────────────
+
+  const fetchMatches = async (sessionId) => {
+    setIsMatching(true);
+    setMatchError('');
+    try {
+      const res = await fetch(`${API_BASE}/sessions/${sessionId}/matches?top_k=5`);
+      if (!res.ok) {
+        const detail = (await res.json().catch(() => null))?.detail;
+        throw new Error(detail || 'Matching failed');
+      }
+      const data = await res.json();
+      setMatches(data);
+      return data;
+    } catch (e) {
+      setMatchError('Your profile was saved, but mentor matching hit a snag. You can retry.');
+      return null;
+    } finally {
+      setIsMatching(false);
+    }
+  };
+
   const submitAnswer = async (text, mode) => {
     if (!text.trim() || !session || isSending) return;
     setIsSending(true);
@@ -92,12 +119,16 @@ const VoiceInterviewer = ({ onComplete }) => {
 
       if (data.is_complete) {
         setIsComplete(true);
+        let profData = null;
         const profRes = await fetch(`${API_BASE}/sessions/${session}/profile`);
         if (profRes.ok) {
-          const profData = await profRes.json();
+          profData = await profRes.json();
           setProfile(profData);
-          onComplete?.(profData);
         }
+        // Profile is now cleaned + stored in the `mentees` collection server-side;
+        // immediately run mentor matching on the cleaned record.
+        const matchData = await fetchMatches(session);
+        onComplete?.(profData, matchData);
       }
     } catch (e) {
       setError('Something went wrong sending your answer. Please try again.');
@@ -165,6 +196,8 @@ const VoiceInterviewer = ({ onComplete }) => {
 
   const percent = progress.percent || 0;
 
+  const formatScore = (v) => `${Math.round((Number(v) || 0) * 100)}%`;
+
   return (
     <div className="h-screen overflow-hidden bg-background flex flex-col max-w-2xl mx-auto">
       {/* Header */}
@@ -221,6 +254,102 @@ const VoiceInterviewer = ({ onComplete }) => {
             </div>
           </div>
         )}
+
+        {/* Mentor matches (shown inline in the transcript area after completion) */}
+        {isComplete && (
+          <div className="pt-2 space-y-3">
+            {isMatching && (
+              <div className="text-center py-4">
+                <span className="material-symbols-outlined text-2xl text-primary animate-spin">progress_activity</span>
+                <p className="text-xs text-on-surface-variant mt-1.5">
+                  Analyzing your profile and finding your best mentor matches…
+                </p>
+              </div>
+            )}
+
+            {matchError && (
+              <div className="px-3 py-2 rounded-lg bg-error/10 text-error text-xs flex items-center justify-between gap-2">
+                <span>{matchError}</span>
+                <button
+                  onClick={() => fetchMatches(session)}
+                  className="shrink-0 px-2.5 py-1 rounded-full bg-error text-on-error text-[10px] font-bold"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {matches?.top_mentors?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-on-surface uppercase tracking-wide">
+                  Your Top Mentor Matches
+                </p>
+                {matches.top_mentors.map((mentor) => (
+                  <div
+                    key={mentor.mentor_id || mentor.rank}
+                    className="bg-surface-container-high rounded-2xl px-3.5 py-3 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center shrink-0">
+                          {mentor.rank}
+                        </span>
+                        <p className="text-sm font-bold text-on-surface truncate">{mentor.full_name}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-primary bg-primary-container/60 px-2 py-0.5 rounded-full shrink-0">
+                        {formatScore(mentor.final_score)} match
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant truncate">
+                      {mentor.current_role}{mentor.industry ? ` · ${mentor.industry}` : ''}
+                      {mentor.experience_years ? ` · ${mentor.experience_years} yrs` : ''}
+                    </p>
+                    <div className="flex items-center gap-3 text-[10px] text-on-surface-variant/80">
+                      {mentor.avg_rating ? (
+                        <span className="inline-flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-xs text-primary fill-icon">star</span>
+                          {Number(mentor.avg_rating).toFixed(1)}
+                        </span>
+                      ) : null}
+                      {mentor.total_sessions ? <span>{mentor.total_sessions} sessions</span> : null}
+                      {mentor.domain_tag ? <span className="uppercase tracking-wide">{mentor.domain_tag}</span> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {matches?.skill_recommendations && (
+              (() => {
+                const recs = [
+                  ...(matches.skill_recommendations.tech_skills || []).slice(0, 3),
+                  ...(matches.skill_recommendations.domain_skills || []).slice(0, 2),
+                  ...(matches.skill_recommendations.soft_skills || []).slice(0, 2),
+                ];
+                if (!recs.length) return null;
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-on-surface uppercase tracking-wide">
+                      Skills to Grow Into
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recs.map((r, i) => (
+                        <span
+                          key={`${r.skill}-${i}`}
+                          className="px-2.5 py-1 rounded-full bg-secondary-container/60 text-on-secondary-container text-[11px] font-medium capitalize"
+                          title={`Found in ${r.count}/${r.out_of} of your matched mentors`}
+                        >
+                          {r.skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        )}
+
         <div ref={transcriptEndRef} />
       </div>
 
@@ -235,6 +364,9 @@ const VoiceInterviewer = ({ onComplete }) => {
           <p className="text-sm font-bold text-on-surface">Interview complete!</p>
           <p className="text-xs text-on-surface-variant">
             {profile ? `Profile saved for ${profile.full_name || 'you'}.` : 'Saving your profile…'}
+            {matches?.top_mentors?.length
+              ? ` We found ${matches.top_mentors.length} mentors for you — see above.`
+              : ''}
           </p>
         </div>
       ) : (

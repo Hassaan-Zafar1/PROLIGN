@@ -2,10 +2,12 @@
 
 from dataclasses import dataclass
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_ROOT / ".env")
 
 
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -56,13 +58,13 @@ class Settings:
 
 settings = Settings(
     groq_api_key=_required("GROQ_API_KEY"),
-    mongodb_uri=_required("MONGODB_URI"),
-    mongodb_db_name=os.getenv("MONGODB_DB_NAME", "prolign"),
-    slack_webhook_url=_required("SLACK_WEBHOOK_URL"),
-    slack_complaint_webhook_url=_required("SLACK_COMPLAINT_WEBHOOK_URL"),
+    mongodb_uri=os.getenv("MONGO_URI") or os.getenv("MONGODB_URI") or _required("MONGO_URI"),
+    mongodb_db_name=os.getenv("MONGO_DB_NAME") or os.getenv("MONGODB_DB_NAME") or "prolign",
+    slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL", ""),
+    slack_complaint_webhook_url=os.getenv("SLACK_COMPLAINT_WEBHOOK_URL", ""),
     groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     faq_match_threshold=_float_env("FAQ_MATCH_THRESHOLD", 0.4),
     faq_match_count=_int_env("FAQ_MATCH_COUNT", 3),
     memory_limit=_int_env("MEMORY_LIMIT", 6),
-    frontend_origin=os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
+    frontend_origin=os.getenv("FRONTEND_URL") or os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
 )

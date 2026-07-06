@@ -16,6 +16,9 @@ import {
 } from '../utils/db';
 import { tokenManager } from '../utils/tokenManager';
 import ProfileSettings from '../components/ProfileSettings';
+import { EmptyState } from '../components/common';
+import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { useAuth } from '../context/AuthContext';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -60,12 +63,14 @@ const useTheme = () => {
 
 const MentorDashboard = ({ navigateTo }) => {
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
   
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionTab, setSessionTab] = useState('pending');
+  const [loading, setLoading] = useState(true);
   const [metricMode, setMetricMode] = useState('year');
   const [metricYear, setMetricYear] = useState(String(new Date().getFullYear()));
   const [metricMonth, setMetricMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -94,18 +99,24 @@ const MentorDashboard = ({ navigateTo }) => {
   const [proposedDate, setProposedDate] = useState('');
   const [proposedTime, setProposedTime] = useState('');
 
+
+
   const addNotification = (userId, message, type = 'info') => {
-    const db = getDB();
-    const newNotification = {
-      id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-      userId,
-      message,
-      type,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    db.notifications = [...(db.notifications || []), newNotification];
-    saveDB(db);
+    try {
+      const db = getDB();
+      const newNotification = {
+        id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        userId,
+        message,
+        type,
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+      db.notifications = [...(db.notifications || []), newNotification];
+      saveDB(db);
+    } catch (err) {
+      console.error('Failed to add notification:', err);
+    }
   };
 
   const handleCancelSession = (session) => {
@@ -133,15 +144,22 @@ const MentorDashboard = ({ navigateTo }) => {
   };
 
   const refreshData = () => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    
-    const dbSessions = getSessions()
-      .filter(s => s.mentorId === currentUser?.id)
-      .map((session) => ({ ...session, mentee: getUserById(session.menteeId) }));
-    setSessions(dbSessions);
-    setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser?.id));
-    setReviews(currentUser ? getReviewsForMentor(currentUser.id) : []);
+    setLoading(true);
+    try {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
+      
+      const dbSessions = getSessions()
+        .filter(s => s.mentorId === currentUser?.id)
+        .map((session) => ({ ...session, mentee: getUserById(session.menteeId) }));
+      setSessions(dbSessions);
+      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser?.id));
+      setReviews(currentUser ? getReviewsForMentor(currentUser.id) : []);
+    } catch (err) {
+      console.error('Failed to refresh dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -155,8 +173,7 @@ const MentorDashboard = ({ navigateTo }) => {
   }, [availabilityDate, user]);
 
   const handleLogout = () => {
-    dbLogout();
-    tokenManager.clearTokens();
+    logout();
     navigateTo('home');
   };
 
@@ -178,10 +195,16 @@ const MentorDashboard = ({ navigateTo }) => {
 
   const saveAvailability = () => {
     if (!user) return;
-    updateMentorAvailability(user.id, availabilityDate, availabilityTimes);
-    setAvailabilityStatus('Availability saved.');
-    refreshData();
-    setTimeout(() => setAvailabilityStatus(''), 2500);
+    try {
+      updateMentorAvailability(user.id, availabilityDate, availabilityTimes);
+      setAvailabilityStatus('Availability saved.');
+      refreshData();
+      setTimeout(() => setAvailabilityStatus(''), 2500);
+    } catch (err) {
+      console.error('Failed to save availability:', err);
+      setAvailabilityStatus('Failed to save. Please try again.');
+      setTimeout(() => setAvailabilityStatus(''), 5000);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -228,7 +251,7 @@ const MentorDashboard = ({ navigateTo }) => {
   // Real data calculations
   const upcomingSessions = sessions.filter(s => ['Confirmed', 'Pending', 'scheduled'].includes(s.status));
   const completedSessions = sessions.filter(s => s.status === 'Completed');
-  const hourlyRate = user?.hourlyRate || 150;
+  const hourlyRate = user?.hourlyRate || 0;
   
   const paidSessions = sessions.filter((session) => ['Confirmed', 'Completed'].includes(session.status));
   const totalGrossEarnings = paidSessions.reduce((sum, session) => sum + Number(session.amount || hourlyRate), 0);
@@ -314,7 +337,7 @@ const MentorDashboard = ({ navigateTo }) => {
           <input type="date" value={metricWeek} onChange={(event) => setMetricWeek(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" />
         )}
         {(metricMode === 'year' || metricMode === 'month') && (
-          <input type="number" min="2001" value={metricYear} onChange={(event) => setMetricYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" />
+          <input type="text" inputMode="numeric" min="2001" value={metricYear} onChange={(event) => setMetricYear(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3" placeholder="Year above 2000" autoComplete="off" />
         )}
         {metricMode === 'month' && (
           <select value={metricMonth} onChange={(event) => setMetricMonth(event.target.value)} className="rounded-lg border border-outline-variant/30 bg-surface p-3">
@@ -361,13 +384,13 @@ const MentorDashboard = ({ navigateTo }) => {
   ];
 
   const renderSidebar = () => (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-primary-fixed-dim shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
+    <aside className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
       <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
           ProLign
         </h1>
-        <p className="font-label-sm text-sm font-semibold opacity-70 mt-1">Mentor Portal</p>
+        <p className="font-label-sm text-sm font-semibold text-on-primary/80 mt-1">Mentor Portal</p>
       </div>
       
       <nav className="flex-1 space-y-2 overflow-y-auto px-2">
@@ -377,8 +400,8 @@ const MentorDashboard = ({ navigateTo }) => {
             onClick={() => setActiveView(item.id)}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
-                ? 'bg-secondary-container text-on-secondary-container scale-95' 
-                : 'text-primary-fixed-dim hover:text-on-primary hover:bg-primary-fixed-variant/20'
+                ? 'brand-olive-menu-active scale-95' 
+                : 'hover:text-on-primary hover:bg-primary-fixed-variant/20'
             }`}
           >
             <span className="material-symbols-outlined mr-3">{item.icon}</span>
@@ -389,11 +412,11 @@ const MentorDashboard = ({ navigateTo }) => {
       
       <div className="mx-2 mt-auto border-t border-on-primary/10 pt-4">
         <div className="space-y-1">
-          <button onClick={toggleTheme} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-primary-fixed-variant/20 hover:text-on-primary">
+          <button onClick={toggleTheme} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-on-primary transition-colors hover:bg-primary-fixed-variant/20">
             <span className="material-symbols-outlined mr-3">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
             {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
           </button>
-          <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-primary-fixed-dim transition-colors hover:bg-error/10 hover:text-error">
+          <button onClick={handleLogout} className="flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold text-on-primary transition-colors hover:bg-error/10 hover:text-error">
             <span className="material-symbols-outlined mr-3">logout</span>
             Logout
           </button>
@@ -402,34 +425,54 @@ const MentorDashboard = ({ navigateTo }) => {
     </aside>
   );
 
-  const renderDashboard = () => (
-    <>
-      <section className="relative overflow-hidden rounded-3xl bg-primary p-10 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm mb-8">
-        <div className="relative z-10 space-y-4 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 bg-on-primary/10 px-4 py-1.5 rounded-full border border-on-primary/10">
-            <span className="material-symbols-outlined text-[16px] text-primary-fixed">school</span>
-            <span className="font-label-sm text-sm font-semibold text-primary-fixed">Mentor Level: Expert</span>
-          </div>
-          <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
-          <p className="text-on-primary/80 max-w-md">
+  const renderDashboard = () => {
+    const ml = getMentorLevel(user);
+    const mlStyle = getMentorLevelStyle(ml.level);
+    return (
+      <>
+        <section className="brand-olive-surface relative overflow-hidden rounded-3xl p-10 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm mb-8">
+          <div className="relative z-10 space-y-4 text-center md:text-left">
+            {ml.level && (
+              <div className="brand-chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full border">
+                {mlStyle.icon && <span className="material-symbols-outlined text-[16px]">{mlStyle.icon}</span>}
+                <span className="font-label-sm text-sm font-semibold">Mentor Level: {ml.label}</span>
+              </div>
+            )}
+            <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
+            <p className="brand-muted-text max-w-md">
             You have {upcomingSessions.length} upcoming sessions. Your recent mentees have rated you {user?.rating?.toFixed(1) || '5.0'} stars!
           </p>
         </div>
-        <div className="hidden lg:block relative z-10">
-          <div className="w-48 h-48 bg-on-primary/5 rounded-full flex items-center justify-center p-4">
-            <div className="w-full h-full bg-on-primary/10 rounded-full flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary-fixed text-6xl fill-icon">dashboard</span>
+          {/* Profile image with rings — matches Mentee Dashboard style */}
+          <div className="relative z-10 hidden lg:flex h-48 w-48 items-center justify-center">
+            {/* Concentric decorative rings */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-on-primary/15 to-on-primary/5 animate-pulse-soft" />
+            <div className="absolute inset-4 rounded-full bg-gradient-to-br from-on-primary/20 to-on-primary/8 backdrop-blur-sm" />
+            <div className="absolute inset-8 rounded-full bg-on-primary/10 backdrop-blur-sm border border-on-primary/15" />
+            {/* Profile photo */}
+            <div className="relative flex items-center justify-center">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-[3px] ring-on-primary/30 shadow-xl">
+                <img
+                  src={user?.avatar || user?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentor')}&background=4a5a2a&color=fff&size=200`}
+                  alt={`${user?.name || 'Mentor'}'s profile photo`}
+                  className="w-full h-full object-cover opacity-0 transition-opacity duration-500"
+                  onLoad={(e) => e.target.classList.remove('opacity-0')}
+                  onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Mentor')}&background=4a5a2a&color=fff&size=200`; e.target.onError = null; }}
+                  loading="lazy"
+                />
+              </div>
             </div>
+            {/* Floating accent icons */}
+            <span className="absolute -top-2 -right-2 material-symbols-outlined text-lg text-on-primary/70 animate-float" style={{ animationDelay: '0.5s' }}>trending_up</span>
+            <span className="absolute -bottom-1 -left-1 material-symbols-outlined text-lg text-on-primary/70 animate-float" style={{ animationDelay: '1s' }}>star</span>
+            <span className="absolute top-1/2 -right-6 material-symbols-outlined text-sm text-on-primary/50 animate-float" style={{ animationDelay: '1.5s' }}>school</span>
           </div>
-        </div>
       </section>
 
       <section className="space-y-4">
         <h3 className="font-headline-md text-2xl font-bold text-primary">Your Next Sessions</h3>
         {upcomingSessions.length === 0 ? (
-          <div className="bg-surface-container-low p-8 text-center rounded-2xl border border-outline-variant/10 text-on-surface-variant">
-            No upcoming sessions scheduled.
-          </div>
+          <EmptyState icon="calendar_month" title="No upcoming sessions" description="When mentees book sessions, they will appear here." />
         ) : (
           <div className="bg-surface-container-low rounded-2xl overflow-x-auto border border-outline-variant/10 natural-shadow">
             <table className="w-full text-left min-w-[600px]">
@@ -484,7 +527,8 @@ const MentorDashboard = ({ navigateTo }) => {
         )}
       </section>
     </>
-  );
+    );
+  };
 
   const renderEarnings = () => {
     const monthlyEarnings = (() => {
@@ -679,7 +723,28 @@ const MentorDashboard = ({ navigateTo }) => {
 
   const renderSettings = () => <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} initialTab={settingsTab} />;
 
+  const renderSkeleton = () => (
+    <>
+      <section className="relative overflow-hidden rounded-3xl bg-primary/30 p-10 mb-8 animate-pulse">
+        <div className="space-y-4">
+          <div className="h-6 w-40 bg-on-surface/10 rounded-full" />
+          <div className="h-10 w-72 bg-on-surface/10 rounded-lg" />
+          <div className="h-4 w-96 bg-on-surface/10 rounded" />
+        </div>
+      </section>
+      <section className="space-y-4">
+        <div className="h-8 w-48 bg-on-surface/10 rounded-lg animate-pulse" />
+        <div className="bg-surface-container-low rounded-2xl overflow-hidden border border-outline-variant/10 p-6 space-y-4">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="h-14 bg-on-surface/5 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </section>
+    </>
+  );
+
   const renderContent = () => {
+    if (loading) return renderSkeleton();
     switch (activeView) {
       case 'dashboard': return renderDashboard();
       case 'earnings': return renderEarnings();
@@ -708,7 +773,7 @@ const MentorDashboard = ({ navigateTo }) => {
         const renderNextSessionCard = () => {
           if (!nextSession) return (
             <div className="rounded-2xl border border-dashed border-outline-variant/30 bg-surface-container-lowest p-8 text-center">
-              <span className="material-symbols-outlined text-5xl text-outline-variant mb-3">calendar_month</span>
+              <span className="material-symbols-outlined text-5xl text-on-surface-variant/40 mb-3">calendar_month</span>
               <h3 className="text-lg font-bold text-on-surface mb-1">No upcoming sessions</h3>
               <p className="text-sm text-on-surface-variant mb-4">Update your availability so mentees can start booking.</p>
               <button onClick={() => { setSettingsTab('career'); setActiveView('settings'); }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm hover:shadow-md transition-all">
@@ -772,8 +837,8 @@ const MentorDashboard = ({ navigateTo }) => {
             ].map((kpi) => (
               <div key={kpi.label} className="group rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-4 transition-all duration-200 hover:shadow-lg hover:scale-[1.02]">
                 <div className="flex items-start justify-between mb-3">
-                  <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-${kpi.accent}/10`}>
-                    <span className={`material-symbols-outlined text-[18px] text-${kpi.accent}`}>{kpi.icon}</span>
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${kpi.accent === 'primary' ? 'bg-primary/10' : kpi.accent === 'secondary' ? 'bg-secondary/10' : 'bg-tertiary/10'}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${kpi.accent === 'primary' ? 'text-primary' : kpi.accent === 'secondary' ? 'text-secondary' : 'text-tertiary'}`}>{kpi.icon}</span>
                   </span>
                 </div>
                 <p className="text-xl font-bold text-on-surface">{kpi.value}</p>
@@ -884,7 +949,7 @@ const MentorDashboard = ({ navigateTo }) => {
               </div>
               {visibleSessions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                  <span className="material-symbols-outlined text-5xl text-outline-variant mb-4">event_upcoming</span>
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant/40 mb-4">event_upcoming</span>
                   <h3 className="text-lg font-bold text-on-surface mb-1">No sessions scheduled yet</h3>
                   <p className="text-sm text-on-surface-variant mb-6 max-w-sm">Update your availability so mentees can start booking sessions.</p>
                   <button onClick={() => { setSettingsTab('career'); setActiveView('settings'); }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm hover:shadow-md transition-all">
@@ -984,8 +1049,8 @@ const MentorDashboard = ({ navigateTo }) => {
                     { label: 'Cancelled', count: groups.cancelled.length, color: 'bg-error', icon: 'cancel_schedule_send' },
                   ].map((stat) => (
                     <div key={stat.label} className="flex items-center gap-3 rounded-xl bg-surface-container-low p-4">
-                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.color}/10`}>
-                        <span className={`material-symbols-outlined text-[20px] ${stat.color.replace('bg-', 'text-')}`}>{stat.icon}</span>
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.label === 'Pending' ? 'bg-tertiary/10' : stat.label === 'Scheduled' ? 'bg-primary/10' : stat.label === 'Completed' ? 'bg-secondary/10' : 'bg-error/10'}`}>
+                        <span className={`material-symbols-outlined text-[20px] ${stat.label === 'Pending' ? 'text-tertiary' : stat.label === 'Scheduled' ? 'text-primary' : stat.label === 'Completed' ? 'text-secondary' : 'text-error'}`}>{stat.icon}</span>
                       </span>
                       <div>
                         <p className="text-xl font-bold text-on-surface">{stat.count}</p>
@@ -1050,6 +1115,19 @@ const MentorDashboard = ({ navigateTo }) => {
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="text-center max-w-md p-8">
+          <span className="material-symbols-outlined text-6xl text-on-surface-variant/40 mb-4">account_circle</span>
+          <h2 className="text-2xl font-bold text-on-surface mb-2">Session Expired</h2>
+          <p className="text-on-surface-variant mb-6">Please log in to access your mentor dashboard.</p>
+          <button onClick={() => navigateTo('home')} className="rounded-lg bg-primary px-6 py-3 font-bold text-on-primary shadow-sm hover:shadow-md transition-all">Go to Login</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-surface font-body-md">
       {renderSidebar()}
@@ -1108,8 +1186,8 @@ const MentorDashboard = ({ navigateTo }) => {
 
             <div onClick={() => setActiveView('settings')} className="flex items-center gap-3 bg-surface-container px-4 py-2 rounded-full natural-shadow cursor-pointer hover:bg-surface-container-high transition-colors">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-variant border border-outline-variant/30">
-                {user?.avatar ? (
-                  <img className="w-full h-full object-cover" src={user.avatar} alt={user?.name} />
+                {user?.avatar || user?.profilePic ? (
+                  <img className="w-full h-full object-cover" src={user.avatar || user.profilePic} alt={user?.name} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-xs font-bold text-on-surface-variant">
                     {(user?.name || 'M').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
@@ -1127,14 +1205,14 @@ const MentorDashboard = ({ navigateTo }) => {
         {renderContent()}
         </div>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant/10 bg-background/95 px-2 py-2 backdrop-blur-md lg:hidden">
+      <nav className="brand-olive-surface fixed inset-x-0 bottom-0 z-40 border-t border-on-primary/10 px-2 py-2 backdrop-blur-md lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => { setActiveView(item.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={`flex flex-col items-center rounded-xl px-1 py-2 text-[11px] font-semibold ${
-                activeView === item.id ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+                activeView === item.id ? 'brand-olive-menu-active' : 'text-on-primary/75'
               }`}
             >
               <span className={`material-symbols-outlined text-[22px] ${activeView === item.id ? 'fill-icon' : ''}`}>{item.icon}</span>
@@ -1205,3 +1283,4 @@ const MentorDashboard = ({ navigateTo }) => {
 };
 
 export default MentorDashboard;
+export { MentorDashboard };

@@ -100,6 +100,32 @@ def add_cleaned_columns(df, columns):
     return created
 
 
+def clean_mentee_record(record: dict) -> dict:
+    """
+    Apply the same EDA/cleaning logic used for the bulk CSV pipeline to a single
+    mentee dict (used for real-time cleaning right after an interview completes).
+
+    Adds cleaned_<column> for each MENTEE_TEXT_COLUMNS field present, plus
+    mentee_experience_years derived from experience_level. Does not mutate
+    the input dict.
+    """
+    cleaned = dict(record)
+    for column in MENTEE_TEXT_COLUMNS:
+        if column in cleaned:
+            cleaned[f"cleaned_{column}"] = clean_text(cleaned.get(column, ""))
+    cleaned["mentee_experience_years"] = encode_experience_level(cleaned.get("experience_level", ""))
+    return cleaned
+
+
+def clean_mentor_record(record: dict) -> dict:
+    """Same as clean_mentee_record but for a single mentor dict."""
+    cleaned = dict(record)
+    for column in MENTOR_TEXT_COLUMNS:
+        if column in cleaned:
+            cleaned[f"cleaned_{column}"] = clean_text(cleaned.get(column, ""))
+    return cleaned
+
+
 def main():
     mentor_df = pd.read_csv(MENTOR_INPUT)
     mentee_df = pd.read_csv(MENTEE_INPUT)
