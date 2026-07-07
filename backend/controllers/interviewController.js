@@ -1,14 +1,19 @@
 import User from "../models/User.js";
+import MenteeProfile from "../models/MenteeProfile.js";
 import AiAssessment from "../models/AiAssessment.js";
 import { logAudit } from "../services/auditLogService.js";
 
 /**
  * Mentee onboarding interview (Task 7).
  *
- * A text-based interview FRAMEWORK — deliberately NO LLM yet. The questions come
- * from the client's static interview config; we store the raw Q&A as an
- * AiAssessment conversation and map the well-known answers onto the mentee's
- * profile. `generatedProfile` is left empty for the future AI model to fill.
+ * A text-based interview FRAMEWORK — deliberately NO LLM yet. The 10-question
+ * assessment answers are stored two ways:
+ *   1. Verbatim Q&A on the AiAssessment conversation log.
+ *   2. Mapped onto the mentee's MenteeProfile (raw fields) — this is what the
+ *      offline Python EDA job reads to populate the `cleaned.*` fields for the
+ *      matching model.
+ * A few dashboard-facing fields are also mirrored to the User doc so the
+ * existing mentee dashboard keeps working.
  */
 
 const toArray = (val) =>
@@ -18,6 +23,8 @@ const toArray = (val) =>
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+const uniq = (arr) => [...new Set(arr)];
+const str = (v) => (Array.isArray(v) ? v.join(", ") : String(v ?? "")).trim();
 
 // ─── POST /interview ──────────────────────────────────────────────────────────
 export async function submitInterview(req, res, next) {
@@ -52,25 +59,45 @@ export async function submitInterview(req, res, next) {
       { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
     );
 
-    // Map known question ids onto the mentee's profile — these are exactly the
-    // fields the mentor recommendation seam (recommendationService) reads, so
-    // every interview answer here is doing real matching work, not just being
-    // archived in the conversation log above.
     const byId = Object.fromEntries(answers.map((a) => [a.id, a.answer]));
-    const updates = { isProfileComplete: true, onboardingStep: "complete" };
-    if (byId.career_goal) {
-      updates.careerGoals = Array.isArray(byId.career_goal) ? byId.career_goal.join(", ") : String(byId.career_goal);
-    }
-    if (byId.current_skills) updates.skills = toArray(byId.current_skills);
-    if (byId.skills_to_learn) updates.skillsToLearn = toArray(byId.skills_to_learn);
-    if (byId.focus_areas) {
-      updates.preferredCategories = toArray(byId.focus_areas);
-      updates.learningInterests = toArray(byId.focus_areas);
-    }
 
+    // Languages + frameworks/tools together form the mentee's technical skill set.
+    const techSkills = uniq([...toArray(byId.languages), ...toArray(byId.frameworks_tools)]);
+
+    // ── 1) Persist the raw interview answers on MenteeProfile ────────────────────
+    // (the Python EDA job reads these and writes the cleaned.* fields).
+    const mp = await MenteeProfile.findOneAndUpdate(
+      { userId: req.user._id },
+      {
+        $set: {
+          university: str(byId.university) || null,
+          degree: str(byId.degree) || null,
+          bio: str(byId.for_mentors).slice(0, 300) || null,
+          softSkills: toArray(byId.soft_skills),
+          "skillProfile.skills": techSkills,
+          "onboardingAnswers.targetRole": str(byId.target) || null,
+          "onboardingAnswers.notableProject": str(byId.notable_project) || null,
+          "onboardingAnswers.problemSolving": str(byId.problem_solving) || null,
+          "onboardingAnswers.experience": str(byId.experience) || null,
+        },
+        $setOnInsert: { userId: req.user._id },
+      },
+      { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
+    );
+
+    // ── 2) Mirror dashboard-facing fields onto User + link the profile ───────────
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { $set: updates },
+      {
+        $set: {
+          isProfileComplete: true,
+          onboardingStep: "complete",
+          menteeProfile: mp._id,
+          skills: techSkills,
+          careerGoals: str(byId.target) || null,
+          education: [str(byId.degree), str(byId.university)].filter(Boolean).join(" — ") || null,
+        },
+      },
       { returnDocument: "after", runValidators: true }
     ).select("-password -refreshTokens");
 
@@ -80,7 +107,7 @@ export async function submitInterview(req, res, next) {
       action: "mentee_interview_completed",
       targetId: assessment._id,
       targetType: "ai_assessment",
-      after: { turns: conversation.length },
+      after: { turns: conversation.length, menteeProfile: mp._id },
       request: req,
     });
 

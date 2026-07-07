@@ -24,9 +24,11 @@ const BUILD_STAGES = [
 ];
 
 // Visual pacing (ms/stage) and rough total for the countdown. Independent of the
-// actual build duration — completion is gated on the real backend response.
-const STAGE_DURATION = 1100;
-const EST_SECONDS = Math.round((STAGE_DURATION * BUILD_STAGES.length) / 1000);
+// actual build duration — completion is gated on the real backend response AND
+// a minimum on-screen time so the experience never flashes by.
+const STAGE_DURATION = 2000;
+const MIN_DISPLAY_MS = 10000; // keep the build screen up ≥10s for a calmer UX
+const EST_SECONDS = Math.round(MIN_DISPLAY_MS / 1000);
 
 export default function MentorOnboarding({ navigateTo }) {
   const { user, updateUser } = useAuth();
@@ -67,12 +69,20 @@ export default function MentorOnboarding({ navigateTo }) {
   // harmless here since building the profile is idempotent.)
   useEffect(() => {
     let cancelled = false;
+    let doneTimer;
+    const start = Date.now();
 
-    const finish = () => {
+    const complete = () => {
       if (cancelled) return;
-      cancelled = true; // guard against the watchdog firing after a late resolution
+      cancelled = true;
       setActiveStage(BUILD_STAGES.length);
       setBuildDone(true);
+    };
+    // Once the real work has settled, still hold the screen until the minimum
+    // display time has passed — so a fast (~1s) build doesn't flash by.
+    const finish = () => {
+      const remaining = Math.max(0, MIN_DISPLAY_MS - (Date.now() - start));
+      doneTimer = setTimeout(complete, remaining);
     };
 
     // The axios client already times out (see config/api.js), so this call
@@ -96,7 +106,7 @@ export default function MentorOnboarding({ navigateTo }) {
         finish();
       });
 
-    return () => { cancelled = true; clearTimeout(watchdog); };
+    return () => { cancelled = true; clearTimeout(watchdog); clearTimeout(doneTimer); };
   }, [updateUser]);
 
   // Auto-continue to the dashboard shortly after completion (no approval gate).

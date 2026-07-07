@@ -20,14 +20,27 @@ import { interviewService } from '../services/interviewService';
  */
 
 // ── Question framework ─────────────────────────────────────────────────────────
-// `id`s are the contract with the backend mapping. Types: text | textarea | choice | tags.
+// A structured 10-question assessment (name is already captured at signup, so we
+// skip it). Phases: Introduction → Technical → Soft skills → Experience/Goals →
+// Wrap-up. `id`s are the contract with the backend, which stores each answer on
+// the mentee's profile; the Python EDA job later fills the `cleaned.*` fields.
+// Types: text | textarea | choice | tags.
 const INTERVIEW_QUESTIONS = [
-  { id: 'career_goal', type: 'textarea', prompt: "What's your primary career goal right now?", placeholder: 'e.g. Become a senior backend engineer within 2 years', icon: 'flag' },
-  { id: 'current_skills', type: 'tags', prompt: 'Which skills do you already have?', placeholder: 'Type a skill and press Enter', icon: 'psychology' },
-  { id: 'skills_to_learn', type: 'tags', prompt: 'Which skills do you want to develop?', placeholder: 'e.g. System Design, Public Speaking', icon: 'trending_up' },
-  { id: 'focus_areas', type: 'tags', prompt: 'Which areas are you looking for mentorship in?', placeholder: 'e.g. Machine Learning, Product Management', icon: 'interests' },
-  { id: 'experience_level', type: 'choice', prompt: 'How would you describe your experience level?', options: ['Beginner', 'Junior', 'Mid-level', 'Senior'], icon: 'stairs' },
-  { id: 'available_time', type: 'choice', prompt: 'How much time can you commit weekly?', options: ['1–2 hours', '3–5 hours', '5–10 hours', '10+ hours'], icon: 'schedule' },
+  // Introduction
+  { id: 'university', type: 'text', prompt: 'Which university or institution are you studying at (or graduated from)?', placeholder: 'e.g. Georgia Tech', icon: 'account_balance' },
+  { id: 'degree', type: 'text', prompt: "What's your degree / program, and what year of study are you in?", placeholder: 'e.g. BS Computer Science — 3rd year', icon: 'school' },
+  // Technical skills
+  { id: 'languages', type: 'tags', prompt: 'Which programming languages are you most confident in?', placeholder: 'Type a language and press Enter', icon: 'code' },
+  { id: 'frameworks_tools', type: 'tags', prompt: 'Which frameworks, libraries, or tools do you work with?', placeholder: 'e.g. React, Node.js, Docker', icon: 'construction' },
+  { id: 'notable_project', type: 'textarea', prompt: 'Tell us about a notable project you built or contributed to.', placeholder: 'What it did, your role, and the tech you used…', icon: 'rocket_launch' },
+  // Soft skills
+  { id: 'soft_skills', type: 'tags', prompt: 'Which soft skills are your strongest?', placeholder: 'e.g. Communication, Teamwork, Leadership', icon: 'diversity_3' },
+  { id: 'problem_solving', type: 'textarea', prompt: 'Describe a time you showed leadership or solved a difficult problem.', placeholder: 'The situation, what you did, and the outcome…', icon: 'lightbulb' },
+  // Experience & goals
+  { id: 'experience', type: 'textarea', prompt: 'Any internships, work experience, or certifications so far?', placeholder: "List them, or say 'none yet' — both are fine.", icon: 'work_history' },
+  { id: 'target', type: 'textarea', prompt: 'What role are you aiming for, and what kind of company / industry?', placeholder: 'e.g. Backend Engineer at a mid-size FinTech company', icon: 'target' },
+  // Wrap-up
+  { id: 'for_mentors', type: 'textarea', prompt: 'Finally — your key strengths, and anything you want mentors to know?', placeholder: 'A short note that helps a mentor understand you…', icon: 'waving_hand' },
 ];
 
 const hasAnswer = (q, value) =>

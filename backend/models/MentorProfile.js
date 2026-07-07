@@ -48,9 +48,14 @@ const mentorProfileSchema = new Schema(
     headline: { type: String, maxlength: 120, default: null }, // "Senior SWE at Google | 8 YOE"
 
     // ── Skills & Domains ───────────────────────────────────────────
-    skills:     { type: [String], default: [] }, // ["Python", "AWS", "System Design"]
-    domains:    { type: [String], default: [] }, // ["Backend", "Cloud", "AI/ML"]
-    industries: { type: [String], default: [] }, // ["FinTech", "HealthTech"]
+    // NOTE for the AI pipeline: `skills` IS "tech_skills", `domains` IS
+    // "domain_skills". No separate tech_skills/domain_skills fields are added
+    // (same intent — reused). `softSkills` and `domainTag` are genuinely new.
+    skills:     { type: [String], default: [] }, // tech_skills — ["Java", "Kubernetes"]
+    domains:    { type: [String], default: [] }, // domain_skills — ["Agile/Scrum", "Product Management"]
+    industries: { type: [String], default: [] }, // industry — ["Finance", "HealthTech"]
+    domainTag:  { type: String,   default: null }, // vertical tag, e.g. "hrtech", "fintech"
+    softSkills: { type: [String], default: [] },   // ["Negotiation", "Strategic Thinking"]
 
     // ── Career History (scraped from LinkedIn) ─────────────────────
     workExperience: { type: [workExperienceSchema], default: [] },
@@ -88,6 +93,24 @@ const mentorProfileSchema = new Schema(
     isApproved: { type: Boolean, default: false }, // admin must approve
     approvedAt: { type: Date,    default: null },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+
+    // ── AI Matching — normalized text, written by the offline Python EDA job ──
+    // The CV-scraped raw fields above are the INPUT; these are the cleaned
+    // OUTPUT the future matching model reads. Mapping (raw → cleaned):
+    //   currentCompany.role → currentRole | industries → industry |
+    //   domainTag → domainTag | bio → bio | skills → techSkills |
+    //   domains → domainSkills | softSkills → softSkills
+    // Values are space-joined, lowercased tokens (e.g. "java kubernetes docker").
+    cleaned: {
+      currentRole:  { type: String, default: null },
+      industry:     { type: String, default: null },
+      domainTag:    { type: String, default: null },
+      bio:          { type: String, default: null },
+      techSkills:   { type: String, default: null },
+      domainSkills: { type: String, default: null },
+      softSkills:   { type: String, default: null },
+      cleanedAt:    { type: Date,   default: null }, // when the pipeline last ran
+    },
   },
   { timestamps: true }
 );
@@ -96,6 +119,7 @@ const mentorProfileSchema = new Schema(
 mentorProfileSchema.index({ skills: 1 });               // multikey — IR matching
 mentorProfileSchema.index({ domains: 1 });              // multikey
 mentorProfileSchema.index({ industries: 1 });           // multikey
+mentorProfileSchema.index({ domainTag: 1 });            // vertical filter for matching
 mentorProfileSchema.index({ pricePerSession: 1 });
 mentorProfileSchema.index({ averageRating: -1, totalReviews: -1 });
 mentorProfileSchema.index({ isApproved: 1, isActive: 1 });
