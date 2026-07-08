@@ -1,25 +1,21 @@
-import mongoose from "mongoose";
-
 /**
- * Reusable REST CRUD handler factory for a Mongoose model.
+ * Generic CRUD request handlers for a Mongoose model.
  *
- * Produces { list, getOne, create, update, remove } with:
- *  - pagination (?page, ?limit, ?sort) and simple exact-match filters on any
- *    schema path passed as a query param (e.g. ?status=confirmed&mentorId=…)
- *  - ownership scoping: non-admin users only see/modify docs they own (via the
- *    `owners` fields); admins bypass. `publicRead:true` opens reads to anyone.
- *  - auto-set owner on create (`setOwner`), immutable fields on update
- *  - consistent envelopes + status codes (400 validation/bad id, 403 forbidden,
- *    404 not found, 409 duplicate key).
+ * Kept in the service layer so the per-entity controllers stay thin and we don't
+ * duplicate the same list/read/create/update/delete + ownership logic across
+ * eight collections. Each controller calls crudHandlers(Model, opts) and
+ * re-exports the pieces it needs.
  *
- * options:
- *   owners: string[]      fields that denote ownership (e.g. ['userId'] or ['menteeId','mentorId'])
- *   setOwner: string      field auto-set to req.user._id on create
- *   immutable: string[]   fields stripped from update bodies
- *   publicRead: boolean   if true, list/getOne skip ownership scoping
- *   defaultSort: string   default sort (default '-createdAt')
+ * Behaviour:
+ *  - list: pagination (?page,?limit,?sort) + exact-match filters on any schema
+ *    path passed as a query param; non-admins are scoped to what they own.
+ *  - getOne/update/remove: 404 if missing, 403 if not owner (admin bypasses).
+ *  - create: auto-sets the owner field from the token; strips immutable fields.
+ *  - consistent envelopes + status codes (400 validation, 409 duplicate key).
+ *
+ * opts: { owners[], setOwner, immutable[], publicRead, defaultSort }
  */
-export function crudController(Model, opts = {}) {
+export function crudHandlers(Model, opts = {}) {
   const {
     owners = [],
     setOwner = null,
@@ -63,7 +59,6 @@ export function crudController(Model, opts = {}) {
 
     getOne: async (req, res, next) => {
       try {
-        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid id." });
         const doc = await Model.findById(req.params.id).lean();
         if (!doc) return res.status(404).json({ success: false, message: `${name} not found.` });
         if (!publicRead && !isAdmin(req) && !ownsDoc(req, doc)) return res.status(403).json({ success: false, message: "Not allowed to access this resource." });
@@ -83,7 +78,6 @@ export function crudController(Model, opts = {}) {
 
     update: async (req, res, next) => {
       try {
-        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid id." });
         const doc = await Model.findById(req.params.id);
         if (!doc) return res.status(404).json({ success: false, message: `${name} not found.` });
         if (!isAdmin(req) && !ownsDoc(req, doc)) return res.status(403).json({ success: false, message: "Not allowed to modify this resource." });
@@ -97,7 +91,6 @@ export function crudController(Model, opts = {}) {
 
     remove: async (req, res, next) => {
       try {
-        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid id." });
         const doc = await Model.findById(req.params.id);
         if (!doc) return res.status(404).json({ success: false, message: `${name} not found.` });
         if (!isAdmin(req) && !ownsDoc(req, doc)) return res.status(403).json({ success: false, message: "Not allowed to delete this resource." });

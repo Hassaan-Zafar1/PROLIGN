@@ -1,21 +1,24 @@
 import express from "express";
-import Payment from "../models/Payment.js";
 import { protect } from "../middleware/auth.js";
-import { crudController } from "../utils/crudController.js";
-
-// Payments for sessions. Scoped to the mentee/mentor on the payment; admin sees
-// all. (Amounts/ids are supplied in the body for now — the Stripe integration
-// will create these server-side later.)
-const c = crudController(Payment, {
-  owners: ["menteeId", "mentorId"],
-});
+import { validateObjectId } from "../middleware/validateObjectId.js";
+import {
+  listPayments,
+  getPayment,
+  createPayment,
+  updatePayment,
+  deletePayment,
+} from "../controllers/paymentController.js";
 
 const router = express.Router();
 router.use(protect);
-router.get("/", c.list);
-router.get("/:id", c.getOne);
-router.post("/", c.create);
-router.patch("/:id", c.update);
-router.delete("/:id", c.remove);
+
+router.route("/")
+  .get(listPayments)
+  .post(createPayment);
+
+router.route("/:id")
+  .get(validateObjectId, getPayment)
+  .patch(validateObjectId, updatePayment)
+  .delete(validateObjectId, deletePayment);
 
 export default router;

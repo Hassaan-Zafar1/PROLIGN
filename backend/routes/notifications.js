@@ -1,22 +1,24 @@
 import express from "express";
-import Notification from "../models/Notification.js";
 import { protect } from "../middleware/auth.js";
-import { crudController } from "../utils/crudController.js";
-
-// A user's notifications. Owner-scoped; recipient (userId) auto-set on create.
-// Mark-as-read is a normal update: PATCH /:id  { "isRead": true }.
-const c = crudController(Notification, {
-  owners: ["userId"],
-  setOwner: "userId",
-  immutable: ["userId"],
-});
+import { validateObjectId } from "../middleware/validateObjectId.js";
+import {
+  listNotifications,
+  getNotification,
+  createNotification,
+  updateNotification,
+  deleteNotification,
+} from "../controllers/notificationController.js";
 
 const router = express.Router();
 router.use(protect);
-router.get("/", c.list);
-router.get("/:id", c.getOne);
-router.post("/", c.create);
-router.patch("/:id", c.update);
-router.delete("/:id", c.remove);
+
+router.route("/")
+  .get(listNotifications)
+  .post(createNotification);
+
+router.route("/:id")
+  .get(validateObjectId, getNotification)
+  .patch(validateObjectId, updateNotification)
+  .delete(validateObjectId, deleteNotification);
 
 export default router;

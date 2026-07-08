@@ -1,24 +1,24 @@
 import express from "express";
-import MentorProfile from "../models/MentorProfile.js";
 import { protect, restrictTo } from "../middleware/auth.js";
-import { crudController } from "../utils/crudController.js";
-
-// Rich mentor profile (skills/domains/ratings + AI-matching `cleaned.*`).
-// Reads open (browse/matching); writes are mentor/admin only, one per user
-// (unique userId → duplicate create returns 409). userId auto-set on create.
-const c = crudController(MentorProfile, {
-  owners: ["userId"],
-  setOwner: "userId",
-  immutable: ["userId"],
-  publicRead: true,
-});
+import { validateObjectId } from "../middleware/validateObjectId.js";
+import {
+  listMentorProfiles,
+  getMentorProfile,
+  createMentorProfile,
+  updateMentorProfile,
+  deleteMentorProfile,
+} from "../controllers/mentorProfileController.js";
 
 const router = express.Router();
 router.use(protect);
-router.get("/", c.list);
-router.get("/:id", c.getOne);
-router.post("/", restrictTo("mentor", "admin"), c.create);
-router.patch("/:id", restrictTo("mentor", "admin"), c.update);
-router.delete("/:id", restrictTo("mentor", "admin"), c.remove);
+
+router.route("/")
+  .get(listMentorProfiles)
+  .post(restrictTo("mentor", "admin"), createMentorProfile);
+
+router.route("/:id")
+  .get(validateObjectId, getMentorProfile)
+  .patch(validateObjectId, restrictTo("mentor", "admin"), updateMentorProfile)
+  .delete(validateObjectId, restrictTo("mentor", "admin"), deleteMentorProfile);
 
 export default router;
