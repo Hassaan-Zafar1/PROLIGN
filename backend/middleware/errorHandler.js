@@ -11,7 +11,7 @@ export function errorHandler(err, req, res, next) {
 
   // Mongoose: duplicate key (e.g. email already exists)
   if (err.code === 11000) {
-    statusCode = 409;
+    statusCode = 409; 
     const field = Object.keys(err.keyValue || {})[0] || "field";
     message = `${field} already exists`;
   }

@@ -10,7 +10,9 @@ export default function OTPVerification({ navigateTo, params }) {
   const [successMsg, setSuccessMsg] = useState('');
   const { login } = useAuth();
 
-  const userId = params?.userId;
+  // userId is carried via sessionStorage across the router (kept out of the URL).
+  // Falls back to route params for backward compatibility.
+  const userId = params?.userId || sessionStorage.getItem('otpUserId');
 
   if (!userId) {
     return (
@@ -40,13 +42,14 @@ export default function OTPVerification({ navigateTo, params }) {
         response.user.isProfileComplete = false;
       }
       login(response.user, response.accessToken);
+      // OTP userId is single-use — clear it so a refresh doesn't re-enter the flow.
+      sessionStorage.removeItem('otpUserId');
       const role = response.user.role;
-      const status = response.user.status;
-      if (role === 'mentor') {
-        if (status === 'approved') navigateTo('mentor-dashboard');
-        else navigateTo('waiting-approval');
-      }
-      else if (role === 'mentee') navigateTo('onboarding');
+      // Desired flow: Signup → OTP → Verified → Profile Building → Dashboard.
+      // A freshly-verified mentor is sent straight into profile building
+      // (Task 4 fills in CV extraction; Task 5 polishes the experience).
+      if (role === 'mentor') navigateTo('mentor-onboarding');
+      else if (role === 'mentee') navigateTo('interview');
       else if (role === 'admin')  navigateTo('admindashboard');
       else                        navigateTo('home');
     } catch (err) {

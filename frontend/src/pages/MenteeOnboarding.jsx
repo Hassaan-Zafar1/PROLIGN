@@ -26,7 +26,6 @@ const MenteeOnboarding = ({ navigateTo }) => {
   const [showMobileTranscript, setShowMobileTranscript] = useState(false);
 
   const user = getCurrentUser();
-  const hasAutoRedirected = useRef(false);
   const recognitionRef = useRef(null);
   const transcriptRef = useRef(null);
   const inputRef = useRef(null);
@@ -57,11 +56,17 @@ const MenteeOnboarding = ({ navigateTo }) => {
   }, [step]);
 
   useEffect(() => {
-    if (step === 3 && !hasAutoRedirected.current) {
-      hasAutoRedirected.current = true;
+    // No "run once" ref guard — under React 18 StrictMode's dev-only double
+    // effect invocation, a guard here would let the immediately-cleaned-up
+    // first run "claim" the auto-redirect while its own cleanup cancels the
+    // timer, silently preventing the real (second) run from ever redirecting.
+    // The dependency array already ensures this only re-fires when `step`
+    // actually changes to 3.
+    if (step === 3) {
       const timer = setTimeout(finishOnboarding, 3000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [step]);
 
   useEffect(() => {

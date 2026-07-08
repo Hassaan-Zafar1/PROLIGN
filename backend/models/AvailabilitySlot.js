@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const availabilitySlotSchema = new Schema(
@@ -51,6 +51,5 @@ availabilitySlotSchema.index(
   { unique: true }
 );
 
-module.exports =
-  mongoose.models.AvailabilitySlot ||
+export default mongoose.models.AvailabilitySlot ||
   mongoose.model("AvailabilitySlot", availabilitySlotSchema);

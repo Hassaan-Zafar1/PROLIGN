@@ -18,7 +18,10 @@ import { tokenManager } from '../utils/tokenManager';
 import ProfileSettings from '../components/ProfileSettings';
 import { EmptyState } from '../components/common';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { getMentorProfileCompletion } from '../utils/profileCompletion';
+import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -45,26 +48,10 @@ const getAvailableSlots = (dateStr) => {
   });
 };
 
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  };
-  return { theme, toggleTheme };
-};
-
 const MentorDashboard = ({ navigateTo }) => {
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
-  const [user, setUser] = useState(getCurrentUser());
+  const { user: authUser, updateUser, logout } = useAuth();
+  const [user, setUser] = useState(authUser || getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
   
   const [sessions, setSessions] = useState([]);
@@ -143,12 +130,24 @@ const MentorDashboard = ({ navigateTo }) => {
     setRescheduleTarget(null);
   };
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setLoading(true);
     try {
-      const currentUser = getCurrentUser();
+      // Profile is now backend-driven (source of truth) via /auth/me — this
+      // reflects the structured profile built from the CV (Task 4). Falls back
+      // to the cached user when offline.
+      let currentUser;
+      try {
+        currentUser = await authService.getCurrentUser();
+        updateUser(currentUser);
+      } catch {
+        currentUser = authUser || getCurrentUser();
+      }
       setUser(currentUser);
-      
+
+      // Sessions / reviews / notifications still come from the local store until
+      // their dedicated backend endpoints exist (separate effort). For a real
+      // backend account these are simply empty until that work lands.
       const dbSessions = getSessions()
         .filter(s => s.mentorId === currentUser?.id)
         .map((session) => ({ ...session, mentee: getUserById(session.menteeId) }));
@@ -428,6 +427,7 @@ const MentorDashboard = ({ navigateTo }) => {
   const renderDashboard = () => {
     const ml = getMentorLevel(user);
     const mlStyle = getMentorLevelStyle(ml.level);
+    const completion = getMentorProfileCompletion(user);
     return (
       <>
         <section className="brand-olive-surface relative overflow-hidden rounded-3xl p-10 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm mb-8">
@@ -467,6 +467,54 @@ const MentorDashboard = ({ navigateTo }) => {
             <span className="absolute -bottom-1 -left-1 material-symbols-outlined text-lg text-on-primary/70 animate-float" style={{ animationDelay: '1s' }}>star</span>
             <span className="absolute top-1/2 -right-6 material-symbols-outlined text-sm text-on-primary/50 animate-float" style={{ animationDelay: '1.5s' }}>school</span>
           </div>
+      </section>
+
+      {/* Profile Completion — driven by backend profile fields (/auth/me) */}
+      <section className="mb-8">
+        <div className="bg-surface-container-low rounded-2xl border border-outline-variant/10 natural-shadow p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined text-2xl ${completion.percent === 100 ? 'text-success' : 'text-primary'}`}>
+                {completion.percent === 100 ? 'verified' : 'account_circle'}
+              </span>
+              <div>
+                <h3 className="font-headline-md text-lg font-bold text-on-surface">Profile Completion</h3>
+                <p className="text-sm text-on-surface-variant">
+                  {completion.percent === 100
+                    ? 'Your profile is complete — great job!'
+                    : `${completion.completedCount} of ${completion.total} sections complete`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-primary tabular-nums">{completion.percent}%</span>
+              {completion.percent < 100 && (
+                <button
+                  onClick={() => { setSettingsTab('profile'); setActiveView('settings'); }}
+                  className="min-h-[44px] px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm whitespace-nowrap"
+                >
+                  Complete profile
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="h-2.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ease-out ${completion.percent === 100 ? 'bg-success' : 'bg-primary'}`}
+              style={{ width: `${completion.percent}%` }}
+            />
+          </div>
+          {completion.missing.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {completion.missing.map((label) => (
+                <span key={label} className="inline-flex items-center gap-1 bg-surface-container-high text-on-surface-variant text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span className="material-symbols-outlined text-[14px]">add</span>
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="space-y-4">

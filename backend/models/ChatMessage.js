@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const chatMessageSchema = new Schema(
@@ -29,6 +29,5 @@ chatMessageSchema.index({ userId: 1, conversationId: 1, createdAt: 1 });
 // TTL: auto-delete chat history older than 30 days
 chatMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 });
 
-module.exports =
-  mongoose.models.ChatMessage ||
+export default mongoose.models.ChatMessage ||
   mongoose.model("ChatMessage", chatMessageSchema);

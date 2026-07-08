@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const reviewSchema = new Schema(
@@ -70,5 +70,4 @@ reviewSchema.post("save", async function (doc) {
   }
 });
 
-module.exports =
-  mongoose.models.Review || mongoose.model("Review", reviewSchema);
+export default mongoose.models.Review || mongoose.model("Review", reviewSchema);

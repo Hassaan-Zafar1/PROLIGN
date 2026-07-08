@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const conversationTurnSchema = new Schema(
@@ -81,6 +81,5 @@ aiAssessmentSchema.index({ menteeId: 1 });
 aiAssessmentSchema.index({ status: 1 });
 aiAssessmentSchema.index({ completedAt: -1 });
 
-module.exports =
-  mongoose.models.AiAssessment ||
+export default mongoose.models.AiAssessment ||
   mongoose.model("AiAssessment", aiAssessmentSchema);
