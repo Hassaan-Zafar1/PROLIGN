@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import ProfileSettings from '../components/ProfileSettings';
+// import ProfileSettings from '../components/ProfileSettings';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { useAuth } from '../context/AuthContext';
 import {
   addTestimonial,
   addUser,
@@ -19,24 +20,10 @@ import { tokenManager } from '../utils/tokenManager';
 import Input from '../components/common/Input';
 import { getPublishedSiteContent, savePublishedSiteContent } from '../content/siteContent';
 import { adminService } from '../services/adminService';
+import { authService } from '../services/authService';
+import { useTheme } from '../hooks/useTheme';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  };
-  return { theme, toggleTheme };
-};
 
 const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse rounded bg-surface-variant/50 ${className}`} />
@@ -56,6 +43,7 @@ const emptyMemberForm = {
 };
 
 const AdminDashboard = ({ navigateTo }) => {
+  const { logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
   const [activeView, setActiveView] = useState('dashboard');
@@ -91,28 +79,36 @@ const AdminDashboard = ({ navigateTo }) => {
 
   const refreshData = async () => {
     setLoading(true);
-    // try {
-    //   // Try fetching from backend API first
-    //   const response = await adminService.getUsers();
-    //   const allUsers = response.users || [];
-    //   setMentors(allUsers.filter(u => u.role === 'mentor'));
-    //   setMentees(allUsers.filter(u => u.role === 'mentee'));
-    //   setNotifications(getNotifications());
-    //   setUser(getCurrentUser());
-    //   const db = getDB();
-    //   setBookings(db.bookings || []);
-    // } catch (error) {
-      // console.warn('Backend API unavailable, falling back to local data:', error.message);
+    try {
+      // Real mentors/mentees from the backend — this is the actual admin
+      // moderation queue, not the seeded mock accounts.
+      const response = await adminService.getUsers();
+      const allUsers = response.users || [];
+      setMentors(allUsers.filter((u) => u.role === 'mentor'));
+      setMentees(allUsers.filter((u) => u.role === 'mentee'));
+
       try {
-        const db = getDB();
-        setMentors(getUsersByRole('mentor'));
-        setMentees(getUsersByRole('mentee'));
-        setBookings(db.bookings || []);
-        setNotifications(getNotifications());
+        const backendUser = await authService.getCurrentUser();
+        updateUser(backendUser);
+        setUser(backendUser);
+      } catch {
         setUser(getCurrentUser());
-      } catch (err) {
-        // console.error('Failed to refresh data:', err);
-      
+      }
+    } catch (error) {
+      console.warn('Backend admin API unavailable, falling back to local data:', error.message);
+      setMentors(getUsersByRole('mentor'));
+      setMentees(getUsersByRole('mentee'));
+      setUser(getCurrentUser());
+    }
+
+    // Bookings/notifications still come from the mock store until their own
+    // backend endpoints exist (same gap noted for the mentor/mentee dashboards).
+    try {
+      const db = getDB();
+      setBookings(db.bookings || []);
+      setNotifications(getNotifications());
+    } catch (err) {
+      console.error('Failed to load local booking/notification data:', err);
     } finally {
       setLoading(false);
     }
@@ -272,13 +268,14 @@ const AdminDashboard = ({ navigateTo }) => {
   const handleLogout = () => {
     dbLogout();
     tokenManager.clearTokens();
+    logout();
     navigateTo('home');
   };
 
   const submitReject = async (event) => {
     event.preventDefault();
     try {
-      await adminService.rejectMentor(showRejectModal);
+      await adminService.rejectMentor(showRejectModal, rejectReason);
     } catch (err) {
       console.warn('Backend reject failed, falling back to local:', err.message);
       rejectMentor(showRejectModal, rejectReason);
@@ -301,10 +298,15 @@ const AdminDashboard = ({ navigateTo }) => {
     refreshData();
   };
 
-  const handleDeleteMember = (id) => {
+  const handleDeleteMember = async (id) => {
     const member = allMembers.find((item) => item.id === id);
     if (!window.confirm(`Delete ${member?.name || 'this user'}? This action cannot be undone.`)) return;
-    deleteUser(id);
+    try {
+      await adminService.deleteUser(id);
+    } catch (err) {
+      console.warn('Backend delete failed, falling back to local:', err.message);
+      deleteUser(id);
+    }
     setSelectedMember(null);
     refreshData();
   };
@@ -388,7 +390,7 @@ const AdminDashboard = ({ navigateTo }) => {
     { id: 'mentees', icon: 'person', label: 'Mentees' },
     { id: 'applications', icon: 'assignment', label: 'Applications' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
-    { id: 'settings', icon: 'settings', label: 'Settings' },
+    // { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
   const renderLineChart = (data, mode = 'single') => {
@@ -744,7 +746,7 @@ const AdminDashboard = ({ navigateTo }) => {
       case 'mentees': return renderMemberList('mentee');
       case 'applications': return renderApplications();
       case 'earnings': return renderEarnings();
-      case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
+      // case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
       default: return renderDashboard();
     }
   };

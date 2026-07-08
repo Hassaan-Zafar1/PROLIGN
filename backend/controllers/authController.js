@@ -50,11 +50,11 @@ function buildUserResponse(user) {
     createdAt: user.createdAt,
 
     // ✅ Extended profile
-    phone: user.phone,
     country: user.country,
     city: user.city,
     title: user.title,
     company: user.company,
+    industry: user.industry,
     bio: user.bio,
 
     // ✅ Skills & arrays
@@ -68,6 +68,8 @@ function buildUserResponse(user) {
     experience: user.experience,
     availableSlots: user.availableSlots,
     weeklySchedule: user.weeklySchedule,
+    status: user.status,
+    rejectionReason: user.rejectionReason,
 
     // ✅ Mentee-specific
     education: user.education,
@@ -92,7 +94,7 @@ function buildUserResponse(user) {
 
 export async function register(req, res, next) {
   try {
-    const { email, password, role, name, linkedinUrl, hourlyRate } = req.body;
+    const { email, password, role, name, linkedinUrl, hourlyRate, cv } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({
@@ -132,6 +134,23 @@ export async function register(req, res, next) {
       role,
       ...(name && { name }),
       ...(linkedinUrl && { linkedinUrl }),
+      // Mentors need admin approval before they're bookable — this is what
+      // powers the WaitingForApproval page and AdminDashboard's pending queue.
+      ...(role === "mentor" && { status: "pending" }),
+      // Mentor onboarding data captured at signup. CV is a small Cloudinary
+      // reference ({ url, filename }) plus the text extracted client-side
+      // (parsedText) — not the file bytes — so it fits the body. parsedText is
+      // what makes profile-building work even when Cloudinary blocks the
+      // backend's raw-file download.
+      ...(hourlyRate != null && hourlyRate !== "" && { hourlyRate: Number(hourlyRate) }),
+      ...((cv?.url || cv?.parsedText) && {
+        cv: {
+          url: cv.url || null,
+          filename: cv.filename || null,
+          uploadedAt: new Date(),
+          ...(cv.parsedText && { parsedText: cv.parsedText }),
+        },
+      }),
     });
 
     const otp = await generateAndSaveOTP(user._id);
@@ -455,11 +474,9 @@ export async function resetPassword(req, res, next) {
 
 export async function getMe(req, res, next) {
   try {
-    console.log("📦 req.user country:", req.user.country);
-    console.log("📦 req.user city:", req.user.city);
     res.status(200).json({
       success: true,
-      user: buildUserResponse(req.user), // ✅ Full user object
+      user: buildUserResponse(req.user), // Full user object
     });
   } catch (error) {
     next(error);

@@ -39,7 +39,6 @@ const makeInitialForm = (u) => ({
   profilePic: u?.profilePic || u?.avatar || '',
   name: u?.name || '',
   email: u?.email || '',
-  phone: u?.phone || '',
   country: u?.country || '',
   city: u?.city || '',
   title: u?.title || '',
@@ -71,7 +70,7 @@ const makeInitialForm = (u) => ({
 });
 
 const sectionFields = {
-  profile: ['profilePic', 'name', 'phone', 'country', 'city', 'title', 'company', 'bio', 'linkedinUrl', 'industry'],
+  profile: ['profilePic', 'name', 'country', 'city', 'title', 'company', 'bio', 'linkedinUrl', 'industry'],
   career: ['experience', 'hourlyRate', 'skills', 'languages', 'certifications', 'availableSlots', 'weeklySchedule', 'preferredCategories'],
   learning: ['education', 'languages', 'skills', 'skillsToLearn', 'preferredCategories', 'careerGoals', 'learningInterests'],
   security: ['profileVisibility'],
@@ -87,12 +86,6 @@ const validateName = (v) => {
   if (v.length > 100) return 'Full name must be under 100 characters';
   if (/[0-9]/.test(v)) return 'Full name cannot contain numbers';
   if (/[^a-zA-Z\s\-'.]/.test(v)) return 'Full name contains invalid characters';
-  return '';
-};
-const validatePhone = (v) => {
-  if (!v) return '';
-  const digits = v.replace(/\D/g, '');
-  if (digits.length !== 11) return 'Phone number must contain exactly 11 digits';
   return '';
 };
 const validateEmail = (v) => {
@@ -137,7 +130,7 @@ const validateIndustry = (v) => {
   return '';
 };
 const validators = {
-  name: validateName, phone: validatePhone, email: validateEmail,
+  name: validateName, email: validateEmail,
   country: validateCountry, city: validateCity, title: validateTitle,
   company: validateCompany, linkedinUrl: validateLinkedIn, bio: validateBio,
   industry: validateIndustry,
@@ -458,15 +451,20 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
               placeholder="https://..."
             />
             <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
-            <Button variant="outline" size="sm" icon="upload" onClick={() => photoRef.current?.click()} disabled={saving}>
-              {saving ? 'Uploading...' : 'Upload Photo'}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" icon="upload" onClick={() => photoRef.current?.click()} disabled={saving}>
+                {saving ? 'Uploading...' : 'Upload Photo'}
+              </Button>
+              {/* Shown right next to the action it reports on — the same status
+                  also appears in the section footer, but that's easy to miss
+                  scrolled below a long form. */}
+              {renderStatusBadge()}
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Input label="Full Name" name="name" value={form.name} onChange={handleChange} error={e('name')} success={s('name')} onBlur={() => handleBlur('name')} />
           <Input label="Email Address" type="email" value={form.email} error={e('email')} success={s('email')} onBlur={() => handleBlur('email')} disabled />
-          <Input label="Phone Number" name="phone" value={form.phone} onChange={handleChange} error={e('phone')} success={s('phone')} onBlur={() => handleBlur('phone')} />
           <Input label="Country" name="country" value={form.country} onChange={handleChange} error={e('country')} success={s('country')} onBlur={() => handleBlur('country')} />
           <Input label="City" name="city" value={form.city} onChange={handleChange} error={e('city')} success={s('city')} onBlur={() => handleBlur('city')} />
           <Input

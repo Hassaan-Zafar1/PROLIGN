@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 
 export const errorHandler = {
   // Handle auth-specific errors
@@ -20,6 +20,8 @@ export const errorHandler = {
       message = 'Not found';
     } else if (error.response?.status === 500) {
       message = 'Server error';
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      message = 'The request took too long. Please try again.';
     } else if (error.message === 'Network Error') {
       message = 'Network error - check your connection';
     }
@@ -30,5 +32,12 @@ export const errorHandler = {
   // Handle success messages
   handleSuccess: (message) => {
     toast.success(message);
+  },
+
+  // Plain client-side validation/info messages (no error object to unwrap).
+  // Use instead of window.alert() so all user-facing messaging goes through
+  // the same notification system.
+  notify: (message) => {
+    toast.warn(message);
   },
 };

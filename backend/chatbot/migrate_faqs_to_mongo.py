@@ -19,11 +19,10 @@ from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from sentence_transformers import SentenceTransformer
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(BACKEND_ROOT / ".env")
+load_dotenv()
 
-MONGODB_URI = os.environ.get("MONGO_URI") or os.environ.get("MONGODB_URI")
-MONGODB_DB = os.getenv("MONGO_DB_NAME") or os.getenv("MONGODB_DB_NAME") or "prolign"
+MONGODB_URI = os.environ["MONGODB_URI"]
+MONGODB_DB = os.getenv("MONGODB_DB_NAME", "prolign")
 SEED_FILE = Path(__file__).parent / "faqs_seed.json"
 
 

@@ -1,15 +1,13 @@
 import asyncio
-from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 import os
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(BACKEND_ROOT / ".env")
+load_dotenv()
 
 async def check():
-    c = AsyncIOMotorClient(os.environ.get("MONGO_URI") or os.environ.get("MONGODB_URI"))
-    db_name = os.getenv("MONGO_DB_NAME") or os.getenv("MONGODB_DB_NAME") or "prolign"
+    c = AsyncIOMotorClient(os.environ["MONGODB_URI"])
+    db_name = os.getenv("MONGODB_DB_NAME", "Prolign")
     db = c[db_name]
 
     faqs = await db.faqs.count_documents({})

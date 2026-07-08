@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { authService } from '../services/authService';
+import { uploadService } from '../services/uploadService';
+import { extractCvText } from '../utils/cvText';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const validateLinkedIn = (url) => /^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(url.trim());
@@ -148,6 +150,14 @@ export default function MentorRegistration({ navigateTo }) {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    // The whole wizard shares one <form>, so its submit event can in principle
+    // fire while an earlier step is still showing (e.g. a password manager's
+    // autofill-triggered submit, or a stray Enter keypress). Only the Review
+    // step (4) may actually submit — this makes that impossible to bypass
+    // regardless of what triggered the submit event.
+    if (currentStep !== 4) return;
+
     setApiError('');
 
     const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), { cv: true });
@@ -160,14 +170,23 @@ export default function MentorRegistration({ navigateTo }) {
     setLoading(true);
 
     try {
+      // Process the CV two ways, both best-effort (neither blocks signup):
+      //   1. Upload to Cloudinary for storage/download → { url, filename }.
+      //   2. Extract the text HERE in the browser and send it as parsedText,
+      //      so the backend can build the profile even when Cloudinary blocks
+      //      its server-side download of raw PDFs (the recurring 401).
       let cvData = null;
       if (cvFile) {
-        cvData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({ filename: cvFile.name, url: reader.result });
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(cvFile);
-        });
+        const [uploadResult, parsedText] = await Promise.all([
+          uploadService.uploadCV(cvFile).catch((uploadErr) => {
+            console.warn('CV upload failed, continuing without stored file:', uploadErr.message);
+            return null;
+          }),
+          extractCvText(cvFile),
+        ]);
+        if (uploadResult || parsedText) {
+          cvData = { ...(uploadResult || {}), ...(parsedText && { parsedText }) };
+        }
       }
 
       const response = await authService.register({
@@ -180,6 +199,7 @@ export default function MentorRegistration({ navigateTo }) {
         cv: cvData,
       });
       
+      sessionStorage.setItem('otpUserId', response.userId);
       navigateTo('verify-otp', { userId: response.userId });
     } catch (error) {
       console.error('Registration failed:', error);
@@ -467,7 +487,15 @@ export default function MentorRegistration({ navigateTo }) {
               </div>
             )}
 
-            <form onSubmit={handleRegister} noValidate>
+            <form
+              onSubmit={handleRegister}
+              noValidate
+              onKeyDown={(e) => {
+                // Prevent Enter in any field from implicitly submitting the
+                // shared <form> while an earlier wizard step is showing.
+                if (e.key === 'Enter' && currentStep < 4) e.preventDefault();
+              }}
+            >
               <div className="bg-surface-container-low p-5 sm:p-8 rounded-2xl shadow-sm border border-outline-variant/10">
                 {renderStepContent()}
               </div>

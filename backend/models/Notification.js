@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const notificationSchema = new Schema(
@@ -50,6 +50,5 @@ notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
 // TTL: auto-delete notifications older than 90 days
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
-module.exports =
-  mongoose.models.Notification ||
+export default mongoose.models.Notification ||
   mongoose.model("Notification", notificationSchema);

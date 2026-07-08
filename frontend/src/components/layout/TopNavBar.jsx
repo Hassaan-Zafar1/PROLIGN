@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { logout } from '../../utils/db';
 
+
 const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }) => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
   const navLinks = [
-    { id: 'home',         label: 'Home' },
+    { id: 'home', label: 'Home' },
     { id: 'find-mentors', label: 'Find Mentors' },
     { id: 'how-it-works', label: 'How it Works' },
   ];
@@ -60,7 +61,13 @@ const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }
             onKeyDown={(e) => e.key === 'Enter' && handleNavigate('home')}
             aria-label="ProLign home"
           >
-            <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">school</span>
+            
+            <img
+              src="/logo.png"
+              alt="logo"
+              className="h-16 w-auto max-w-[150px] object-contain object-left -mr-11"
+              aria-hidden="true"
+            />
             <span className="font-headline-md font-bold text-2xl text-primary tracking-tight">ProLign</span>
           </div>
 
@@ -71,11 +78,10 @@ const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }
                 key={link.id}
                 onClick={() => handleNavigate(link.id)}
                 aria-current={currentPage === link.id ? 'page' : undefined}
-                className={`text-sm font-medium transition-colors ${
-                  currentPage === link.id
+                className={`text-sm font-medium transition-colors ${currentPage === link.id
                     ? 'text-primary border-b-2 border-primary pb-0.5'
                     : 'text-on-surface-variant hover:text-primary'
-                }`}
+                  }`}
               >
                 {link.label}
               </button>
@@ -160,11 +166,10 @@ const TopNavBar = ({ navigateTo, currentPage, theme, toggleTheme, user, logout }
                       type="button"
                       onClick={() => handleNavigate(link.id)}
                       aria-current={currentPage === link.id ? 'page' : undefined}
-                      className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        currentPage === link.id
+                      className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors ${currentPage === link.id
                           ? 'bg-primary-container text-on-primary-container'
                           : 'text-on-surface hover:bg-surface-container'
-                      }`}
+                        }`}
                     >
                       <span>{link.label}</span>
                       {currentPage === link.id && (

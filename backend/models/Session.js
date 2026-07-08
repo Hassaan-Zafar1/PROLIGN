@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const videoConferenceSchema = new Schema(
@@ -96,5 +96,4 @@ sessionSchema.index({ status: 1, scheduledDate: 1 });   // reminder cron queries
 sessionSchema.index({ slotId: 1 }, { unique: true });   // no duplicate booking
 sessionSchema.index({ paymentId: 1 });
 
-module.exports =
-  mongoose.models.Session || mongoose.model("Session", sessionSchema);
+export default mongoose.models.Session || mongoose.model("Session", sessionSchema);

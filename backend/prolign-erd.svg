@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 800" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect x="0" y="0" width="1700" height="800" fill="#ffffff"/>
+<text x="40" y="44" font-size="24" font-weight="700" fill="#1b2233">ProLign — Entity Relationship Diagram</text>
+<text x="40" y="68" font-size="13" fill="#5b6478">11 collections · crow's-foot cardinality shown at both ends · Mentor⇄Mentee is many-to-many, resolved by the Session junction</text>
+<line x1="470" y1="259.3" x2="390" y2="171" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="470" y1="296.56" x2="390" y2="349" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="470" y1="335.44" x2="390" y2="502.8" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="470" y1="372.7" x2="390" y2="671" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="215" y1="430" x2="215" y2="446" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="645" y1="397" x2="645" y2="600" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="820" y1="259.3" x2="900" y2="171" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="820" y1="299.8" x2="900" y2="364.64" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="820" y1="328.96" x2="900" y2="421.2" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="820" y1="372.7" x2="900" y2="671" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="1075" y1="252" x2="1075" y2="300" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="1250" y1="364.64" x2="1310" y2="201" stroke="#8794ac" stroke-width="1.7"/>
+<line x1="1250" y1="425.24" x2="1310" y2="441" stroke="#8794ac" stroke-width="1.7"/>
+<path d="M 550 235 C 510 175, 740 175, 700 235" fill="none" stroke="#4a5bd4" stroke-width="1.7" stroke-dasharray="5 5"/>
+<g>
+<rect x="40" y="90" width="350" height="162" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 40 120 L 40 100 Q 40 90 50 90 L 380 90 Q 390 90 390 100 L 390 120 Z" fill="#eef1fb"/>
+<text x="54" y="110" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">MentorProfile</text>
+<text x="54" y="136" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="376" y="136" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="54" y="156" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">userId</text>
+<text x="376" y="156" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">FK·UQ</text>
+<text x="54" y="176" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">skills / domains</text>
+<text x="54" y="196" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">industries / domainTag</text>
+<text x="376" y="196" font-size="10.5" font-weight="700" text-anchor="end" fill="#3b46c4" font-family="Consolas, Menlo, monospace">NEW</text>
+<text x="54" y="216" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">averageRating · totalSessions</text>
+<text x="54" y="236" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">cleaned { … }</text>
+<text x="376" y="236" font-size="10.5" font-weight="700" text-anchor="end" fill="#3b46c4" font-family="Consolas, Menlo, monospace">NEW</text>
+</g>
+<g>
+<rect x="40" y="268" width="350" height="162" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 40 298 L 40 278 Q 40 268 50 268 L 380 268 Q 390 268 390 278 L 390 298 Z" fill="#eef1fb"/>
+<text x="54" y="288" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">MenteeProfile</text>
+<text x="54" y="314" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="376" y="314" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="54" y="334" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">userId</text>
+<text x="376" y="334" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">FK·UQ</text>
+<text x="54" y="354" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">university / degree</text>
+<text x="54" y="374" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">domainInterest</text>
+<text x="376" y="374" font-size="10.5" font-weight="700" text-anchor="end" fill="#3b46c4" font-family="Consolas, Menlo, monospace">NEW</text>
+<text x="54" y="394" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">skillProfile { … }</text>
+<text x="54" y="414" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">cleaned { … }</text>
+<text x="376" y="414" font-size="10.5" font-weight="700" text-anchor="end" fill="#3b46c4" font-family="Consolas, Menlo, monospace">NEW</text>
+</g>
+<g>
+<rect x="40" y="446" width="350" height="142" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 40 476 L 40 456 Q 40 446 50 446 L 380 446 Q 390 446 390 456 L 390 476 Z" fill="#eef1fb"/>
+<text x="54" y="466" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">AiAssessment</text>
+<text x="54" y="492" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="376" y="492" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="54" y="512" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">menteeId</text>
+<text x="376" y="512" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="54" y="532" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mode / status</text>
+<text x="54" y="552" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">conversation [ ]</text>
+<text x="54" y="572" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">generatedProfile { }</text>
+</g>
+<g>
+<rect x="40" y="600" width="350" height="142" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 40 630 L 40 610 Q 40 600 50 600 L 380 600 Q 390 600 390 610 L 390 630 Z" fill="#eef1fb"/>
+<text x="54" y="620" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">ChatMessage</text>
+<text x="54" y="646" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="376" y="646" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="54" y="666" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">userId</text>
+<text x="376" y="666" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="54" y="686" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">conversationId</text>
+<text x="54" y="706" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">role / content</text>
+<text x="54" y="726" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">ragContext { }</text>
+</g>
+<g>
+<rect x="470" y="235" width="350" height="162" rx="10" fill="#ffffff" stroke="#4a5bd4" stroke-width="2"/>
+<path d="M 470 265 L 470 245 Q 470 235 480 235 L 810 235 Q 820 235 820 245 L 820 265 Z" fill="#dbe0fb"/>
+<text x="484" y="255" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">User  ⬤ hub</text>
+<text x="484" y="281" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="806" y="281" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="484" y="301" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">email</text>
+<text x="806" y="301" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">UQ</text>
+<text x="484" y="321" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">role  (mentor·mentee·admin)</text>
+<text x="484" y="341" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">name · status</text>
+<text x="484" y="361" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mentorProfile</text>
+<text x="806" y="361" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="484" y="381" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">menteeProfile</text>
+<text x="806" y="381" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+</g>
+<g>
+<rect x="470" y="600" width="350" height="142" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 470 630 L 470 610 Q 470 600 480 600 L 810 600 Q 820 600 820 610 L 820 630 Z" fill="#eef1fb"/>
+<text x="484" y="620" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">AuditLog</text>
+<text x="484" y="646" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="806" y="646" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="484" y="666" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">actorId</text>
+<text x="806" y="666" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="484" y="686" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">action  (enum)</text>
+<text x="484" y="706" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">targetId / targetType</text>
+<text x="484" y="726" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">before / after · ip</text>
+</g>
+<g>
+<rect x="900" y="90" width="350" height="162" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 900 120 L 900 100 Q 900 90 910 90 L 1240 90 Q 1250 90 1250 100 L 1250 120 Z" fill="#eef1fb"/>
+<text x="914" y="110" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">AvailabilitySlot</text>
+<text x="914" y="136" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="1236" y="136" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="914" y="156" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mentorId</text>
+<text x="1236" y="156" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="176" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">date / startTime / endTime</text>
+<text x="914" y="196" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">status</text>
+<text x="914" y="216" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">sessionId</text>
+<text x="1236" y="216" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="236" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">bookedBy</text>
+<text x="1236" y="236" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+</g>
+<g>
+<rect x="900" y="300" width="350" height="202" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 900 330 L 900 310 Q 900 300 910 300 L 1240 300 Q 1250 300 1250 310 L 1250 330 Z" fill="#eef1fb"/>
+<text x="914" y="320" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">Session</text>
+<text x="914" y="346" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="1236" y="346" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="914" y="366" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">menteeId</text>
+<text x="1236" y="366" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="386" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mentorId</text>
+<text x="1236" y="386" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="406" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">slotId</text>
+<text x="1236" y="406" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">FK·UQ</text>
+<text x="914" y="426" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">paymentId</text>
+<text x="1236" y="426" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="446" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">reviewId</text>
+<text x="1236" y="446" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="466" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">status  (enum)</text>
+<text x="914" y="486" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">scheduledDate</text>
+</g>
+<g>
+<rect x="900" y="600" width="350" height="142" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 900 630 L 900 610 Q 900 600 910 600 L 1240 600 Q 1250 600 1250 610 L 1250 630 Z" fill="#eef1fb"/>
+<text x="914" y="620" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">Notification</text>
+<text x="914" y="646" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="1236" y="646" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="914" y="666" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">userId</text>
+<text x="1236" y="666" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="914" y="686" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">type / title / body</text>
+<text x="914" y="706" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">data { session,payment,… }</text>
+<text x="914" y="726" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">isRead · createdAt(TTL)</text>
+</g>
+<g>
+<rect x="1310" y="120" width="350" height="162" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 1310 150 L 1310 130 Q 1310 120 1320 120 L 1650 120 Q 1660 120 1660 130 L 1660 150 Z" fill="#eef1fb"/>
+<text x="1324" y="140" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">Payment</text>
+<text x="1324" y="166" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="1646" y="166" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="1324" y="186" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">sessionId</text>
+<text x="1646" y="186" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">FK·UQ</text>
+<text x="1324" y="206" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">menteeId</text>
+<text x="1646" y="206" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="1324" y="226" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mentorId</text>
+<text x="1646" y="226" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="1324" y="246" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">stripePaymentIntentId</text>
+<text x="1646" y="246" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">UQ</text>
+<text x="1324" y="266" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">grossAmount · status</text>
+</g>
+<g>
+<rect x="1310" y="360" width="350" height="162" rx="10" fill="#ffffff" stroke="#c7d0e0" stroke-width="1.3"/>
+<path d="M 1310 390 L 1310 370 Q 1310 360 1320 360 L 1650 360 Q 1660 360 1660 370 L 1660 390 Z" fill="#eef1fb"/>
+<text x="1324" y="380" font-size="15" font-weight="700" fill="#3b46c4" font-family="Consolas, Menlo, monospace">Review</text>
+<text x="1324" y="406" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">_id</text>
+<text x="1646" y="406" font-size="10.5" font-weight="700" text-anchor="end" fill="#b26a00" font-family="Consolas, Menlo, monospace">PK</text>
+<text x="1324" y="426" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">sessionId</text>
+<text x="1646" y="426" font-size="10.5" font-weight="700" text-anchor="end" fill="#7a4fd0" font-family="Consolas, Menlo, monospace">FK·UQ</text>
+<text x="1324" y="446" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">mentorId</text>
+<text x="1646" y="446" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="1324" y="466" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">menteeId</text>
+<text x="1646" y="466" font-size="10.5" font-weight="700" text-anchor="end" fill="#1f8a99" font-family="Consolas, Menlo, monospace">FK</text>
+<text x="1324" y="486" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">rating (1-5) · subRatings</text>
+<text x="1324" y="506" font-size="12.5" fill="#26303f" font-family="Consolas, Menlo, monospace">reviewText · flagged</text>
+</g>
+<rect x="447.57162768539456" y="234.47843405775427" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="456.57162768539456" y="247.47843405775427" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="394.42837231460544" y="175.82156594224574" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="403.42837231460544" y="188.82156594224574" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="415.2" y="206.15" width="29.6" height="16" rx="4" fill="#ffffff"/>
+<text x="430" y="218.15" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">has</text>
+<rect x="444.27328963739404" y="297.5243586426882" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="453.27328963739404" y="310.5243586426882" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="397.72671036260596" y="328.0356413573118" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="406.72671036260596" y="341.0356413573118" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="415.2" y="313.78" width="29.6" height="16" rx="4" fill="#ffffff"/>
+<text x="430" y="325.78" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">has</text>
+<rect x="452.3745527293125" y="343.4844356902783" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="461.3745527293125" y="356.4844356902783" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="389.6254472706875" y="474.7555643097217" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="398.6254472706875" y="487.7555643097217" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="408" y="410.12" width="44" height="16" rx="4" fill="#ffffff"/>
+<text x="430" y="422.12" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">takes</text>
+<rect x="455.81934413767635" y="382.01737054663937" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="464.81934413767635" y="395.01737054663937" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="386.18065586232365" y="641.6826294533606" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="395.18065586232365" y="654.6826294533606" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="408" y="512.85" width="44" height="16" rx="4" fill="#ffffff"/>
+<text x="430" y="524.85" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">sends</text>
+<rect x="206" y="440" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="215" y="453" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="206" y="416" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="215" y="429" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="193" y="429" width="44" height="16" rx="4" fill="#ffffff"/>
+<text x="215" y="441" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">feeds</text>
+<rect x="636" y="407" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="645" y="420" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="636" y="570" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="645" y="583" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="615.8" y="489.5" width="58.4" height="16" rx="4" fill="#ffffff"/>
+<text x="645" y="501.5" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">acts in</text>
+<rect x="824.4283723146054" y="234.47843405775427" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="833.4283723146054" y="247.47843405775427" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="877.5716276853946" y="175.82156594224574" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="886.5716276853946" y="188.82156594224574" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="834.4" y="206.15" width="51.2" height="16" rx="4" fill="#ffffff"/>
+<text x="860" y="218.15" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">offers</text>
+<rect x="826.5374771646223" y="302.3931252419263" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="835.5374771646223" y="315.3931252419263" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="875.4625228353777" y="342.04687475807367" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="884.4625228353777" y="355.04687475807367" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="830.8" y="323.22" width="58.4" height="16" rx="4" fill="#ffffff"/>
+<text x="860" y="335.22" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">mentors</text>
+<rect x="824.1040976615388" y="334.06902460375426" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="833.1040976615388" y="347.06902460375426" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="877.8959023384612" y="396.0909753962457" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="886.8959023384612" y="409.0909753962457" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="838" y="366.08" width="44" height="16" rx="4" fill="#ffffff"/>
+<text x="860" y="378.08" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">books</text>
+<rect x="816.1806558623236" y="382.01737054663937" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="825.1806558623236" y="395.01737054663937" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="885.8193441376764" y="641.6826294533606" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="894.8193441376764" y="654.6826294533606" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">N</text>
+<rect x="827.2" y="512.85" width="65.6" height="16" rx="4" fill="#ffffff"/>
+<text x="860" y="524.85" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">receives</text>
+<rect x="1066" y="262" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1075" y="275" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1066" y="270" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1075" y="283" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1031.4" y="267" width="87.2" height="16" rx="4" fill="#ffffff"/>
+<text x="1075" y="279" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">reserved by</text>
+<rect x="1247.8849581160346" y="335.8624242315349" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1256.8849581160346" y="348.8624242315349" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1294.1150418839654" y="209.77757576846514" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1303.1150418839654" y="222.77757576846514" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1247.2" y="273.82" width="65.6" height="16" rx="4" fill="#ffffff"/>
+<text x="1280" y="285.82" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">paid via</text>
+<rect x="1260.343827335626" y="420.32097864682447" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1269.343827335626" y="433.32097864682447" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1281.656172664374" y="425.91902135317554" width="18" height="17" rx="4" fill="#ffffff" stroke="#8794ac" stroke-width="0.8"/>
+<text x="1290.656172664374" y="438.91902135317554" font-size="12" font-weight="700" text-anchor="middle" fill="#1b2233">1</text>
+<rect x="1236.4" y="424.12" width="87.2" height="16" rx="4" fill="#ffffff"/>
+<text x="1280" y="436.12" font-size="11" font-style="italic" text-anchor="middle" fill="#7a869c">reviewed by</text>
+<rect x="541" y="223" width="18" height="17" rx="4" fill="#fff" stroke="#8794ac" stroke-width="0.8"/><text x="550" y="236" font-size="12" font-weight="700" text-anchor="middle" fill="#4a5bd4">M</text>
+<rect x="691" y="223" width="18" height="17" rx="4" fill="#fff" stroke="#8794ac" stroke-width="0.8"/><text x="700" y="236" font-size="12" font-weight="700" text-anchor="middle" fill="#4a5bd4">N</text>
+<rect x="565" y="167" width="120" height="16" rx="4" fill="#fff"/><text x="625" y="179" font-size="11" font-style="italic" text-anchor="middle" fill="#4a5bd4">books (M:N)</text>
+<text x="40" y="760" font-size="12" font-weight="700" fill="#1b2233">Legend:</text>
+<text x="110" y="760" font-size="12" fill="#5b6478">1 : 1  one-to-one     1 : N  one-to-many     M : N  many-to-many (via junction)</text>
+<text x="720" y="760" font-size="11.5" font-weight="700" fill="#b26a00">PK</text><text x="748" y="760" font-size="11.5" fill="#5b6478">primary</text>
+<text x="820" y="760" font-size="11.5" font-weight="700" fill="#1f8a99">FK</text><text x="846" y="760" font-size="11.5" fill="#5b6478">foreign</text>
+<text x="912" y="760" font-size="11.5" font-weight="700" fill="#7a4fd0">UQ</text><text x="940" y="760" font-size="11.5" fill="#5b6478">unique</text>
+<text x="1010" y="760" font-size="11.5" font-weight="700" fill="#3b46c4">NEW</text><text x="1052" y="760" font-size="11.5" fill="#5b6478">added for AI-matching pipeline</text>
+</svg>
