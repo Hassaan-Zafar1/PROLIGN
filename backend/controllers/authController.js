@@ -476,7 +476,7 @@ export async function getMe(req, res, next) {
   try {
     res.status(200).json({
       success: true,
-      user: buildUserResponse(req.user), // ✅ Full user object
+      user: buildUserResponse(req.user), // Full user object
     });
   } catch (error) {
     next(error);

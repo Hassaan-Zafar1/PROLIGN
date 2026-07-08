@@ -49,7 +49,7 @@ const auditLogSchema = new Schema(
 
     ip:        { type: String, default: null },
     userAgent: { type: String, default: null },
-
+    
     createdAt: { type: Date, default: Date.now }, // TTL index on this field
   }
 );
