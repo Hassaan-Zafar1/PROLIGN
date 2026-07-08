@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getCurrentUser, getSessions, getMentors, completeSession } from '../utils/db';
+import { errorHandler } from '../utils/errorHandler';
 
 export default function VideoInterview({ onNavigate, sessionId }) {
   const user = getCurrentUser();
@@ -57,12 +58,12 @@ export default function VideoInterview({ onNavigate, sessionId }) {
       completeSession(session.id);
     }
     // Route user to sessions page and trigger rating modal
-    alert("Session complete! Please take a moment to rate your experience with the mentor.");
+    errorHandler.handleSuccess("Session complete! Please take a moment to rate your experience with the mentor.");
     onNavigate('dashboard');
   };
 
   const handleBookmark = (label) => {
-    alert(`Resource bookmarked: "${label}". Saved to your profile bookmarks.`);
+    errorHandler.handleSuccess(`Resource bookmarked: "${label}". Saved to your profile bookmarks.`);
     setAiSuggestions(prev => prev.filter(item => item.bookmarkLabel !== label));
   };
 

@@ -30,14 +30,26 @@ export default function WaitingForApproval({ navigateTo }) {
           });
           // Navigate immediately as well
           setTimeout(() => navigateTo('mentor-dashboard'), 2000);
+        } else if (currentUser && currentUser.status === 'rejected') {
+          // Rejection keeps the account (unlike deletion below) — just flips status.
+          clearInterval(interval);
+          tokenManager.clearTokens();
+          try { await logout(); } catch { /* already logged out server-side */ }
+          toast.error(
+            currentUser.rejectionReason
+              ? `Your mentor application was not approved: ${currentUser.rejectionReason}`
+              : 'Your mentor application was not approved. Please contact support for more information.',
+            { position: 'top-right', autoClose: 8000 }
+          );
+          navigateTo('home');
         }
       } catch (err) {
-        // If we get 401 or 404, the user has been deleted (rejected)
+        // If we get 401 or 404, the user has been deleted.
         const status = err?.response?.status;
         if (status === 401 || status === 404) {
           clearInterval(interval);
           tokenManager.clearTokens();
-          try { await logout(); } catch(e) {}
+          try { await logout(); } catch { /* already logged out server-side */ }
           toast.error('Your mentor application was not approved. Please contact support for more information.', {
             position: 'top-right',
             autoClose: 8000,

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const webhookEventSchema = new Schema(
@@ -63,5 +63,4 @@ paymentSchema.index({ menteeId: 1, createdAt: -1 });
 paymentSchema.index({ mentorId: 1, payoutStatus: 1 });
 paymentSchema.index({ stripePaymentIntentId: 1 }, { unique: true }); // idempotency
 
-module.exports =
-  mongoose.models.Payment || mongoose.model("Payment", paymentSchema);
+export default mongoose.models.Payment || mongoose.model("Payment", paymentSchema);
