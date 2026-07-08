@@ -1,20 +1,20 @@
 // backend/models/index.js
 // Import all models here to ensure they are registered with Mongoose
-// before any queries run. Require this file once in your server entry point.
+// before any queries run. Import this file once in your server entry point.
 
-const User             = require("./User");
-const MentorProfile    = require("./MentorProfile");
-const MenteeProfile    = require("./MenteeProfile");
-const AiAssessment     = require("./AiAssessment");
-const AvailabilitySlot = require("./AvailabilitySlot");
-const Session          = require("./Session");
-const Payment          = require("./Payment");
-const Review           = require("./Review");
-const Notification     = require("./Notification");
-const ChatMessage      = require("./ChatMessage");
-const AuditLog         = require("./AuditLog");
+import User from "./User.js";
+import MentorProfile from "./MentorProfile.js";
+import MenteeProfile from "./MenteeProfile.js";
+import AiAssessment from "./AiAssessment.js";
+import AvailabilitySlot from "./AvailabilitySlot.js";
+import Session from "./Session.js";
+import Payment from "./Payment.js";
+import Review from "./Review.js";
+import Notification from "./Notification.js";
+import ChatMessage from "./ChatMessage.js";
+import AuditLog from "./AuditLog.js";
 
-module.exports = {
+export {
   User,
   MentorProfile,
   MenteeProfile,

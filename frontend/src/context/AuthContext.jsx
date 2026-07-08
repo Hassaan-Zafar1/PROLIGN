@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { tokenManager } from '../utils/tokenManager';
 import { authService } from '../services/authService';
 import { getDB, saveDB, logout as dbLogout } from '../utils/db';
@@ -53,7 +53,12 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  const login = (userData, token) => {
+  // Memoized: these are commonly placed in effect dependency arrays (e.g. a
+  // "build my profile once" effect that calls updateUser on completion). An
+  // unmemoized function here gets a new reference every render, which turns
+  // `useEffect(..., [updateUser])` into an infinite loop — the callback
+  // updates state → provider re-renders → new reference → effect re-fires.
+  const login = useCallback((userData, token) => {
     tokenManager.setAccessToken(token);
     tokenManager.setUser(userData);
     setUser(userData);
@@ -63,9 +68,9 @@ export const AuthProvider = ({ children }) => {
       db.currentUser = userData;
       saveDB(db);
     } catch (e) {}
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     tokenManager.clearTokens();
     setUser(null);
     setIsAuthenticated(false);
@@ -78,9 +83,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     }
-  };
+  }, []);
 
-  const updateUser = (userData) => {
+  const updateUser = useCallback((userData) => {
     const freshUser = { ...userData };
     tokenManager.setUser(freshUser);
     setUser(freshUser);
@@ -89,10 +94,18 @@ export const AuthProvider = ({ children }) => {
       db.currentUser = freshUser;
       saveDB(db);
     } catch (e) {}
-  };
+  }, []);
+
+  // Also memoize the context value itself — otherwise every consumer
+  // re-renders (and re-runs effects keyed on the context value) whenever
+  // AuthProvider re-renders for any reason, even if nothing here changed.
+  const value = useMemo(
+    () => ({ user, isAuthenticated, loading, login, logout, updateUser }),
+    [user, isAuthenticated, loading, login, logout, updateUser]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
@@ -9,7 +9,6 @@ import {
   getCurrentUser,
   getSessions,
   getUserById,
-  getUsersByRole,
   logout as dbLogout,
   saveSessions,
   updateBookingStatus,
@@ -21,28 +20,10 @@ import {
   deleteNotification,
 } from '../utils/db';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
+import { recommendationService } from '../services/recommendationService';
+import { authService } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => localStorage.getItem('prolign-theme') || 'light');
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('prolign-theme', next);
-      return next;
-    });
-  }, []);
-  const applyTheme = useCallback((t) => {
-    const next = t === 'Dark' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('prolign-theme', next);
-  }, []);
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-  return { theme, toggleTheme, applyTheme };
-};
+import { useTheme } from '../hooks/useTheme';
 
 const normalizeView = (view) => {
   return view || 'dashboard';
@@ -77,8 +58,8 @@ function Modal({ children, onClose }) {
 
 export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' }) {
   const { theme, toggleTheme, applyTheme } = useTheme();
-  const { logout } = useAuth();
-  const [user, setUser] = useState(getCurrentUser());
+  const { user: authUser, updateUser, logout } = useAuth();
+  const [user, setUser] = useState(authUser || getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
   const [mentors, setMentors] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -98,12 +79,38 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [analyticsRange, setAnalyticsRange] = useState({ from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` });
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
+  // Recommended mentors via the recommendation SEAM (all mentors for now; AI
+  // model plugs in later). Forwards the mentee's interview-derived profile so
+  // a real matching model can use it once enabled.
+  const loadRecommendedMentors = (forUser) => {
+    recommendationService.getRecommendedMentors({
+      limit: 100,
+      menteeId: forUser?.id,
+      skills: forUser?.skills,
+      preferredCategories: forUser?.preferredCategories,
+      careerGoals: forUser?.careerGoals,
+    })
+      .then(({ mentors: list }) => setMentors(list))
+      .catch(() => setMentors([]));
+  };
+
   const loadData = () => {
     try {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-      setMentors(getUsersByRole('mentor').filter((mentor) => mentor.status === 'approved'));
+      // Mentee profile (incl. learning goals from the Task 7 interview) is now
+      // backend-driven via /auth/me; fall back to the cached user offline.
+      authService.getCurrentUser()
+        .then((backendUser) => {
+          updateUser(backendUser);
+          setUser(backendUser);
+          loadRecommendedMentors(backendUser);
+        })
+        .catch(() => {
+          const cachedUser = authUser || getCurrentUser();
+          setUser(cachedUser);
+          loadRecommendedMentors(cachedUser);
+        });
 
+      const currentUser = authUser || getCurrentUser();
       if (!currentUser) return;
 
       setSessions(
@@ -777,6 +784,61 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           {recommendedMentors.map((mentor) => (
             <React.Fragment key={mentor.id}>{renderMentorCard(mentor)}</React.Fragment>
           ))}
+        </div>
+      </section>
+
+      {/* Learning Goals — driven by the mentee's backend profile (Task 7 interview) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Your Learning Goals</h3>
+          <button onClick={() => navigateTo('interview')} className="text-sm font-semibold text-secondary hover:underline">
+            Update
+          </button>
+        </div>
+        <div className={`${cardClass} p-5`}>
+          {(user?.careerGoals || user?.learningInterests?.length || user?.skillsToLearn?.length) ? (
+            <div className="space-y-5">
+              {user?.careerGoals && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1.5">Career Goal</p>
+                  <p className="text-sm text-on-surface leading-relaxed">{user.careerGoals}</p>
+                </div>
+              )}
+              {user?.learningInterests?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Interests</p>
+                  <div className="flex flex-wrap gap-2">
+                    {user.learningInterests.map((item) => (
+                      <span key={item} className="inline-flex items-center gap-1 bg-secondary/10 text-secondary text-xs font-medium px-2.5 py-1 rounded-full">
+                        <span className="material-symbols-outlined text-[14px]">interests</span>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {user?.skillsToLearn?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Skills to Learn</p>
+                  <div className="flex flex-wrap gap-2">
+                    {user.skillsToLearn.map((item) => (
+                      <span key={item} className="bg-surface-container-high text-on-surface-variant text-xs font-medium px-2.5 py-1 rounded-full">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <EmptyState
+              icon="target"
+              title="No learning goals yet"
+              description="Complete your onboarding interview so we can tailor your mentor matches."
+              actionLabel="Start interview"
+              onAction={() => navigateTo('interview')}
+            />
+          )}
         </div>
       </section>
 
