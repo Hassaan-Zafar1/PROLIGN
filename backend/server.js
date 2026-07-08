@@ -78,6 +78,24 @@ app.use("/api/interview", interviewRoutes);
 import adminRoutes from "./routes/admin.js";
 app.use("/api/admin", adminRoutes);
 
+// ─── Core-entity CRUD (Postman-testable) ──────────────────────────────────────
+import availabilityRoutes from "./routes/availability.js";
+app.use("/api/availability", availabilityRoutes);
+import sessionRoutes from "./routes/sessions.js";
+app.use("/api/sessions", sessionRoutes);
+import paymentRoutes from "./routes/payments.js";
+app.use("/api/payments", paymentRoutes);
+import reviewRoutes from "./routes/reviews.js";
+app.use("/api/reviews", reviewRoutes);
+import notificationRoutes from "./routes/notifications.js";
+app.use("/api/notifications", notificationRoutes);
+import chatRoutes from "./routes/chat.js";
+app.use("/api/chat", chatRoutes);
+import mentorProfileRoutes from "./routes/mentorProfiles.js";
+app.use("/api/mentor-profiles", mentorProfileRoutes);
+import menteeProfileRoutes from "./routes/menteeProfiles.js";
+app.use("/api/mentee-profiles", menteeProfileRoutes);
+
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
