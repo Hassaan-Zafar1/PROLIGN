@@ -1,16 +1,15 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+/**
+ * User = authentication + security + shared identity + account state ONLY.
+ *
+ * All mentor domain data lives on MentorProfile, all mentee domain data on
+ * MenteeProfile (1:1 via userId). Never store role-specific onboarding data here.
+ */
 const userSchema = new mongoose.Schema(
   {
-    // ── Core ──────────────────────────────────────────────────────────────────
-    name: {
-      type: String,
-      trim: true,
-      minlength: 2,
-      maxlength: 60,
-      default: null,
-    },
+    // ── Authentication ──────────────────────────────────────────────────────────
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -29,62 +28,31 @@ const userSchema = new mongoose.Schema(
       enum: ["mentor", "mentee", "admin"],
       required: true,
     },
-
-    // ── Google OAuth ──────────────────────────────────────────────────────────
     googleId: { type: String, default: null, sparse: true },
     authProvider: {
       type: String,
       enum: ["local", "google"],
       default: "local",
     },
+    refreshTokens: { type: [String], default: [], select: false },
 
-    // ── Email OTP Verification ────────────────────────────────────────────────
+    // ── Security ────────────────────────────────────────────────────────────────
     isEmailVerified: { type: Boolean, default: false },
     otp: {
       code:      { type: String, select: false },
       expiresAt: { type: Date },
       attempts:  { type: Number, default: 0 },
     },
+    passwordResetToken:  { type: String, default: null, select: false },
+    passwordResetExpiry: { type: Date,   default: null },
 
-    // ── Extended Profile ──────────────────────────────────────────────────────
-    country:  { type: String, default: null },
-    city:     { type: String, default: null },
-    title:    { type: String, default: null },
-    company:  { type: String, default: null },
-    industry: { type: String, default: null }, // shown on mentor cards/profile
-    bio:      { type: String, default: null },
+    // ── Shared User Data ──────────────────────────────────────────────────────────
+    name:       { type: String, trim: true, minlength: 2, maxlength: 60, default: null },
+    country:    { type: String, default: null },
+    city:       { type: String, default: null },
+    profilePic: { type: String, default: null },
 
-    // ── Profile Basics ────────────────────────────────────────────────────────
-    profilePic:  { type: String, default: null },
-    linkedinUrl: { type: String, default: null },
-
-    // ── CV / Resume ───────────────────────────────────────────────────────────
-    cv: {
-      url:        { type: String, default: null },
-      filename:   { type: String, default: null },
-      uploadedAt: { type: Date,   default: null },
-      parsedText: { type: String, default: null },
-    },
-
-    // ── Skills & Expertise ────────────────────────────────────────────────────
-    skills:              { type: [String], default: [] },
-    languages:           { type: [String], default: [] },
-    certifications:      { type: [String], default: [] },
-    preferredCategories: { type: [String], default: [] },
-
-    // ── Mentor-specific ───────────────────────────────────────────────────────
-    hourlyRate:     { type: Number, default: null },
-    experience:     { type: Number, default: null },
-    availableSlots: { type: [String], default: [] },
-    weeklySchedule: { type: String, default: null },
-
-    // ── Mentee-specific ───────────────────────────────────────────────────────
-    education:         { type: String,   default: null },
-    careerGoals:       { type: String,   default: null },
-    skillsToLearn:     { type: [String], default: [] },
-    learningInterests: { type: [String], default: [] },
-
-    // ── Preferences ───────────────────────────────────────────────────────────
+    // ── Preferences (account-level, role-agnostic) ────────────────────────────────
     profileVisibility: {
       type: String,
       enum: ["public", "members", "private"],
@@ -99,14 +67,7 @@ const userSchema = new mongoose.Schema(
       default: "System",
     },
 
-    // ── LinkedIn Scrape State ─────────────────────────────────────────────────
-    linkedinScrape: {
-      status:      { type: String, enum: ["pending", "done", "failed"], default: null },
-      lastAttempt: { type: Date,   default: null },
-      error:       { type: String, default: null },
-    },
-
-    // ── Onboarding ────────────────────────────────────────────────────────────
+    // ── Onboarding State ──────────────────────────────────────────────────────────
     onboardingStep: {
       type: String,
       enum: ["signup", "otp", "assessment", "complete"],
@@ -114,45 +75,21 @@ const userSchema = new mongoose.Schema(
     },
     isProfileComplete: { type: Boolean, default: false },
 
-    // ── Profile Refs ──────────────────────────────────────────────────────────
-    menteeProfile: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MenteeProfile",
-      default: null,
-    },
-    mentorProfile: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MentorProfile",
-      default: null,
-    },
+    // ── Profile References (role-specific data lives here) ────────────────────────
+    mentorProfile: { type: mongoose.Schema.Types.ObjectId, ref: "MentorProfile", default: null },
+    menteeProfile: { type: mongoose.Schema.Types.ObjectId, ref: "MenteeProfile", default: null },
 
-    // ── Mentor Approval (admin moderation) ────────────────────────────────────
-    // Mentee/admin accounts leave this null — only mentors go through approval.
-    status: {
-      type: String,
-      enum: ["pending", "approved", "rejected", null],
-      default: "approved",
-    },
-    rejectionReason: { type: String, default: null },
-
-    // ── Account State ─────────────────────────────────────────────────────────
+    // ── Account State ─────────────────────────────────────────────────────────────
     isActive:    { type: Boolean, default: true },
     isBanned:    { type: Boolean, default: false },
     banReason:   { type: String,  default: null },
     lastLoginAt: { type: Date,    default: null },
-
-    // ── Auth Tokens ───────────────────────────────────────────────────────────
-    refreshTokens:       { type: [String], default: [], select: false },
-    passwordResetToken:  { type: String,   default: null, select: false },
-    passwordResetExpiry: { type: Date,     default: null },
   },
   { timestamps: true }
 );
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 userSchema.index({ role: 1, isActive: 1 });
-userSchema.index({ linkedinUrl: 1 }, { sparse: true });
-// userSchema.index({ googleId: 1 }, { sparse: true });
 
 // ── Pre-save: Hash password ───────────────────────────────────────────────────
 userSchema.pre("save", async function () {

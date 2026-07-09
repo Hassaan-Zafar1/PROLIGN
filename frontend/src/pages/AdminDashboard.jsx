@@ -29,6 +29,40 @@ const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse rounded bg-surface-variant/50 ${className}`} />
 );
 
+/**
+ * Flatten a backend admin-user record into the shape this dashboard's JSX reads.
+ *
+ * After the data-ownership refactor the backend returns role data nested under
+ * `mentorProfile` / `menteeProfile` (populated) and uses `profilePic` instead of
+ * `avatar`. Mentor moderation status also moved onto the profile. Rather than
+ * rewrite every field access in the UI, we hoist the fields it uses up to the
+ * top level here so listing, the detail modal, and status counts all work.
+ */
+const normalizeAdminUser = (u) => {
+  const mp = u.mentorProfile || {};
+  const menteeP = u.menteeProfile || {};
+  const profile = u.role === 'mentor' ? mp : menteeP;
+  const menteeSkills = menteeP.skillsToLearn?.length ? menteeP.skillsToLearn : menteeP.skillProfile?.skills;
+  return {
+    ...u,
+    id: u.id || u._id,
+    avatar: u.profilePic || u.avatar || '',
+    // Moderation status lives on MentorProfile now; mentees have no gate.
+    status: u.role === 'mentor' ? (mp.status || 'approved') : 'active',
+    title: u.role === 'mentor'
+      ? (mp.title || mp.headline || '')
+      : (menteeP.degree || menteeP.university || ''),
+    company: mp.company || '',
+    industry: mp.industry || (Array.isArray(mp.industries) ? mp.industries[0] : '') || '',
+    hourlyRate: mp.hourlyRate ?? mp.pricePerSession ?? '',
+    experience: mp.experience ?? '',
+    skills: (u.role === 'mentor' ? mp.skills : menteeSkills) || [],
+    bio: profile.bio || '',
+    cv: mp.cv || null,
+    rejectionReason: mp.rejectionReason || '',
+  };
+};
+
 const emptyMemberForm = {
   role: 'mentee',
   name: '',
@@ -83,7 +117,7 @@ const AdminDashboard = ({ navigateTo }) => {
       // Real mentors/mentees from the backend — this is the actual admin
       // moderation queue, not the seeded mock accounts.
       const response = await adminService.getUsers();
-      const allUsers = response.users || [];
+      const allUsers = (response.users || []).map(normalizeAdminUser);
       setMentors(allUsers.filter((u) => u.role === 'mentor'));
       setMentees(allUsers.filter((u) => u.role === 'mentee'));
 

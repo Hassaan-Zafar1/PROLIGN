@@ -1,16 +1,27 @@
-import Session from "../models/Session.js";
-import { crudHandlers } from "../services/crudService.js";
+import * as sessionService from "../services/sessionService.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
-// Mentorship sessions (mentor⇄mentee booking junction). Scoped to the mentee or
-// mentor on the session; created as the mentee (menteeId from the token).
-const h = crudHandlers(Session, {
-  owners: ["menteeId", "mentorId"],
-  setOwner: "menteeId",
-  immutable: ["menteeId"],
+export const listSessions = asyncHandler(async (req, res) => {
+  const { data, total, page, pages } = await sessionService.listSessions(req.query, req.user);
+  res.status(200).json({ success: true, count: data.length, total, page, pages, data });
 });
 
-export const listSessions = h.list;
-export const getSession = h.getOne;
-export const createSession = h.create;
-export const updateSession = h.update;
-export const deleteSession = h.remove;
+export const getSession = asyncHandler(async (req, res) => {
+  const session = await sessionService.getSession(req.params.id, req.user);
+  res.status(200).json({ success: true, data: session });
+});
+
+export const createSession = asyncHandler(async (req, res) => {
+  const session = await sessionService.createSession(req.user._id, req.body);
+  res.status(201).json({ success: true, message: "Session booked.", data: session });
+});
+
+export const updateSession = asyncHandler(async (req, res) => {
+  const session = await sessionService.updateSession(req.params.id, req.user, req.body);
+  res.status(200).json({ success: true, message: "Session updated.", data: session });
+});
+
+export const deleteSession = asyncHandler(async (req, res) => {
+  const result = await sessionService.deleteSession(req.params.id, req.user);
+  res.status(200).json({ success: true, ...result });
+});

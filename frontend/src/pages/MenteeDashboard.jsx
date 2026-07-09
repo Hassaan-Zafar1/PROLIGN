@@ -22,6 +22,7 @@ import {
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { recommendationService } from '../services/recommendationService';
 import { authService } from '../services/authService';
+import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
@@ -100,9 +101,12 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       // backend-driven via /auth/me; fall back to the cached user offline.
       authService.getCurrentUser()
         .then((backendUser) => {
-          updateUser(backendUser);
-          setUser(backendUser);
-          loadRecommendedMentors(backendUser);
+          // Interview data lives on the populated menteeProfile now — flatten it
+          // up so the "Learning Goals" cards (careerGoals/skillsToLearn/…) render.
+          const merged = flattenUserProfile(backendUser);
+          updateUser(merged);
+          setUser(merged);
+          loadRecommendedMentors(merged);
         })
         .catch(() => {
           const cachedUser = authUser || getCurrentUser();

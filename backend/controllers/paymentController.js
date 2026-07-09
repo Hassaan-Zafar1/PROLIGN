@@ -1,15 +1,27 @@
-import Payment from "../models/Payment.js";
-import { crudHandlers } from "../services/crudService.js";
+import * as paymentService from "../services/paymentService.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
-// Payments for sessions. Scoped to the mentee/mentor on the payment.
-// (Amounts/ids are supplied in the body for now — Stripe integration will
-// create these server-side later.)
-const h = crudHandlers(Payment, {
-  owners: ["menteeId", "mentorId"],
+export const listPayments = asyncHandler(async (req, res) => {
+  const { data, total, page, pages } = await paymentService.listPayments(req.query, req.user);
+  res.status(200).json({ success: true, count: data.length, total, page, pages, data });
 });
 
-export const listPayments = h.list;
-export const getPayment = h.getOne;
-export const createPayment = h.create;
-export const updatePayment = h.update;
-export const deletePayment = h.remove;
+export const getPayment = asyncHandler(async (req, res) => {
+  const payment = await paymentService.getPayment(req.params.id, req.user);
+  res.status(200).json({ success: true, data: payment });
+});
+
+export const createPayment = asyncHandler(async (req, res) => {
+  const payment = await paymentService.createPayment(req.user, req.body);
+  res.status(201).json({ success: true, message: "Payment recorded.", data: payment });
+});
+
+export const updatePayment = asyncHandler(async (req, res) => {
+  const payment = await paymentService.updatePayment(req.params.id, req.user, req.body);
+  res.status(200).json({ success: true, message: "Payment updated.", data: payment });
+});
+
+export const deletePayment = asyncHandler(async (req, res) => {
+  const result = await paymentService.deletePayment(req.params.id, req.user);
+  res.status(200).json({ success: true, ...result });
+});
