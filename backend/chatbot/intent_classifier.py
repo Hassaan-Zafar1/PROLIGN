@@ -7,17 +7,23 @@ from config import GROQ_CHAT_COMPLETIONS_URL, settings
 
 
 SYSTEM_PROMPT = """You are an intent classifier for a mentorship platform chatbot.
-Respond with only one word: FAQ, COMPLAINT, or SUMMARY.
+Respond with only one word: FAQ, COMPLAINT, SUMMARY, or VOILENCE.
 
 FAQ = questions about the platform, mentorship, bookings, payments, profiles, career guidance, features, how-to, policies, or general follow-up messages.
-COMPLAINT = expressions of anger, frustration, dissatisfaction, broken features, failed payments, unresolved issues, or requests for human support.
+
+COMPLAINT = expressions of frustration or dissatisfaction about a specific platform issue, broken features, failed payments, unresolved problems, or requests for human support. The user is unhappy but talking about a real issue with the service.
+
 SUMMARY = requests to summarise, recap, or repeat the current conversation (e.g. "summarise our chat", "what have we discussed", "recap this conversation").
+
+VOILENCE = hate speech, personal insults, derogatory remarks, abusive language, or hostile messages not related to any platform issue. Examples: "i hate you", "you are an idiot", "shut up", "you're useless", swear words directed at the bot or others.
+
+Key distinction: COMPLAINT is about a service problem. VOILENCE is abusive or hateful language regardless of any service context.
 
 When in doubt, respond with FAQ."""
 
 
 async def classify(message: str) -> str:
-    """Classify a user message as FAQ, COMPLAINT, or SUMMARY."""
+    """Classify a user message as FAQ, COMPLAINT, SUMMARY, or VOILENCE."""
     payload = {
         "model": settings.groq_model,
         "messages": [
@@ -55,6 +61,8 @@ async def classify(message: str) -> str:
             detail="Groq intent classification returned an invalid response.",
         ) from exc
 
+    if "VOILENCE" in raw_intent:
+        return "VOILENCE"
     if "COMPLAINT" in raw_intent:
         return "COMPLAINT"
     if "SUMMARY" in raw_intent:

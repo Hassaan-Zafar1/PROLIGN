@@ -20,7 +20,7 @@ const Booking = lazy(() => import('../pages/Booking'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
 const Settings = lazy(() => import('../pages/Settings'));
 const Analytics = lazy(() => import('../pages/Analytics'));
-const VideoInterview = lazy(() => import('../pages/VideoInterview'));
+// const VideoInterview = lazy(() => import('../pages/VideoInterview'));
 const HowItWorks = lazy(() => import('../pages/HowItWorks'));
 const TermsOfService = lazy(() => import('../pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy'));
@@ -99,11 +99,11 @@ const BookingRoute = () => {
   return <Booking navigateTo={navigateTo} params={{ mentorId }} />;
 };
 
-const VideoInterviewRoute = () => {
-  const { sessionId } = useParams();
-  const navigateTo = useAppNavigate();
-  return <VideoInterview onNavigate={navigateTo} sessionId={sessionId} />;
-};
+// const VideoInterviewRoute = () => {
+//   const { sessionId } = useParams();
+//   const navigateTo = useAppNavigate();
+//   return <VideoInterview onNavigate={navigateTo} sessionId={sessionId} />;
+// };
 
 /**
  * Application route tree.
@@ -146,7 +146,7 @@ const AppRoutes = ({ openChatbot }) => {
         <Route path="/settings" element={<ProtectedRoute><SettingsRoute /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsRoute /></ProtectedRoute>} />
         <Route path="/sessions" element={<ProtectedRoute><SessionsRoute /></ProtectedRoute>} />
-        <Route path="/video-interview/:sessionId" element={<ProtectedRoute><VideoInterviewRoute /></ProtectedRoute>} />
+        {/* <Route path="/video-interview/:sessionId" element={<ProtectedRoute><VideoInterviewRoute /></ProtectedRoute>} /> */}
 
         {/* ---------- Role-based ---------- */}
         <Route path="/mentor/onboarding" element={<RoleRoute roles={['mentor']}><MentorOnboarding navigateTo={navigateTo} /></RoleRoute>} />

@@ -56,13 +56,13 @@ class Settings:
 
 settings = Settings(
     groq_api_key=_required("GROQ_API_KEY"),
-    mongodb_uri=_required("MONGO_URI"),
-    mongodb_db_name=os.getenv("MONGODB_DB_NAME", "prolign"),
+    mongodb_uri=_required("MONGO_URI"),          
+    mongodb_db_name=os.getenv("MONGODB_DB_NAME", "Prolign"),
     slack_webhook_url=_required("SLACK_WEBHOOK_URL"),
     slack_complaint_webhook_url=_required("SLACK_COMPLAINT_WEBHOOK_URL"),
     groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     faq_match_threshold=_float_env("FAQ_MATCH_THRESHOLD", 0.4),
     faq_match_count=_int_env("FAQ_MATCH_COUNT", 3),
     memory_limit=_int_env("MEMORY_LIMIT", 6),
-    frontend_origin=os.getenv("FRONTEND_URL", "http://localhost:5173"),
+    frontend_origin=os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),  # fixed: was FRONTEND_URL
 )

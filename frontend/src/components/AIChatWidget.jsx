@@ -16,11 +16,24 @@ function formatTime(isoString) {
   return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatDateLabel(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 const WELCOME_MSG = {
   id: 'welcome',
   sender: 'ai',
   text: "Hello! I'm your ProLign AI assistant. I can help you refine your resume, practice for interviews, or explore new career paths. What's on your mind today?",
-  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  created_at: new Date().toISOString(),
 };
 
 const AIChatWidget = ({ isOpen, onClose }) => {
@@ -28,11 +41,11 @@ const AIChatWidget = ({ isOpen, onClose }) => {
   const [view, setView] = useState('chat');
   const [isTyping, setIsTyping] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [sidebarHistory, setSidebarHistory] = useState([]);
   const [messages, setMessages] = useState([WELCOME_MSG]);
   const messagesEndRef = useRef(null);
 
-  // Load conversation history from backend when widget first opens
+  // ── Load last 7 days of conversation history on open ──────────────────
   const loadHistory = useCallback(async () => {
     if (historyLoaded) return;
     const sessionId = getSessionId();
@@ -41,27 +54,32 @@ const AIChatWidget = ({ isOpen, onClose }) => {
       if (!response.ok) return;
       const data = await response.json();
       const msgs = data.messages || [];
+
       if (msgs.length === 0) {
         setHistoryLoaded(true);
         return;
       }
-      // Convert backend history format to widget message format
+
       const restored = msgs.map((m, idx) => ({
         id: `history-${idx}`,
         sender: m.role === 'user' ? 'user' : 'ai',
         text: m.message,
         time: formatTime(m.created_at),
+        created_at: m.created_at,
       }));
+
       setMessages([WELCOME_MSG, ...restored]);
-      // Build sidebar history entry from first user message
+
+      // Build sidebar entry from first user message
       const firstUser = msgs.find(m => m.role === 'user');
       if (firstUser) {
-        setHistory([{
+        setSidebarHistory([{
           id: sessionId,
           title: firstUser.message.length > 40
             ? firstUser.message.slice(0, 40) + '...'
             : firstUser.message,
-          time: 'Previous session'
+          time: formatDateLabel(firstUser.created_at),
+          count: msgs.filter(m => m.role === 'user').length,
         }]);
       }
     } catch (_) {
@@ -79,6 +97,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, view, isTyping]);
 
+  // ── Send message ───────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
@@ -86,19 +105,20 @@ const AIChatWidget = ({ isOpen, onClose }) => {
       id: Date.now(),
       sender: 'user',
       text: inputText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      created_at: new Date().toISOString(),
     };
 
     const query = inputText;
     setMessages(prev => [...prev, userMsg]);
 
-    // Add to sidebar history on first real message
     const isFirstMessage = messages.filter(m => m.sender === 'user').length === 0;
     if (isFirstMessage) {
-      setHistory(prev => [{
+      setSidebarHistory(prev => [{
         id: Date.now(),
         title: query.length > 40 ? query.slice(0, 40) + '...' : query,
-        time: 'Just now'
+        time: 'Just now',
+        count: 1,
       }, ...prev]);
     }
 
@@ -109,25 +129,23 @@ const AIChatWidget = ({ isOpen, onClose }) => {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: getSessionId(),
-          message: query
-        })
+        body: JSON.stringify({ session_id: getSessionId(), message: query }),
       });
-
       const data = await response.json();
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'ai',
-        text: data.reply || "No response received.",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        text: data.reply || 'No response received.',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        created_at: new Date().toISOString(),
       }]);
     } catch (_) {
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'ai',
         text: "Sorry, I couldn't connect to the assistant. Please try again.",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        created_at: new Date().toISOString(),
       }]);
     } finally {
       setIsTyping(false);
@@ -145,14 +163,65 @@ const AIChatWidget = ({ isOpen, onClose }) => {
     localStorage.removeItem('prolign_session_id');
     setHistoryLoaded(false);
     setMessages([{
+      ...WELCOME_MSG,
       id: Date.now(),
-      sender: 'ai',
-      text: "Starting a new session. How can I assist you?",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      text: 'Starting a new session. How can I assist you?',
     }]);
     setView('chat');
   };
 
+  // ── Date separator rendering ───────────────────────────────────────────
+  const renderMessages = () => {
+    const items = [];
+    let lastDateLabel = '';
+
+    messages.forEach((msg) => {
+      const dateLabel = formatDateLabel(msg.created_at);
+      if (dateLabel && dateLabel !== lastDateLabel && msg.id !== 'welcome') {
+        lastDateLabel = dateLabel;
+        items.push(
+          <div key={`sep-${msg.id}`} className="flex items-center gap-3 my-2">
+            <div className="flex-1 h-px bg-outline-variant/20" />
+            <span className="text-[10px] font-semibold text-on-surface-variant/50 whitespace-nowrap">
+              {dateLabel}
+            </span>
+            <div className="flex-1 h-px bg-outline-variant/20" />
+          </div>
+        );
+      }
+
+      items.push(
+        <div key={msg.id} className={`flex gap-3 items-start ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+          <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border
+            ${msg.sender === 'user'
+              ? 'bg-primary-fixed border-primary/10'
+              : 'bg-surface-container border-outline-variant/30'}`}>
+            {msg.sender === 'user' ? (
+              <span className="material-symbols-outlined text-primary text-[18px]">person</span>
+            ) : (
+              <img src="/chatbot-icon.svg" alt="ProLign AI" className="h-full w-full object-cover" />
+            )}
+          </div>
+          <div className={`flex flex-col gap-1.5 max-w-[85%] ${msg.sender === 'user' ? 'items-end' : ''}`}>
+            <div className={`p-4 rounded-2xl shadow-sm
+              ${msg.sender === 'user'
+                ? 'bg-primary text-on-primary rounded-tr-none'
+                : 'bg-surface-variant/50 text-on-surface rounded-tl-none border border-outline-variant/10'}`}>
+              <p
+                className="font-body-md text-[15px] whitespace-pre-wrap leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
+              />
+            </div>
+            <span className="text-[10px] text-on-surface-variant/60 font-semibold px-1">{msg.time}</span>
+          </div>
+        </div>
+      );
+    });
+
+    return items;
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
       {isOpen && (
@@ -178,14 +247,17 @@ const AIChatWidget = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setView(view === 'chat' ? 'history' : 'chat')}
-              className={`p-2 rounded-full transition-colors flex items-center justify-center ${view === 'history' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-variant'}`}
+              className={`p-2 rounded-full transition-colors flex items-center justify-center
+                ${view === 'history'
+                  ? 'bg-secondary-container text-on-secondary-container'
+                  : 'text-on-surface-variant hover:bg-surface-variant'}`}
               title="Chat History"
             >
               <span className="material-symbols-outlined text-[20px]">history</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors flex items-center justify-center"
+              className="p-2 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors"
               title="Close"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
@@ -195,30 +267,19 @@ const AIChatWidget = ({ isOpen, onClose }) => {
 
         {view === 'chat' ? (
           <>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-6 custom-scrollbar bg-surface-container-lowest">
-              <div className="space-y-6">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex gap-3 items-start ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border ${msg.sender === 'user' ? 'bg-primary-fixed border-primary/10' : 'bg-surface-container border-outline-variant/30'}`}>
-                      {msg.sender === 'user' ? (
-                        <span className="material-symbols-outlined text-primary text-[18px]">person</span>
-                      ) : (
-                        <img src="/chatbot-icon.svg" alt="ProLign AI" className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div className={`flex flex-col gap-1.5 max-w-[85%] ${msg.sender === 'user' ? 'items-end' : ''}`}>
-                      <div className={`p-4 rounded-2xl shadow-sm ${msg.sender === 'user' ? 'bg-primary text-on-primary rounded-tr-none' : 'bg-surface-variant/50 text-on-surface rounded-tl-none border border-outline-variant/10'}`}>
-                        <p
-                          className="font-body-md text-[15px] whitespace-pre-wrap leading-relaxed"
-                          dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-on-surface-variant/60 font-semibold px-1">{msg.time}</span>
-                    </div>
-                  </div>
-                ))}
+            {/* 7-day history banner */}
+            {historyLoaded && messages.length > 1 && (
+              <div className="px-4 py-1.5 bg-secondary-container/20 border-b border-outline-variant/10">
+                <p className="text-[10px] text-on-surface-variant/70 text-center">
+                  Showing last 7 days of conversation
+                </p>
+              </div>
+            )}
 
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar bg-surface-container-lowest">
+              <div className="space-y-4">
+                {renderMessages()}
                 {isTyping && (
                   <div className="flex gap-3 items-start">
                     <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border bg-surface-container border-outline-variant/30">
@@ -237,9 +298,8 @@ const AIChatWidget = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-background border-t border-outline-variant/10 w-full">
-              {/* Suggestion Chips */}
+            {/* Input */}
+            <div className="p-4 bg-background border-t border-outline-variant/10 w-full shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
               <div className="flex gap-2 mb-3 overflow-x-auto pb-1 custom-scrollbar">
                 {['Help with resume', 'Interview prep', 'Career advice', 'Summarise our chat'].map(suggestion => (
                   <button
@@ -273,9 +333,13 @@ const AIChatWidget = ({ isOpen, onClose }) => {
             </div>
           </>
         ) : (
+          /* History sidebar */
           <div className="flex-1 overflow-y-auto bg-surface-container-lowest flex flex-col">
             <div className="p-5 flex justify-between items-center border-b border-outline-variant/5">
-              <h3 className="font-headline-md text-lg font-bold text-on-surface">Past Sessions</h3>
+              <div>
+                <h3 className="font-headline-md text-lg font-bold text-on-surface">Past Sessions</h3>
+                <p className="text-[10px] text-on-surface-variant/60 mt-0.5">Last 7 days</p>
+              </div>
               <button
                 onClick={startNewSession}
                 className="text-secondary font-label-sm text-sm font-bold flex items-center gap-1 hover:underline"
@@ -284,15 +348,24 @@ const AIChatWidget = ({ isOpen, onClose }) => {
               </button>
             </div>
             <div className="p-3 space-y-2 flex-1 custom-scrollbar">
-              {history.length > 0 ? (
-                history.map((item) => (
+              {sidebarHistory.length > 0 ? (
+                sidebarHistory.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => setView('chat')}
                     className="p-4 rounded-xl hover:bg-surface-container-highest/30 border border-transparent hover:border-outline-variant/10 cursor-pointer transition-all group"
                   >
-                    <p className="font-label-sm text-[15px] text-on-surface font-semibold group-hover:text-primary transition-colors line-clamp-1">{item.title}</p>
-                    <p className="text-xs text-on-surface-variant/70 mt-1">{item.time}</p>
+                    <p className="font-label-sm text-[15px] text-on-surface font-semibold group-hover:text-primary transition-colors line-clamp-1">
+                      {item.title}
+                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-on-surface-variant/70">{item.time}</p>
+                      {item.count && (
+                        <span className="text-[10px] text-on-surface-variant/50 bg-surface-container px-2 py-0.5 rounded-full">
+                          {item.count} message{item.count !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (

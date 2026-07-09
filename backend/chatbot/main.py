@@ -32,14 +32,13 @@ app.add_middleware(
 
 @app.get("/")
 async def health_check() -> dict[str, str]:
-    """Return a simple service health check."""
     return {"status": "ok", "service": "ProLign RAG Chatbot Backend"}
 
 
 @app.get("/history/{session_id}")
 async def get_history(session_id: str) -> dict:
-    """Return full conversation history for a session."""
-    history = await memory.load_history(session_id, limit=50)
+    """Return last 7 days of conversation history for a session."""
+    history = await memory.load_history(session_id, limit=200, days=7)
     return {"messages": history}
 
 
@@ -59,6 +58,15 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
         await memory.save_message(request.session_id, "assistant", reply, intent="COMPLAINT")
         return ChatResponse(reply=reply, intent="COMPLAINT")
+
+    if intent == "VOILENCE":
+        await complaint_handler.escalate(request.session_id, request.message)
+        reply = (
+            "I want to help you, but I need us to keep this conversation respectful. "
+            "Please let me know what issue you are facing so we can solve it together."
+        )
+        await memory.save_message(request.session_id, "assistant", reply, intent="VOILENCE")
+        return ChatResponse(reply=reply, intent="VOILENCE")
 
     if intent == "SUMMARY":
         history = await memory.load_history(request.session_id, limit=50)

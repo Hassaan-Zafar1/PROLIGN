@@ -1,4 +1,4 @@
-"""Conversation memory stored in MongoDB (prolign.conversations collection).
+"""Conversation memory stored in MongoDB (Prolign.conversations collection).
 
 Document shape:
   session_id : str
@@ -8,22 +8,38 @@ Document shape:
   created_at : datetime (UTC)
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 
 from database import get_db
 
 
-async def load_history(session_id: str, limit: int | None = None) -> list[dict]:
-    """Load recent conversation history for a session in chronological order."""
+async def load_history(
+    session_id: str,
+    limit: int | None = None,
+    days: int | None = None,
+) -> list[dict]:
+    """Load conversation history for a session in chronological order.
+
+    Args:
+        session_id: The session to load.
+        limit: Max number of messages to return (defaults to settings.memory_limit).
+        days: If set, only return messages from the last N days.
+              Pass days=7 from the /history endpoint for the frontend widget.
+    """
     from config import settings
     db = get_db()
     effective_limit = limit or settings.memory_limit
 
+    query: dict = {"session_id": session_id}
+    if days is not None:
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        query["created_at"] = {"$gte": cutoff}
+
     try:
         cursor = db.conversations.find(
-            {"session_id": session_id},
+            query,
             {"_id": 0, "role": 1, "content": 1, "created_at": 1},
         ).sort("created_at", -1).limit(effective_limit)
         docs = await cursor.to_list(length=effective_limit)
