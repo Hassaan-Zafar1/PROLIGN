@@ -56,7 +56,7 @@ class Settings:
 
 settings = Settings(
     groq_api_key=_required("GROQ_API_KEY"),
-    mongodb_uri=_required("MONGO_URI"),
+    mongodb_uri=_required("MONGODB_URI"),
     mongodb_db_name=os.getenv("MONGODB_DB_NAME", "prolign"),
     slack_webhook_url=_required("SLACK_WEBHOOK_URL"),
     slack_complaint_webhook_url=_required("SLACK_COMPLAINT_WEBHOOK_URL"),
