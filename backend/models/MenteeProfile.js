@@ -87,15 +87,29 @@ const menteeProfileSchema = new Schema(
     bio:            { type: String, maxlength: 300, default: null },
     university:     { type: String, default: null },
     degree:         { type: String, default: null },
+    education:      { type: String, default: null }, // free-text education summary (moved from User)
     graduationYear: { type: Number, default: null },
     city:           { type: String, default: null },
     country:        { type: String, default: null },
+    linkedinUrl:    { type: String, default: null },
+
+    // ── Goals & skills (moved from User — mentee domain data) ──────
+    careerGoals:       { type: String,   default: null },
+    skillsToLearn:     { type: [String], default: [] },
+    learningInterests: { type: [String], default: [] },
+    languages:         { type: [String], default: [] },
 
     // ── Domain interest & soft skills (mentee feature set) ─────────
     // NOTE for the AI pipeline: tech_skills IS skillProfile.skills,
     // domain_skills IS skillProfile.domains (same intent — reused).
     domainInterest: { type: String,   default: null }, // vertical tag, e.g. "martech"
     softSkills:     { type: [String], default: [] },   // ["Executive Presence", "Communication"]
+
+    // ── Raw AI-interview Q&A (moved from User: interviewAnswers) ────
+    interviewAnswers: {
+      type: [{ id: String, question: String, answer: Schema.Types.Mixed, _id: false }],
+      default: [],
+    },
 
     // ── Quick form answers before AI interview ──────────────────────
     onboardingAnswers: { type: onboardingAnswersSchema, default: () => ({}) },

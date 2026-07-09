@@ -1,6 +1,7 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
+import MenteeProfile from "../models/MenteeProfile.js";
 import { env } from "./env.js";
 
 passport.use(
@@ -34,15 +35,20 @@ passport.use(
           return done(null, user);
         }
 
-        // New user via Google — role will be set on frontend redirect
-        // We create with a temporary role; user picks role after OAuth
+        // New user via Google — defaults to mentee; role can change in onboarding.
         user = await User.create({
           email,
           googleId: profile.id,
           authProvider: "google",
           isEmailVerified: true, // Google verified
-          role: "mentee", // Default; can be changed during onboarding
+          name: profile.displayName || null,
+          role: "mentee",
         });
+
+        // Keep the ownership structure intact — every user has its role profile.
+        const menteeProfile = await MenteeProfile.create({ userId: user._id });
+        user.menteeProfile = menteeProfile._id;
+        await user.save();
 
         return done(null, user);
       } catch (error) {
