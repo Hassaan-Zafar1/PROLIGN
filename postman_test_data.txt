@@ -1,0 +1,273 @@
+ProLign Postman Test Guide
+==========================
+Base URL: http://localhost:5000/api
+
+IMPORTANT
+---------
+- Start the backend first:
+  - cd backend
+  - npm install
+  - npm start
+- The backend uses JWT auth. After login/verify, copy the accessToken and set it in Postman as a Bearer token.
+- For protected routes, use the Authorization tab -> Type: Bearer Token -> paste the token.
+- OTPs are sent to the email address used during registration. In development, the server also prints the OTP to the terminal/console.
+
+Recommended Postman setup
+-------------------------
+1. Create a collection named "ProLign API".
+2. Add a variable:
+   - baseUrl = http://localhost:5000/api
+   - token = <paste access token here>
+3. For each request, set:
+   - Header: Authorization = Bearer {{token}}
+   - Body: raw JSON
+
+Flow 1: Register and verify a mentee
+-----------------------------------
+1) POST {{baseUrl}}/auth/register
+   Body:
+   {
+     "email": "mentee.test@example.com",
+     "password": "TestPass123!",
+     "role": "mentee",
+     "name": "Mentee One"
+   }
+   Expected: 201, returns userId.
+
+2) POST {{baseUrl}}/auth/verify-otp
+   Body:
+   {
+     "userId": "<paste returned userId>",
+     "otp": "<paste OTP from email or server console>"
+   }
+   Expected: 200, returns accessToken and user.
+
+3) Copy the accessToken into the Postman variable {{token}}.
+
+4) GET {{baseUrl}}/auth/me
+   Expected: 200, returns your user details.
+
+5) POST {{baseUrl}}/interview
+   Body:
+   {
+     "answers": [
+       { "id": "target", "question": "What role are you targeting?", "answer": "Software Engineer" },
+       { "id": "university", "question": "Where did you study?", "answer": "University of Lahore" },
+       { "id": "degree", "question": "What is your degree?", "answer": "BS Computer Science" },
+       { "id": "for_mentors", "question": "Tell mentors about yourself.", "answer": "I want career guidance and interview prep." },
+       { "id": "soft_skills", "question": "Which soft skills matter most?", "answer": ["Communication", "Leadership"] },
+       { "id": "languages", "question": "Programming languages you know.", "answer": "JavaScript, Python" },
+       { "id": "frameworks_tools", "question": "Frameworks/tools you use.", "answer": "React, Node.js" }
+     ]
+   }
+   Expected: 200, creates/updates your mentee profile.
+
+6) GET {{baseUrl}}/mentee-profiles/me
+   Expected: 200, your mentee profile.
+
+Flow 2: Register and verify a mentor
+-----------------------------------
+1) POST {{baseUrl}}/auth/register
+   Body:
+   {
+     "email": "mentor.test@example.com",
+     "password": "TestPass123!",
+     "role": "mentor",
+     "name": "Mentor One"
+   }
+   Expected: 201, returns userId.
+
+2) POST {{baseUrl}}/auth/verify-otp
+   Body:
+   {
+     "userId": "<paste returned userId>",
+     "otp": "<paste OTP from email or server console>"
+   }
+   Expected: 200, returns accessToken and user.
+
+3) Copy the accessToken into the Postman variable {{token}}.
+
+4) GET {{baseUrl}}/auth/me
+   Expected: 200.
+
+5) POST {{baseUrl}}/mentor-profiles
+   Body:
+   {
+     "headline": "Senior Backend Engineer",
+     "bio": "I help developers prepare for technical interviews and career growth.",
+     "title": "Senior Backend Engineer",
+     "company": "Example Tech",
+     "industry": "Software",
+     "skills": ["JavaScript", "Node.js", "System Design"],
+     "domains": ["Backend"],
+     "industries": ["Fintech"],
+     "domainTag": "backend",
+     "softSkills": ["Communication", "Leadership"],
+     "hourlyRate": 2000,
+     "pricePerSession": 2000,
+     "currency": "PKR",
+     "experience": 6,
+     "sessionDuration": 60,
+     "isTakingMentees": true
+   }
+   Expected: 201, mentor profile created.
+
+6) POST {{baseUrl}}/availability
+   Body:
+   {
+     "date": "2026-08-15",
+     "startTime": "10:00",
+     "endTime": "10:30",
+     "slotType": "one_off",
+     "timezone": "Asia/Karachi"
+   }
+   Expected: 201, creates a slot.
+   Save the returned slot id as {{slotId}}.
+
+Flow 3: Book a session as the mentee
+-----------------------------------
+1) Switch to the mentee token (use the mentee account's accessToken).
+2) POST {{baseUrl}}/sessions
+   Body:
+   {
+     "mentorId": "<mentor user id>",
+     "slotId": "{{slotId}}",
+     "sessionType": "mock_interview",
+     "durationMinutes": 60,
+     "agenda": "Mock interview practice"
+   }
+   Expected: 201, session booked.
+   Save the returned session id as {{sessionId}}.
+
+3) PATCH {{baseUrl}}/sessions/{{sessionId}}
+   Body:
+   {
+     "status": "confirmed"
+   }
+   Expected: 200, if you are the mentor.
+
+Flow 4: Review and notifications
+--------------------------------
+1) GET {{baseUrl}}/notifications
+   Expected: 200, list of notifications.
+
+2) POST {{baseUrl}}/notifications
+   Body:
+   {
+     "type": "session_booked",
+     "title": "Session booked",
+     "body": "Your session has been booked successfully."
+   }
+   Expected: 201.
+
+3) PATCH {{baseUrl}}/notifications/read-all
+   Expected: 200, marks notifications as read.
+
+Remaining API payloads
+----------------------
+1) PATCH {{baseUrl}}/user/profile
+   Body:
+   {
+     "name": "Mentee One Updated",
+     "country": "Pakistan",
+     "city": "Lahore",
+     "profileVisibility": true
+   }
+
+2) POST {{baseUrl}}/user/change-password
+   Body:
+   {
+     "currentPassword": "TestPass123!",
+     "newPassword": "NewPass123!"
+   }
+
+3) POST {{baseUrl}}/payments
+   Body:
+   {
+     "sessionId": "{{sessionId}}",
+     "grossAmount": 2000,
+     "currency": "pkr"
+   }
+   Save the returned payment id as {{paymentId}}.
+
+4) PATCH {{baseUrl}}/payments/{{paymentId}}
+   Body:
+   {
+     "payoutStatus": "processing"
+   }
+   Note: this requires an admin token.
+
+5) POST {{baseUrl}}/reviews
+   Body:
+   {
+     "sessionId": "{{sessionId}}",
+     "rating": 5,
+     "reviewText": "Great session and very helpful guidance.",
+     "subRatings": {
+       "communication": 5,
+       "helpfulness": 5
+     },
+     "isAnonymous": false
+   }
+   Save the returned review id as {{reviewId}}.
+
+6) PATCH {{baseUrl}}/reviews/{{reviewId}}
+   Body:
+   {
+     "mentorReply": "Thanks for the thoughtful feedback!"
+   }
+   Note: use the mentor token for this one.
+
+7) PATCH {{baseUrl}}/notifications/{{notificationId}}
+   Body:
+   {
+     "isRead": true
+   }
+   You can get notificationId from GET /notifications.
+
+8) GET {{baseUrl}}/chat
+   Expected: your chat messages.
+
+9) POST {{baseUrl}}/chat
+   Body:
+   {
+     "conversationId": "conv-1",
+     "role": "user",
+     "content": "Hello mentor, I want to improve my interview skills."
+   }
+
+10) GET {{baseUrl}}/admin/users?role=mentor
+    Note: requires admin token.
+
+11) POST {{baseUrl}}/admin/mentors/<mentorUserId>/approve
+    Note: requires admin token.
+
+12) POST {{baseUrl}}/admin/mentors/<mentorUserId>/reject
+    Body:
+    {
+      "reason": "Profile not complete"
+    }
+    Note: requires admin token.
+
+Useful GET requests
+-------------------
+- GET {{baseUrl}}/mentors
+- GET {{baseUrl}}/mentors/recommended
+- GET {{baseUrl}}/availability?mentorId=<mentor user id>
+- GET {{baseUrl}}/sessions?as=mentee
+- GET {{baseUrl}}/payments
+- GET {{baseUrl}}/reviews?mentorId=<mentor user id>
+- GET {{baseUrl}}/notifications?unread=true
+
+Common issues
+------------
+- 401 Unauthorized: token missing or invalid.
+- 403 Forbidden: wrong role or trying to access someone else's data.
+- 400 Bad Request: missing required body field.
+- 409 Conflict: duplicate profile, duplicate slot, or already booked slot.
+- If you get a 404 on /auth/me, make sure you verified OTP first and used the correct token.
+
+Tip
+---
+- If your backend is running on a different port, replace 5000 with the correct port.
+- If you want, I can also generate a ready-to-import Postman collection JSON next.
