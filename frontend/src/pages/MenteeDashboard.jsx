@@ -26,6 +26,10 @@ import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
+// Python AI interviewer/matcher backend (uvicorn api:app --port 8000) —
+// separate from the Node API `authService`/`recommendationService` call.
+const INTERVIEWER_API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:8000';
+
 const normalizeView = (view) => {
   return view || 'dashboard';
 };
@@ -63,6 +67,8 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [user, setUser] = useState(authUser || getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
   const [mentors, setMentors] = useState([]);
+  const [matchedMentors, setMatchedMentors] = useState([]);
+  const [matchLoading, setMatchLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [sessionTab, setSessionTab] = useState('upcoming');
@@ -95,6 +101,32 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       .catch(() => setMentors([]));
   };
 
+  // Ayla's AI-matching engine (Python/matcher.py) — separate from the generic
+  // "all mentors" recommendation SEAM above. Keyed on the mentee's real
+  // MenteeProfile _id, so it works any time after the interview, not just
+  // right when it completes.
+  const loadMatchedMentors = (menteeProfileId) => {
+    if (!menteeProfileId) return;
+    setMatchLoading(true);
+    fetch(`${INTERVIEWER_API_BASE}/match/${menteeProfileId}?top_k=5`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        const mapped = (data.top_mentors || []).map((m) => ({
+          id: m.mentor_id,
+          name: m.full_name || 'Mentor',
+          avatar: m.profile_pic || null,
+          title: m.current_role,
+          industry: m.industry,
+          rating: m.avg_rating,
+          hourlyRate: m.hourly_rate,
+          matchScore: m.final_score,
+        }));
+        setMatchedMentors(mapped);
+      })
+      .catch(() => setMatchedMentors([]))
+      .finally(() => setMatchLoading(false));
+  };
+
   const loadData = () => {
     try {
       // Mentee profile (incl. learning goals from the Task 7 interview) is now
@@ -107,6 +139,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           updateUser(merged);
           setUser(merged);
           loadRecommendedMentors(merged);
+          loadMatchedMentors(backendUser?.menteeProfile?._id || backendUser?.menteeProfile?.id);
         })
         .catch(() => {
           const cachedUser = authUser || getCurrentUser();
@@ -776,6 +809,24 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           <span className="absolute top-1/2 -right-6 material-symbols-outlined text-sm text-tertiary-container/60 animate-float" style={{ animationDelay: '1.5s' }}>star</span>
         </div>
       </section>
+
+      {(matchLoading || matchedMentors.length > 0) && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-headline-md text-2xl font-bold text-on-background">Matched For You</h3>
+            <span className="material-symbols-outlined text-secondary text-lg">auto_awesome</span>
+          </div>
+          {matchLoading ? (
+            <p className="text-sm text-on-surface-variant">Finding your best mentor matches…</p>
+          ) : (
+            <div className="-mx-2 flex snap-x gap-6 overflow-x-auto px-2 pb-4">
+              {matchedMentors.map((mentor) => (
+                <React.Fragment key={mentor.id}>{renderMentorCard(mentor)}</React.Fragment>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">

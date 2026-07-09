@@ -187,18 +187,55 @@ async def get_profile(session_id: str):
     return session.profile
 
 
+@app.get("/sessions/{session_id}/mentee-record")
+async def get_mentee_record(session_id: str):
+    """
+    Return the completed, EDA-cleaned mentee profile (raw fields + cleaned_*
+    + mentee_experience_years, all merged into session.profile at completion
+    time). There's no separate `mentees` collection anymore — Node's
+    `menteeprofiles` is the single source of truth; this just hands it the
+    data to persist there.
+    """
+    session = orchestrator.store.load(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not session.is_complete or not session.profile:
+        raise HTTPException(status_code=400, detail="Interview not yet complete")
+    return session.profile
+
+
+class LinkMenteeProfileRequest(BaseModel):
+    mentee_profile_id: str
+
+
+@app.post("/sessions/{session_id}/link-mentee-profile")
+async def link_mentee_profile(session_id: str, body: LinkMenteeProfileRequest):
+    """
+    Called by the frontend right after Node's /api/interview/complete-ai
+    succeeds. Stores Node's MenteeProfile _id on the session so
+    /sessions/{id}/matches can look this mentee up directly in `menteeprofiles`
+    (via MentorMatcher, which now reads that collection instead of `mentees`).
+    """
+    session = orchestrator.store.load(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.mentee_id = body.mentee_profile_id
+    orchestrator.store.save(session)
+    return {"status": "ok", "mentee_id": session.mentee_id}
+
+
 @app.get("/sessions/{session_id}/matches")
 async def get_matches(session_id: str, top_k: int = 5):
     """
-    Run mentor matching against this mentee's cleaned record (in the `mentees`
-    collection) and return ranked mentors + skill-gap recommendations.
-    Only available after the interview is complete.
+    Run mentor matching against this mentee's record in Node's `menteeprofiles`
+    collection and return ranked mentors + skill-gap recommendations. Requires
+    /sessions/{id}/link-mentee-profile to have been called first.
     """
     session = orchestrator.store.load(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     if not session.is_complete or not session.mentee_id:
-        raise HTTPException(status_code=400, detail="Interview not yet complete")
+        raise HTTPException(status_code=400, detail="Interview not yet complete, or mentee profile not linked yet.")
 
     matcher = get_matcher()
     matcher.refresh_mentees()

@@ -1,4 +1,4 @@
-  import dotenv from "dotenv";
+import dotenv from "dotenv";
   import path from "path";
   import { fileURLToPath } from "url";
 
@@ -35,6 +35,8 @@
     PORT: parseInt(process.env.PORT, 10) || 5000,
 
     MONGO_URI: process.env.MONGO_URI,
+
+    MONGO_DB_NAME: process.env.MONGO_DB_NAME || "Prolign",
 
     JWT_SECRET: process.env.JWT_SECRET,
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,

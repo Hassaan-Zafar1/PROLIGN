@@ -8,10 +8,11 @@ const RETRY_DELAY_MS = 3000;
 async function connectDB(attempt = 1) {
   try {
     const conn = await mongoose.connect(env.MONGO_URI, {
+      dbName: env.MONGO_DB_NAME, // <-- THE FIX: without this, Mongoose silently used "test"
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
-    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
     setupListeners();
      // ─── Seed Admin ─────────────────────────────────────────────────────────
     // await createInitialAdmin(); 

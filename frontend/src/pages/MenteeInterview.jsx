@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { tokenManager } from '../utils/tokenManager';
 
 // FastAPI backend (uvicorn api:app --port 8000) — NOT the Node backend.
 const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:8000';
+// Your Node/Express backend — where the profile ultimately needs to land.
+const NODE_API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000';
 
 /**
  * MenteeInterview — Ayla, the conversational AI interviewer.
@@ -12,7 +15,8 @@ const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:
  *   /sessions/{id}/transcribe (Groq Whisper) and the transcript is shown back
  *   for confirmation/edit before being sent.
  * - Every raw answer is stored server-side (MongoDB `interview_sessions`); on
- *   completion the cleaned profile lands in `mentee_profiles` + `mentees`.
+ *   completion the cleaned profile is handed to Node's `menteeprofiles`
+ *   collection, then matched against `mentorprofiles` and shown right here.
  */
 export default function MenteeInterview({ navigateTo }) {
   const { user } = useAuth();
@@ -29,6 +33,8 @@ export default function MenteeInterview({ navigateTo }) {
   const [muted, setMuted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState('');
+  const [matches, setMatches] = useState(null); // { top_mentors, skill_recommendations } | null
+  const [isMatching, setIsMatching] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -91,8 +97,56 @@ export default function MenteeInterview({ navigateTo }) {
 
       if (data.is_complete) {
         setIsComplete(true);
-        // Give the DB a beat, then send the mentee onward.
-        setTimeout(() => navigateTo?.('mentee-dashboard'), 2500);
+        try {
+          const recordRes = await fetch(`${API_BASE}/sessions/${session}/mentee-record`);
+          if (recordRes.ok) {
+            const menteeRecord = await recordRes.json();
+            const token = tokenManager.getAccessToken?.() || tokenManager.getToken?.();
+            const completeRes = await fetch(`${NODE_API_BASE}/api/interview/complete-ai`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` }),
+              },
+              body: JSON.stringify({
+                menteeRecord,
+                conversation: [...messages, { role: 'user', text }],
+                mode: mode === 'record' ? 'voice' : 'text',
+              }),
+            });
+            if (completeRes.ok) {
+              const { menteeProfile } = await completeRes.json();
+              if (menteeProfile?._id) {
+                // Link Node's MenteeProfile _id back to the Ayla session so
+                // /sessions/{id}/matches (mentor matching) can look this
+                // mentee up directly in `menteeprofiles`.
+                await fetch(`${API_BASE}/sessions/${session}/link-mentee-profile`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ mentee_profile_id: menteeProfile._id }),
+                });
+
+                setIsMatching(true);
+                try {
+                  const matchRes = await fetch(`${API_BASE}/sessions/${session}/matches?top_k=5`);
+                  if (matchRes.ok) {
+                    setMatches(await matchRes.json());
+                  }
+                } catch {
+                  // Non-fatal — matching is a bonus on this screen, dashboard will
+                  // still show the mentee's profile regardless.
+                } finally {
+                  setIsMatching(false);
+                }
+              }
+            }
+          }
+        } catch {
+          // Non-fatal: Ayla's own record is already saved server-side (Mongo);
+          // this just means the Node-side MenteeProfile/dashboard sync failed.
+          setError('Interview saved, but syncing your profile to the dashboard failed. Refresh in a moment.');
+        }
+        // No auto-navigate — the mentee stays here to see their matched mentors.
       }
     } catch {
       setError('Something went wrong sending your answer. Please try again.');
@@ -208,10 +262,66 @@ export default function MenteeInterview({ navigateTo }) {
         {error && <div className="mx-5 mb-2 px-3 py-2 rounded-lg bg-error/10 text-error text-xs">{error}</div>}
 
         {isComplete ? (
-          <div className="p-5 border-t border-outline-variant/15 shrink-0 text-center space-y-1.5">
-            <span className="material-symbols-outlined text-3xl text-secondary">check_circle</span>
-            <p className="text-sm font-bold text-on-surface">Interview complete!</p>
-            <p className="text-xs text-on-surface-variant">Taking you to your dashboard…</p>
+          <div className="p-5 border-t border-outline-variant/15 shrink-0 max-h-[50vh] overflow-y-auto space-y-4">
+            <div className="text-center space-y-1">
+              <span className="material-symbols-outlined text-3xl text-secondary">check_circle</span>
+              <p className="text-sm font-bold text-on-surface">Interview complete!</p>
+            </div>
+
+            {isMatching && (
+              <p className="text-xs text-on-surface-variant text-center italic">Finding your best mentor matches…</p>
+            )}
+
+            {matches?.top_mentors?.length > 0 && (
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Your top mentor matches</p>
+                {matches.top_mentors.map((m) => (
+                  <div key={m.mentor_id} className="rounded-xl bg-surface-container-high p-3 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-xs font-bold shrink-0">
+                      {m.rank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-on-surface truncate">{m.full_name || 'Mentor'}</p>
+                      <p className="text-xs text-on-surface-variant">
+                        {m.current_role || '—'} · {m.industry || '—'} · {m.experience_years || 0} yrs
+                      </p>
+                      <p className="text-[10px] text-on-surface-variant/70 mt-0.5">
+                        ⭐ {Number(m.avg_rating || 0).toFixed(1)} · {m.total_sessions || 0} sessions · match score {(Number(m.final_score || 0) * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {matches?.skill_recommendations && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Skills your top mentors have that you don't yet</p>
+                {['tech_skills', 'domain_skills', 'soft_skills'].map((cat) => {
+                  const recs = matches.skill_recommendations[cat] || [];
+                  if (!recs.length) return null;
+                  return (
+                    <p key={cat} className="text-xs text-on-surface-variant">
+                      <span className="font-semibold capitalize">{cat.replace('_', ' ')}:</span>{' '}
+                      {recs.slice(0, 5).map((r) => r.skill).join(', ')}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isMatching && !matches?.top_mentors?.length && (
+              <p className="text-xs text-on-surface-variant text-center">
+                No mentor matches yet — check back once more mentors join.
+              </p>
+            )}
+
+            <button
+              onClick={() => navigateTo?.('mentee-dashboard')}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-secondary text-on-secondary"
+            >
+              Go to my dashboard
+            </button>
           </div>
         ) : (
           <div className="p-4 border-t border-outline-variant/15 shrink-0 space-y-2.5">

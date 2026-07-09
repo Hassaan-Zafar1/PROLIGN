@@ -185,7 +185,7 @@ class InterviewSession:
     current_question: int = 0
     history: list = field(default_factory=list)   # list of Message dicts (raw answers live here)
     profile: Optional[dict] = None
-    mentee_id: Optional[str] = None   # set once the cleaned mentee record is saved to `mentees`
+    mentee_id: Optional[str] = None   # Node's MenteeProfile _id — set via POST /sessions/{id}/link-mentee-profile after Node completes /complete-ai. Used to key mentor-matching.
     is_complete: bool = False
 
 
@@ -256,13 +256,8 @@ class MongoSessionStore:
         self.db = self.client[db_name]
         self.sessions = self.db["interview_sessions"]
         self.profiles = self.db["mentee_profiles"]
-        self.mentees = self.db["mentees"]
         self.sessions.create_index("session_id", unique=True)
         self.profiles.create_index("session_id", unique=True)
-        # sparse: bulk-imported mentees have no session_id, so this only
-        # enforces uniqueness among interview-sourced records.
-        self.mentees.create_index("session_id", unique=True, sparse=True)
-        self.mentees.create_index("mentee_id")
 
     def save(self, session: InterviewSession):
         doc = asdict(session)
@@ -283,40 +278,6 @@ class MongoSessionStore:
         doc = asdict(profile)
         doc["_id"] = profile.session_id
         self.profiles.replace_one({"_id": profile.session_id}, doc, upsert=True)
-
-    def save_mentee_record(self, profile: MenteeProfile) -> dict:
-        """
-        Build a mentee record shaped like the bulk-upload schema (mentee_id,
-        pipe-joined skill strings, etc.), run it through the same EDA cleaning
-        used for the CSV pipeline, and upsert it into the `mentees` collection —
-        keyed by session_id so re-completing a session updates rather than
-        duplicates.
-        """
-        existing = self.mentees.find_one({"session_id": profile.session_id})
-        mentee_id = existing["mentee_id"] if existing else f"MT-{uuid.uuid4().hex[:8].upper()}"
-
-        record = {
-            "mentee_id": mentee_id,
-            "full_name": profile.full_name,
-            "university": profile.university,
-            "degree": profile.degree,
-            "experience_level": profile.experience_level,
-            "domain_interest": profile.domain_interest,
-            "target_role": profile.target_role,
-            "target_company_tier": profile.target_company_tier,
-            "target_industry": profile.target_industry,
-            "bio": profile.bio,
-            "tech_skills": " | ".join(profile.tech_skills),
-            "domain_skills": " | ".join(profile.domain_skills),
-            "soft_skills": " | ".join(profile.soft_skills),
-            "source": "interview",
-            "session_id": profile.session_id,
-            "generated_at": profile.generated_at,
-        }
-        record = clean_mentee_record(record)  # adds cleaned_* fields + mentee_experience_years
-
-        self.mentees.replace_one({"session_id": profile.session_id}, record, upsert=True)
-        return record
 
     def all_profiles(self) -> list:
         return list(self.profiles.find({}, {"_id": 0}))
@@ -425,10 +386,35 @@ class InterviewOrchestrator:
             session.completed_at = _now()
             profile = self.extractor.extract(raw_reply, session.session_id)
             if profile:
+                # Build the same shape the bulk-CSV pipeline uses (pipe-joined
+                # skills, etc.), run it through the shared EDA cleaning logic,
+                # and merge the result straight into session.profile — no
+                # separate `mentees` Mongo write. This dict is what
+                # /sessions/{id}/profile and /sessions/{id}/mentee-record both
+                # return; Node is the one true persistence layer now
+                # (`menteeprofiles`), this is just handed to it.
+                flat = {
+                    "full_name": profile.full_name,
+                    "university": profile.university,
+                    "degree": profile.degree,
+                    "experience_level": profile.experience_level,
+                    "domain_interest": profile.domain_interest,
+                    "target_role": profile.target_role,
+                    "target_company_tier": profile.target_company_tier,
+                    "target_industry": profile.target_industry,
+                    "bio": profile.bio,
+                    "tech_skills": " | ".join(profile.tech_skills),
+                    "domain_skills": " | ".join(profile.domain_skills),
+                    "soft_skills": " | ".join(profile.soft_skills),
+                    "source": "interview",
+                    "session_id": profile.session_id,
+                    "generated_at": profile.generated_at,
+                }
+                flat = clean_mentee_record(flat)  # adds cleaned_* fields + mentee_experience_years
+
                 session.profile = asdict(profile)
+                session.profile.update(flat)  # merge in cleaned_* + mentee_experience_years
                 self.store.save_profile(profile)
-                record = self.store.save_mentee_record(profile)
-                session.mentee_id = record["mentee_id"]
 
         session.history.append(Message(role="assistant", content=raw_reply))
 

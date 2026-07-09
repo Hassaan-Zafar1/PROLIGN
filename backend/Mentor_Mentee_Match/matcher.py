@@ -97,31 +97,134 @@ def parse_skills(skill_str):
     return {clean_text(piece).strip() for piece in pieces if clean_text(piece).strip()}
 
 
+def _load_mentor_df_from_mentorprofiles(db):
+    """
+    Build the flat mentor dataframe MentorMatcher needs, from Node's real
+    `mentorprofiles` (Mongoose) + `users` collections instead of the old flat
+    `mentors` bulk-CSV collection (removed — mentorprofiles is now the single
+    source of truth for mentor data, same as menteeprofiles for mentees).
+
+    Field mapping (mentorprofiles/users → matcher's expected flat columns):
+      _id                → mentor_id (stringified ObjectId)
+      users.name         → full_name
+      title (fallback: currentCompany.role) → current_role
+      industry           → industry
+      domainTag           → domain_tag
+      bio                 → bio
+      experience (years)  → experience_years
+      averageRating       → avg_rating
+      totalSessions        → total_sessions
+      skills (array)       → tech_skills (pipe-joined, matches parse_skills' separator)
+      domains (array)      → domain_skills (pipe-joined)
+      softSkills (array)   → soft_skills (pipe-joined)
+
+    Only approved, active, non-banned mentors are included — same filter the
+    public mentor directory (mentorService.js) applies.
+    """
+    pipeline = [
+        {"$lookup": {"from": "users", "localField": "userId", "foreignField": "_id", "as": "user"}},
+        {"$unwind": {"path": "$user", "preserveNullAndEmptyArrays": True}},
+        {"$match": {
+            "status": "approved",
+            "user.isActive": {"$ne": False},
+            "user.isBanned": {"$ne": True},
+        }},
+    ]
+    rows = []
+    for doc in db["mentorprofiles"].aggregate(pipeline):
+        current_company = doc.get("currentCompany") or {}
+        user_doc = doc.get("user") or {}
+        rows.append({
+            "mentor_id": str(doc.get("_id", "")),
+            "full_name": user_doc.get("name", "") or "",
+            "profile_pic": user_doc.get("profilePic") or None,
+            "hourly_rate": doc.get("hourlyRate") or doc.get("pricePerSession") or None,
+            "current_role": doc.get("title") or current_company.get("role") or "",
+            "industry": doc.get("industry") or "",
+            "domain_tag": doc.get("domainTag") or "",
+            "bio": doc.get("bio") or "",
+            "experience_years": doc.get("experience") or 0,
+            "avg_rating": doc.get("averageRating") or 0,
+            "total_sessions": doc.get("totalSessions") or 0,
+            "tech_skills": " | ".join(doc.get("skills") or []),
+            "domain_skills": " | ".join(doc.get("domains") or []),
+            "soft_skills": " | ".join(doc.get("softSkills") or []),
+        })
+    return pd.DataFrame(rows)
+
+
+def _load_mentee_df_from_menteeprofiles(db):
+    """
+    Build the flat mentee dataframe MentorMatcher needs, but from Node's real
+    `menteeprofiles` (Mongoose) + `users` collections instead of the old flat
+    `mentees` collection (removed — menteeprofiles is now the single source of
+    truth for mentee data).
+
+    Field mapping (menteeprofiles/users → matcher's expected flat columns):
+      _id                        → mentee_id (stringified ObjectId)
+      users.name                 → full_name
+      onboardingAnswers.targetRole      → target_role
+      onboardingAnswers.targetIndustry  → target_industry (schema stores a list; join with " ")
+      onboardingAnswers.targetCompanyTier → target_company_tier
+      domainInterest              → domain_interest
+      bio                         → bio
+      onboardingAnswers.experienceLevel → experience_level (raw label)
+      onboardingAnswers.yearsOfExp → mentee_experience_years
+      skillProfile.skills (array) → tech_skills (pipe-joined, matches parse_skills' separator)
+      skillProfile.domains (array)→ domain_skills (pipe-joined)
+      softSkills (array)          → soft_skills (pipe-joined)
+    """
+    pipeline = [
+        {"$lookup": {"from": "users", "localField": "userId", "foreignField": "_id", "as": "user"}},
+        {"$unwind": {"path": "$user", "preserveNullAndEmptyArrays": True}},
+    ]
+    rows = []
+    for doc in db["menteeprofiles"].aggregate(pipeline):
+        oa = doc.get("onboardingAnswers") or {}
+        sp = doc.get("skillProfile") or {}
+        target_industry = oa.get("targetIndustry") or []
+        rows.append({
+            "mentee_id": str(doc.get("_id", "")),
+            "full_name": (doc.get("user") or {}).get("name", "") or "",
+            "target_role": oa.get("targetRole") or "",
+            "target_industry": " ".join(target_industry) if isinstance(target_industry, list) else str(target_industry or ""),
+            "target_company_tier": oa.get("targetCompanyTier") or "",
+            "domain_interest": doc.get("domainInterest") or "",
+            "bio": doc.get("bio") or "",
+            "experience_level": oa.get("experienceLevel") or "",
+            "mentee_experience_years": oa.get("yearsOfExp") or 0,
+            "tech_skills": " | ".join(sp.get("skills") or []),
+            "domain_skills": " | ".join(sp.get("domains") or []),
+            "soft_skills": " | ".join(doc.get("softSkills") or []),
+        })
+    return pd.DataFrame(rows)
+
+
 class MentorMatcher:
     def __init__(
         self,
         mongo_uri=None,
         mongo_db=None,
-        mentor_collection="mentors",
-        mentee_collection="mentees",
+        mentor_collection="mentorprofiles",  # was "mentors" — now reads Node's real collection
+        mentee_collection="menteeprofiles",  # was "mentees" — now reads Node's real collection
         model_name="all-MiniLM-L6-v2",
     ):
         self._uri = mongo_uri or os.environ.get("MONGO_URI") or "mongodb://localhost:27017"
-        self._db_name = mongo_db or os.environ.get("MONGO_DB_NAME") or "prolign"
+        self._db_name = mongo_db or os.environ.get("MONGO_DB_NAME") or "Prolign"
         self._mentor_collection = mentor_collection
         self._mentee_collection = mentee_collection
         self.model_name = model_name
 
         client = MongoClient(self._uri)
         db = client[self._db_name]
-        self.mentor_df = pd.DataFrame(list(db[mentor_collection].find({}, {"_id": 0})))
-        self.mentee_df = pd.DataFrame(list(db[mentee_collection].find({}, {"_id": 0})))
+        self.mentor_df = _load_mentor_df_from_mentorprofiles(db)
+        self.mentee_df = _load_mentee_df_from_menteeprofiles(db)
         client.close()
 
         if self.mentor_df.empty:
-            raise ValueError(f"No documents found in '{self._db_name}.{mentor_collection}'")
+            raise ValueError(f"No documents found in '{self._db_name}.{mentor_collection}' (mentorprofiles)")
         if self.mentee_df.empty:
-            raise ValueError(f"No documents found in '{self._db_name}.{mentee_collection}'")
+            raise ValueError(f"No documents found in '{self._db_name}.{mentee_collection}' (menteeprofiles)")
 
         print(f"Loaded {len(self.mentor_df)} mentors from '{self._db_name}.{mentor_collection}'")
         print(f"Loaded {len(self.mentee_df)} mentees from '{self._db_name}.{mentee_collection}'")
@@ -137,18 +240,16 @@ class MentorMatcher:
 
     def refresh_mentees(self):
         """
-        Reload just the mentee collection from MongoDB. Call this before matching
-        if mentees may have been added since this MentorMatcher was created (e.g.
-        a long-lived API process where interviews complete after startup).
-        Cheap — does not touch the mentor embeddings or reload the ML model.
+        Reload just the mentee data from menteeprofiles/users. Call this before
+        matching if mentees may have been added since this MentorMatcher was
+        created (e.g. a long-lived API process where interviews complete after
+        startup). Cheap — does not touch the mentor embeddings or reload the ML model.
         """
         client = MongoClient(self._uri)
-        self.mentee_df = pd.DataFrame(
-            list(client[self._db_name][self._mentee_collection].find({}, {"_id": 0}))
-        )
+        self.mentee_df = _load_mentee_df_from_menteeprofiles(client[self._db_name])
         client.close()
         if self.mentee_df.empty:
-            raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}'")
+            raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}' (menteeprofiles)")
         self._recover_mentee_fields()
         self._prepare_mentee_numeric_fields()
 
@@ -274,6 +375,8 @@ class MentorMatcher:
             "rank",
             "mentor_id",
             "full_name",
+            "profile_pic",
+            "hourly_rate",
             "current_role",
             "industry",
             "domain_tag",
