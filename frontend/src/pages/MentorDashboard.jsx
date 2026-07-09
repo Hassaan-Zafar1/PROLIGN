@@ -20,6 +20,7 @@ import { EmptyState } from '../components/common';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { getMentorProfileCompletion } from '../utils/profileCompletion';
 import { authService } from '../services/authService';
+import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
@@ -138,10 +139,12 @@ const MentorDashboard = ({ navigateTo }) => {
       // to the cached user when offline.
       let currentUser;
       try {
-        currentUser = await authService.getCurrentUser();
+        // The CV-built profile lives on the populated mentorProfile now —
+        // flatten it up so the profile-completion card / header read it.
+        currentUser = flattenUserProfile(await authService.getCurrentUser());
         updateUser(currentUser);
       } catch {
-        currentUser = authUser || getCurrentUser();
+        currentUser = flattenUserProfile(authUser || getCurrentUser());
       }
       setUser(currentUser);
 
