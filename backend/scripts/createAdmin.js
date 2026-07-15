@@ -20,8 +20,8 @@ const password = process.argv[3] || process.env.ADMIN_PASSWORD || "Admin@12345";
 const name = process.argv[4] || process.env.ADMIN_NAME || "ProLign Admin";
 
 async function run() {
-  await mongoose.connect(env.MONGO_URI, { dbName: env.MONGO_DB_NAME }); // <-- fix: was defaulting to 'test'
-  console.log(`✅ Connected to MongoDB (${env.MONGO_DB_NAME})`);
+  await mongoose.connect(env.MONGO_URI);
+  console.log("✅ Connected to MongoDB");
 
   let user = await User.findOne({ email }).select("+password");
 

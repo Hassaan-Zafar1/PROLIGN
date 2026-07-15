@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext'; // adjust path if your AuthContext lives elsewhere
 
 const API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8000/chat';
 const HISTORY_URL = API_URL.replace('/chat', '/history');
@@ -37,6 +38,9 @@ const WELCOME_MSG = {
 };
 
 const AIChatWidget = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+  const userEmail = user?.email ?? null;
+
   const [inputText, setInputText] = useState('');
   const [view, setView] = useState('chat');
   const [isTyping, setIsTyping] = useState(false);
@@ -129,7 +133,7 @@ const AIChatWidget = ({ isOpen, onClose }) => {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: getSessionId(), message: query }),
+        body: JSON.stringify({ session_id: getSessionId(), message: query, email: userEmail }),
       });
       const data = await response.json();
       setMessages(prev => [...prev, {
