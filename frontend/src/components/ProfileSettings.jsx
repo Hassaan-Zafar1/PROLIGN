@@ -4,6 +4,8 @@ import { userService } from '../services/userService';
 import { uploadService } from '../services/uploadService';
 import { tokenManager } from '../utils/tokenManager';
 import { Input, Select, Textarea, Toggle, Card, Modal, Button, Avatar } from './common';
+import { authService } from '../services/authService';
+import { menteeProfileService } from '../services/menteeProfileService';
 
 const sectionMap = {
   mentor: [
@@ -228,79 +230,79 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     setTimeout(() => setStatus({ msg: '', type: '' }), 3500);
   };
 
-  const saveSection = async (sectionId) => {
-    if (sectionId !== 'security' && sectionId !== 'notifications' && !validateSection(sectionId)) {
-      showStatus('Please fix the errors before saving.', 'error');
-      return;
-    }
+   const saveSection = async (sectionId) => {
+  if (sectionId !== 'security' && sectionId !== 'notifications' && !validateSection(sectionId)) {
+    showStatus('Please fix the errors before saving.', 'error');
+    return;
+  }
 
-    // ─── Security: Password Change ─────────────────────────────────────────────
-    if (sectionId === 'security') {
-      if (form.newPassword || form.currentPassword) {
-        if (!form.currentPassword) {
-          showStatus('Current password is required.', 'error');
-          return;
-        }
-        if (form.newPassword.length < 8) {
-          showStatus('New password must be at least 8 characters.', 'error');
-          return;
-        }
-        if (form.newPassword !== form.confirmPassword) {
-          showStatus('Passwords do not match.', 'error');
-          return;
-        }
-
-        setSaving(true);
-        try {
-          await userService.changePassword(form.currentPassword, form.newPassword);
-          const clearedForm = { ...form, currentPassword: '', newPassword: '', confirmPassword: '' };
-          setForm(clearedForm);
-          initialFormRef.current = makeInitialForm(user);
-          showStatus('Password changed successfully.');
-        } catch (error) {
-          showStatus(error.response?.data?.message || 'Failed to change password.', 'error');
-        } finally {
-          setSaving(false);
-        }
+  if (sectionId === 'security') {
+    if (form.newPassword || form.currentPassword) {
+      if (!form.currentPassword) {
+        showStatus('Current password is required.', 'error');
+        return;
+      }
+      if (form.newPassword.length < 8) {
+        showStatus('New password must be at least 8 characters.', 'error');
+        return;
+      }
+      if (form.newPassword !== form.confirmPassword) {
+        showStatus('Passwords do not match.', 'error');
         return;
       }
 
-      // ─── Security: Privacy only (no password fields filled) ─────────────────
       setSaving(true);
       try {
-        const response = await userService.updateProfile({
-          profileVisibility: form.profileVisibility,
-        });
-        updateUser(response.user);
-        const fresh = makeInitialForm(response.user);
-        setForm(fresh);
-        initialFormRef.current = fresh;
-        showStatus('Privacy settings saved.');
+        await userService.changePassword(form.currentPassword, form.newPassword);
+        const clearedForm = { ...form, currentPassword: '', newPassword: '', confirmPassword: '' };
+        setForm(clearedForm);
+        initialFormRef.current = makeInitialForm(user);
+        showStatus('Password changed successfully.');
       } catch (error) {
-        showStatus(error.response?.data?.message || 'Failed to save.', 'error');
+        showStatus(error.response?.data?.message || 'Failed to change password.', 'error');
       } finally {
         setSaving(false);
       }
       return;
     }
 
-    // ─── All other sections ────────────────────────────────────────────────────
-    const fields = sectionFields[sectionId] || sectionFields.profile;
+    setSaving(true);
+    try {
+      const response = await userService.updateProfile({
+        profileVisibility: form.profileVisibility,
+      });
+      updateUser(response.user);
+      const fresh = makeInitialForm(response.user);
+      setForm(fresh);
+      initialFormRef.current = fresh;
+      showStatus('Privacy settings saved.');
+    } catch (error) {
+      showStatus(error.response?.data?.message || 'Failed to save.', 'error');
+    } finally {
+      setSaving(false);
+    }
+    return;
+  }
+  if (role === 'mentee' && (sectionId === 'profile' || sectionId === 'learning')) {
     const payload = {};
 
-    for (const field of fields) {
-      if (arrayFields.includes(field)) {
-        const arr = toList(form[field]);
-        if (arr.length > 0) payload[field] = arr;
-      } else if (numberFields.includes(field)) {
-        if (form[field] !== '' && form[field] !== null) {
-          payload[field] = safeNumber(form[field]);
-        }
-      } else {
-        if (form[field] !== '' && form[field] !== null && form[field] !== undefined) {
-          payload[field] = form[field];
-        }
-      }
+    if (sectionId === 'profile') {
+      if (form.profilePic) payload.profilePic = form.profilePic;
+      if (form.name) payload.name = form.name;
+      if (form.country) payload.country = form.country;
+      if (form.city) payload.city = form.city;
+      if (form.bio) payload.bio = form.bio;
+      if (form.linkedinUrl) payload.linkedinUrl = form.linkedinUrl;
+      if (form.industry) payload.domainInterest = form.industry;
+    }
+
+    if (sectionId === 'learning') {
+      if (form.education) payload.education = form.education;
+      if (form.careerGoals) payload.careerGoals = form.careerGoals;
+      if (form.skillsToLearn) payload.skillsToLearn = toList(form.skillsToLearn);
+      if (form.learningInterests) payload.learningInterests = toList(form.learningInterests);
+      if (form.languages) payload.languages = toList(form.languages);
+      if (form.skills) payload.softSkills = toList(form.skills);
     }
 
     if (Object.keys(payload).length === 0) {
@@ -310,12 +312,15 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
 
     setSaving(true);
     try {
-      const response = await userService.updateProfile(payload);
-      updateUser(response.user);
-      const freshForm = makeInitialForm(response.user);
+      await menteeProfileService.updateProfile(payload);
+
+      const freshUser = await authService.getCurrentUser();
+      updateUser(freshUser);
+
+      const freshForm = makeInitialForm(freshUser);
       setForm(freshForm);
       initialFormRef.current = freshForm;
-      onThemeChange?.(form.appearanceTheme);
+
       showStatus('Changes saved successfully.');
       onSaved?.();
     } catch (error) {
@@ -323,7 +328,47 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
     } finally {
       setSaving(false);
     }
-  };
+    return;
+  }
+
+  const fields = sectionFields[sectionId] || sectionFields.profile;
+  const payload = {};
+
+  for (const field of fields) {
+    if (arrayFields.includes(field)) {
+      const arr = toList(form[field]);
+      if (arr.length > 0) payload[field] = arr;
+    } else if (numberFields.includes(field)) {
+      if (form[field] !== '' && form[field] !== null) {
+        payload[field] = safeNumber(form[field]);
+      }
+    } else {
+      if (form[field] !== '' && form[field] !== null && form[field] !== undefined) {
+        payload[field] = form[field];
+      }
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    showStatus('No changes to save.', 'error');
+    return;
+  }
+
+  setSaving(true);
+  try {
+    const response = await userService.updateProfile(payload);
+    updateUser(response.user);
+    const freshForm = makeInitialForm(response.user);
+    setForm(freshForm);
+    initialFormRef.current = freshForm;
+    showStatus('Changes saved successfully.');
+    onSaved?.();
+  } catch (error) {
+    showStatus(error.response?.data?.message || 'Failed to save changes.', 'error');
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handlePhotoFile = async (e) => {
     const f = e.target.files?.[0];

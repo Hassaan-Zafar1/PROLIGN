@@ -70,10 +70,21 @@ export async function createProfile(user, body) {
 }
 
 export async function updateMyProfile(user, body) {
-  const profile = await MenteeProfile.findOne({ userId: user._id });
-  if (!profile) throw new ApiError(404, "You don't have a mentee profile yet.");
-  applyUpdates(profile, body);
-  await profile.save();
+  const profile = await MenteeProfile.findOneAndUpdate(
+    { userId: user._id },
+    {
+      $set: {
+        ...Object.fromEntries(
+          OWNER_EDITABLE
+            .filter((field) => body[field] !== undefined)
+            .map((field) => [field, body[field]])
+        ),
+        userId: user._id,
+      },
+    },
+    { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+  );
+
   return profile;
 }
 

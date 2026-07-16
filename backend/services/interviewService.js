@@ -85,3 +85,64 @@ export async function getInterview(userId) {
   const assessment = await AiAssessment.findOne({ menteeId: userId }).lean();
   return { assessment: assessment || null };
 }
+
+const toList = (value) =>
+  Array.isArray(value)
+    ? value.map((item) => String(item).trim()).filter(Boolean)
+    : String(value || "")
+        .split("|")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+export async function completeInterview(user, { menteeRecord, conversation = [], mode = "text" }, req) {
+  if (!menteeRecord) throw new ApiError(400, "menteeRecord is required.");
+
+  const profile = await MenteeProfile.findOneAndUpdate(
+    { userId: user._id },
+    {
+      $set: {
+        userId: user._id,
+        university: menteeRecord.university || null,
+        degree: menteeRecord.degree || null,
+        education: [menteeRecord.degree, menteeRecord.university].filter(Boolean).join(" — ") || null,
+        bio: menteeRecord.bio || null,
+        careerGoals: menteeRecord.target_role || null,
+        domainInterest: menteeRecord.domain_interest || null,
+        softSkills: toList(menteeRecord.soft_skills),
+        skillProfile: {
+          generatedAt: new Date(),
+          skills: toList(menteeRecord.tech_skills),
+          domains: toList(menteeRecord.domain_skills),
+          careerGoals: toList(menteeRecord.target_role),
+          industries: toList(menteeRecord.target_industry),
+        },
+        onboardingAnswers: {
+          targetRole: menteeRecord.target_role || null,
+          targetIndustry: toList(menteeRecord.target_industry),
+          experienceLevel: menteeRecord.experience_level || null,
+          targetCompanyTier: menteeRecord.target_company_tier || null,
+          yearsOfExp: Number(menteeRecord.mentee_experience_years) || 0,
+        },
+        interviewAnswers: conversation,
+      },
+      $setOnInsert: { userId: user._id },
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    {
+      $set: {
+        isProfileComplete: true,
+        onboardingStep: "complete",
+        menteeProfile: profile._id,
+      },
+    },
+    { new: true, runValidators: true }
+  )
+    .select("-password -refreshTokens")
+    .populate("menteeProfile");
+
+  return { user: updatedUser, menteeProfile: profile };
+}

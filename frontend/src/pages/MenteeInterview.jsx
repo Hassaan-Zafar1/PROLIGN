@@ -24,7 +24,7 @@ const NODE_API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000';
  *   restart later from their dashboard.
  */
 export default function MenteeInterview({ navigateTo }) {
-  const { user, refreshUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]); // { role: 'ayla' | 'user', text, mode? }
@@ -123,6 +123,10 @@ export default function MenteeInterview({ navigateTo }) {
         // match results above, but DOES gate the "Go to my dashboard" button
         // via isSyncing, so a route guard checking "has completed interview"
         // sees fresh state before we navigate there.
+                // Sync to Node so the dashboard has a copy too. This does NOT gate
+        // match results above, but DOES gate the "Go to my dashboard" button
+        // via isSyncing, so a route guard checking "has completed interview"
+        // sees fresh state before we navigate there.
         setIsSyncing(true);
         (async () => {
           try {
@@ -143,7 +147,10 @@ export default function MenteeInterview({ navigateTo }) {
               }),
             });
             if (completeRes.ok) {
-              await refreshUser?.();
+              const data = await completeRes.json();
+              if (data?.user) {
+                updateUser(data.user);
+              }
             }
           } catch {
             setError('Your matches are ready below. Your dashboard is still catching up — try again in a moment.');
