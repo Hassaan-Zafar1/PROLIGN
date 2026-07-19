@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { tokenManager } from '../utils/tokenManager';
+import { interviewService } from '../services/interviewService';
 
-// FastAPI backend (uvicorn main:app --port 8001) — NOT the Node backend.
-const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:8001';
-// Your Node/Express backend — where a copy of the profile lands for the dashboard.
-const NODE_API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000';
+// FastAPI backend (uvicorn main:app --port 8000) — NOT the Node backend.
+const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:8000';
 
 /**
  * MenteeInterview — Ayla, the conversational AI interviewer.
@@ -15,11 +13,13 @@ const NODE_API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:5000';
  *   /sessions/{id}/transcribe (Groq Whisper) and the transcript is shown back
  *   for confirmation/edit before being sent.
  * - Every raw answer is stored server-side (MongoDB `interview_sessions`).
- *   On completion, the cleaned profile lands in Mentee_Profiles and mentor
- *   matches are fetched directly against that same record via session_id -
- *   no separate linking step. Syncing a copy to Node (for the dashboard)
- *   happens in parallel and never blocks match results, but DOES gate the
- *   "Go to my dashboard" button so any route guard sees fresh state first.
+ *   On completion, the cleaned profile lands in Mentee_Profiles (keyed by
+ *   session_id) and mentor matches are fetched directly against that same
+ *   record. Python has no notion of the logged-in ProLign user, so Node's
+ *   `POST /api/interview` (interviewService.linkInterview) stamps this
+ *   mentee's userId onto that doc — that call never blocks match results
+ *   above, but DOES gate the "Go to my dashboard" button (via isSyncing) so
+ *   any route guard / the dashboard's GET /auth/me sees fresh state first.
  * - The mentee can exit early at any point; nothing is lost, they can just
  *   restart later from their dashboard.
  */
@@ -84,7 +84,7 @@ export default function MenteeInterview({ navigateTo }) {
       setMessages([{ role: 'ayla', text: data.opening_message }]);
       setTimeout(() => speak(data.opening_message), 400);
     } catch {
-      setError("Could not reach Ayla. Make sure the interviewer API (uvicorn main:app --port 8001) is running.");
+      setError("Could not reach Ayla. Make sure the interviewer API (uvicorn main:app --port 8000) is running.");
     }
   };
 
@@ -119,32 +119,17 @@ export default function MenteeInterview({ navigateTo }) {
           .catch(() => {})
           .finally(() => setIsMatching(false));
 
-        // Sync to Node so the dashboard has a copy too. This does NOT gate
+        // Link this session to the logged-in mentee on Node, so the dashboard
+        // (GET /auth/me) can find the profile by userId. This does NOT gate
         // match results above, but DOES gate the "Go to my dashboard" button
         // via isSyncing, so a route guard checking "has completed interview"
-        // sees fresh state before we navigate there.
+        // sees fresh state before we navigate there. linkedinUrl isn't sent
+        // here — the backend falls back to what was captured at signup.
         setIsSyncing(true);
         (async () => {
           try {
-            const recordRes = await fetch(`${API_BASE}/sessions/${session}/profile`);
-            if (!recordRes.ok) return;
-            const menteeRecord = await recordRes.json();
-            const token = tokenManager.getAccessToken?.() || tokenManager.getToken?.();
-            const completeRes = await fetch(`${NODE_API_BASE}/api/interview/complete-ai`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
-              },
-              body: JSON.stringify({
-                menteeRecord,
-                conversation: [...messages, { role: 'user', text }],
-                mode: mode === 'record' ? 'voice' : 'text',
-              }),
-            });
-            if (completeRes.ok) {
-              await refreshUser?.();
-            }
+            await interviewService.linkInterview(session);
+            await refreshUser?.();
           } catch {
             setError('Your matches are ready below. Your dashboard is still catching up — try again in a moment.');
           } finally {

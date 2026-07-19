@@ -443,7 +443,10 @@ const MentorDashboard = ({ navigateTo }) => {
             )}
             <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
             <p className="brand-muted-text max-w-md">
-            You have {upcomingSessions.length} upcoming sessions. Your recent mentees have rated you {user?.rating?.toFixed(1) || '5.0'} stars!
+            You have {upcomingSessions.length} upcoming sessions.{' '}
+            {user?.totalReviews > 0
+              ? `Your recent mentees have rated you ${Number(user.averageRating || 0).toFixed(1)} stars!`
+              : 'Complete a few sessions to start earning reviews.'}
           </p>
         </div>
           {/* Profile image with rings — matches Mentee Dashboard style */}
@@ -515,6 +518,103 @@ const MentorDashboard = ({ navigateTo }) => {
                   {label}
                 </span>
               ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Profile — schema-backed fields only (MentorProfile), relevant to
+          mentor-mentee matching rather than exhaustive. Each field only
+          renders when set, so an incomplete profile doesn't show empty rows. */}
+      <section className="mb-8">
+        <div className="bg-surface-container-low rounded-2xl border border-outline-variant/10 natural-shadow p-6">
+          <h3 className="font-headline-md text-lg font-bold text-on-surface mb-4">Your Profile</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {user?.title && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Title</p>
+                <p className="text-on-surface font-medium">{user.title}</p>
+              </div>
+            )}
+            {user?.company && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Company</p>
+                <p className="text-on-surface font-medium">{user.company}</p>
+              </div>
+            )}
+            {user?.industry && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Industry</p>
+                <p className="text-on-surface font-medium">{user.industry}</p>
+              </div>
+            )}
+            {user?.experience > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Experience</p>
+                <p className="text-on-surface font-medium">{user.experience} {user.experience === 1 ? 'year' : 'years'}</p>
+              </div>
+            )}
+            {user?.hourlyRate > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Hourly Rate</p>
+                <p className="text-on-surface font-medium">${user.hourlyRate}/hr</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Rating</p>
+              <p className="text-on-surface font-medium">
+                {user?.totalReviews > 0
+                  ? `${Number(user.averageRating || 0).toFixed(1)} ⭐ (${user.totalReviews} review${user.totalReviews === 1 ? '' : 's'})`
+                  : 'No reviews yet'}
+                {user?.totalSessions > 0 && ` · ${user.totalSessions} session${user.totalSessions === 1 ? '' : 's'}`}
+              </p>
+            </div>
+            {user?.linkedinUrl && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">LinkedIn</p>
+                <a href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline truncate block">
+                  {user.linkedinUrl}
+                </a>
+              </div>
+            )}
+          </div>
+          {user?.headline && <p className="mt-4 text-sm italic text-on-surface-variant">{user.headline}</p>}
+          {user?.bio && <p className="mt-4 text-sm text-on-surface leading-relaxed">{user.bio}</p>}
+          {user?.skills?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Skills</p>
+              <div className="flex flex-wrap gap-2">
+                {user.skills.map((skill) => (
+                  <span key={skill} className="inline-flex items-center bg-primary/10 text-primary text-xs font-medium px-2.5 py-1 rounded-full">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {user?.languages?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Languages</p>
+              <div className="flex flex-wrap gap-2">
+                {user.languages.map((lang) => (
+                  <span key={lang} className="inline-flex items-center bg-surface-container-high text-on-surface-variant text-xs font-medium px-2.5 py-1 rounded-full">
+                    {lang}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {user?.certifications?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Certifications</p>
+              <div className="flex flex-wrap gap-2">
+                {user.certifications.map((cert) => (
+                  <span key={cert} className="inline-flex items-center gap-1 bg-secondary/10 text-secondary text-xs font-medium px-2.5 py-1 rounded-full">
+                    <span className="material-symbols-outlined text-[14px]">workspace_premium</span>
+                    {cert}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -27,6 +27,20 @@ const menteeProfileFlatSchema = new Schema(
     _id: { type: String, required: true },
     session_id: { type: String, required: true, index: true },
 
+
+    // Python inserts documents without userId (raw pymongo, no Node validation),
+    // so this must be sparse — a plain unique index would treat every unlinked
+    // doc's missing userId as null and collide on the second insert.
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+      sparse: true,
+    },
+
+    linkedinUrl: { type: String, default: null },
+    
     // ── Raw fields, straight from Ayla's [DONE] JSON block ──────────────
     full_name: { type: String, default: "" },
     university: { type: String, default: "" },

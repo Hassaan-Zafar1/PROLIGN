@@ -1,12 +1,10 @@
 import express from "express";
 import { protect, restrictTo } from "../middleware/auth.js";
-import { validateObjectId } from "../middleware/validateObjectId.js";
 import {
   listMenteeProfiles,
   getMyMenteeProfile,
   updateMyMenteeProfile,
   getMenteeProfile,
-  createMenteeProfile,
   updateMenteeProfile,
   deleteMenteeProfile,
 } from "../controllers/menteeProfileController.js";
@@ -14,18 +12,20 @@ import {
 const router = express.Router();
 router.use(protect);
 
-router.route("/")
-  .get(restrictTo("admin"), listMenteeProfiles)
-  .post(restrictTo("mentee", "admin"), createMenteeProfile);
+// Profiles are created by the Python AI_interviewer and linked to a user via
+// POST /api/interview — there is no create route here.
+router.get("/", restrictTo("admin"), listMenteeProfiles);
 
 // Own profile — no id needed (must be declared before "/:id")
 router.route("/me")
   .get(getMyMenteeProfile)
   .patch(restrictTo("mentee", "admin"), updateMyMenteeProfile);
 
+// :id is the interview's session_id (a string), NOT a Mongo ObjectId —
+// no validateObjectId here.
 router.route("/:id")
-  .get(validateObjectId, getMenteeProfile)
-  .patch(validateObjectId, restrictTo("mentee", "admin"), updateMenteeProfile)
-  .delete(validateObjectId, restrictTo("admin"), deleteMenteeProfile);
+  .get(getMenteeProfile)
+  .patch(restrictTo("mentee", "admin"), updateMenteeProfile)
+  .delete(restrictTo("admin"), deleteMenteeProfile);
 
 export default router;

@@ -162,8 +162,12 @@ const CERT_KEYWORDS = [
 
 // Distinctive company suffixes only. Generic words like "solutions"/"software"
 // are excluded because they appear in job titles ("Solutions Architect").
+// Uses [ \t] rather than \s for the inter-word gaps — \s also matches
+// newlines, which (now that real line breaks are preserved, see cvText.js)
+// would otherwise let this greedily swallow several unrelated CV lines into
+// one "company" match.
 const COMPANY_REGEX =
-  /\b([A-Z][A-Za-z0-9&.\-]*(?:\s+[A-Z][A-Za-z0-9&.\-]*){0,4}\s+(?:Inc\.?|LLC|Ltd\.?|Corp\.?|Technologies|Labs|Systems|GmbH|PLC|Consulting))\b/g;
+  /\b([A-Z][A-Za-z0-9&.\-]*(?:[ \t]+[A-Z][A-Za-z0-9&.\-]*){0,4}[ \t]+(?:Inc\.?|LLC|Ltd\.?|Corp\.?|Technologies|Labs|Systems|GmbH|PLC|Consulting))\b/g;
 
 // Includes LinkedIn's own "Save to PDF" export headers (e.g. "Top Skills",
 // "Licenses & Certifications") — mentors commonly upload that export as their
@@ -177,10 +181,14 @@ const SECTION_HEADERS = {
   certifications: ["certifications", "certificates", "licenses", "licenses & certifications", "licenses and certifications"],
 };
 
+// Every section-header alias, flattened once and reused by isHeaderLine(),
+// detectTitle() and STOP_HEADERS below.
+const ALL_SECTION_HEADERS = Object.values(SECTION_HEADERS).flat();
+
 // Extra headers (esp. LinkedIn sidebar blocks) that should terminate a section
 // scan even though we don't extract from them directly.
 const STOP_HEADERS = [
-  ...Object.values(SECTION_HEADERS).flat(),
+  ...ALL_SECTION_HEADERS,
   "contact", "languages", "honors", "honors-awards", "honors & awards",
   "interests", "publications", "projects", "volunteering", "volunteer experience",
   "awards", "recommendations", "activity",
@@ -220,6 +228,29 @@ const KNOWN_COUNTRIES = [
 const uniq = (arr) => [...new Set(arr)];
 const titleCase = (s) =>
   s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+
+// LinkedIn's "Save to PDF" export puts the person's headline/current title
+// near the very top, before any section header — scan only that region so we
+// don't pick up an unrelated past role buried in the Experience section body.
+function detectTitle(lines) {
+  const headerIdx = lines.findIndex((l) =>
+    ALL_SECTION_HEADERS.includes(l.trim().toLowerCase().replace(/:$/, ""))
+  );
+  const searchLines = headerIdx === -1 ? lines.slice(0, 10) : lines.slice(0, headerIdx);
+  const hit = searchLines.find((l) => {
+    const low = l.toLowerCase();
+    return low.length < 100 && ROLE_KEYWORDS.some((r) => low.includes(r));
+  });
+  return hit ? titleCase(hit).slice(0, 100) : null;
+}
+
+// Coarse industry inference from the detected title + extracted skills
+// (INDUSTRY_MAP's keywords are titles/skills, not arbitrary CV body text).
+function detectIndustry(title, skills) {
+  const haystack = `${title || ""} ${skills.join(" ")}`.toLowerCase();
+  const match = INDUSTRY_MAP.find((entry) => entry.keywords.some((k) => haystack.includes(k)));
+  return match ? match.industry : null;
+}
 
 function findSectionLines(lines, headerAliases) {
   const lowered = lines.map((l) => l.trim().toLowerCase());
@@ -263,19 +294,24 @@ export function extractStructured(text, { name } = {}) {
     }
   }
 
-  const allHeaders = Object.values(SECTION_HEADERS).flat();
-  const isHeaderLine = (l) => allHeaders.includes(l.toLowerCase().replace(/:$/, ""));
+  const isHeaderLine = (l) => ALL_SECTION_HEADERS.includes(l.toLowerCase().replace(/:$/, ""));
 
   // Education — a degree keyword AS A WORD, plus real education context
-  // (institution or a year) so "Scrum Master" isn't mistaken for a degree.
+  // (institution name or a year) so "Scrum Master" isn't mistaken for a
+  // degree. The context is looked for in a small window around the degree
+  // line (not just that exact line) because CVs/LinkedIn PDFs commonly split
+  // degree, institution, and year across separate consecutive lines rather
+  // than cramming them onto one.
+  const hasDegreeKeyword = (l) =>
+    DEGREE_KEYWORDS.some((d) =>
+      new RegExp(`(^|[^a-z])${d.replace(/\./g, "\\.")}([^a-z]|$)`, "i").test(l.toLowerCase())
+    );
+  const hasEduContext = (l) => /university|college|institute|school/i.test(l) || /\b(19|20)\d{2}\b/.test(l);
   const education = uniq(
-    lines.filter((l) => {
-      const low = l.toLowerCase();
-      const hasDegree = DEGREE_KEYWORDS.some((d) =>
-        new RegExp(`(^|[^a-z])${d.replace(/\./g, "\\.")}([^a-z]|$)`, "i").test(low)
-      );
-      const hasContext = /university|college|institute|school/i.test(l) || /\b(19|20)\d{2}\b/.test(l);
-      return hasDegree && hasContext;
+    lines.filter((l, i) => {
+      if (!hasDegreeKeyword(l)) return false;
+      const window = [lines[i - 1], l, lines[i + 1]].filter(Boolean);
+      return window.some(hasEduContext);
     })
   ).slice(0, 5);
 
@@ -319,11 +355,17 @@ export function extractStructured(text, { name } = {}) {
   }
   summary = summary.slice(0, 500);
 
+  const uniqueSkills = uniq(skills).slice(0, 20);
+  const title = detectTitle(lines);
+  const industry = detectIndustry(title, uniqueSkills);
+
   return {
     name: name || null,
+    title,
+    industry,
     summary,
-    skills: uniq(skills).slice(0, 20),
-    technologies: uniq(skills).slice(0, 20), // technologies are a subset of skills here
+    skills: uniqueSkills,
+    technologies: uniqueSkills, // technologies are a subset of skills here
     companies,
     experience,
     education,
