@@ -1,17 +1,9 @@
 """Agentic intent routing.
 
-Old flow: intent_classifier.classify() returns a bare string -> main.py
-branches with if/else -> each branch manually calls the right module.
-
-New flow: the model is given the full TOOL_SCHEMAS toolbelt and picks
+flow: the model is given the full TOOL_SCHEMAS toolbelt and picks
 exactly one tool for the message. route() dispatches straight to that tool's
 handler and returns its reply. Classification and action collapse into a
 single agent turn.
-
-Note on tool_choice: we use "auto" rather than "required" for broadest
-compatibility across Groq-hosted models. If DEFAULT_TOOL_NAME's fallback
-ever fires more than expected, tool_choice can be tightened once you've
-confirmed your chosen model supports "required".
 """
 
 from __future__ import annotations
@@ -77,8 +69,7 @@ async def route(session_id: str, message: str, email: str | None = None) -> tupl
     try:
         reply = await handler(session_id, message)
     except AppError:
-        # Already a typed, well-formed error (DatabaseError, ExternalServiceError, ...) -
-        # let it propagate as-is so the right status/detail reaches the client.
+
         raise
     except Exception as exc:
         raise AgentError(f"Tool '{tool_name}' failed while handling the message.") from exc
