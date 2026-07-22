@@ -3,11 +3,16 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
+import path from "path";
+import { fileURLToPath } from "url";
 import { env } from "./config/env.js";
 import { connectDB, disconnectDB } from "./config/database.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import "./config/passport.js";
 import { extractClientInfo } from "./middleware/auth.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -42,6 +47,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
 app.use(extractClientInfo);
+
 // ─── Global Rate Limiter ──────────────────────────────────────────────────────
 // 100 req/15min is far too low for active local development (a single page can
 // fire several /api calls, and the auth flow alone makes multiple) — it caused
@@ -54,7 +60,6 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: "Too many requests, slow down." },
 });
-app.use("/api", globalLimiter);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
@@ -62,7 +67,7 @@ app.get("/api/health", (req, res) => {
     success: true,
     message: "ProLign API is running",
     environment: env.NODE_ENV,
-    timestamp: new Date().toISOString(),  
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -96,6 +101,11 @@ app.use("/api/mentor-profiles", mentorProfileRoutes);
 import menteeProfileRoutes from "./routes/menteeProfiles.js";
 app.use("/api/mentee-profiles", menteeProfileRoutes);
 
+// ─── CV Upload + Parsing ───────────────────────────────────────────────────────
+import cvRoutes from "./routes/cvRoutes.js";
+app.use("/api/mentors", cvRoutes); // adds POST /api/mentors/:mentorId/cv
+app.use("/uploads/cvs", express.static(path.join(__dirname, "uploads", "cvs")));
+
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
@@ -105,16 +115,16 @@ async function startServer() {
   await connectDB();
 
   const server = app.listen(env.PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${env.PORT}`);
-    console.log(`🌍 Environment: ${env.NODE_ENV}`);
+    console.log(` Server running on http://localhost:${env.PORT}`);
+    console.log(` Environment: ${env.NODE_ENV}`);
   });
 
   // ─── Graceful Shutdown ────────────────────────────────────────────────────
   async function shutdown(signal) {
-    console.log(`\n📴 ${signal} received. Shutting down gracefully...`);
+    console.log(`\n ${signal} received. Shutting down gracefully...`);
     server.close(async () => {
       await disconnectDB();
-      console.log("✅ Server closed");
+      console.log(" Server closed");
       process.exit(0);
     });
   }

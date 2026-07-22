@@ -104,6 +104,76 @@ export async function getMentorById(id) {
   return mentor;
 }
 
+export async function listMentorProfiles(query) {
+  const page = Math.max(parseInt(query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || 24, 1), 100);
+  const filter = {};
+  if (query.status) filter.status = query.status;
+
+  const [profiles, total] = await Promise.all([
+    MentorProfile.find(filter)
+      .populate("userId", "name email profilePic country city")
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .sort({ createdAt: -1 }),
+    MentorProfile.countDocuments(filter),
+  ]);
+  return { profiles, total, page, pages: Math.ceil(total / limit) || 1 };
+}
+
+export async function getMyMentorProfile(userId) {
+  const mp = await MentorProfile.findOne({ userId });
+  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  return mp;
+}
+
+const SELF_EDITABLE_FIELDS = [
+  "title", "company", "industry", "bio", "headline", "skills", "domains",
+  "industries", "softSkills", "languages", "certifications", "preferredCategories",
+  "hourlyRate", "pricePerSession", "availableSlots", "weeklySchedule", "linkedinUrl",
+];
+
+export async function updateMyMentorProfile(userId, updates) {
+  const setFields = {};
+  for (const key of SELF_EDITABLE_FIELDS) {
+    if (updates[key] !== undefined) setFields[key] = updates[key];
+  }
+  const mp = await MentorProfile.findOneAndUpdate(
+    { userId },
+    { $set: setFields },
+    { new: true, runValidators: true }
+  );
+  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  return mp;
+}
+
+export async function getMentorProfile(id) {
+  if (!mongoose.isValidObjectId(id)) throw new ApiError(400, "Invalid mentor profile id.");
+  const mp = await MentorProfile.findById(id).populate("userId", "name email profilePic country city");
+  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  return mp;
+}
+
+export async function createMentorProfile(userId, data) {
+  const existing = await MentorProfile.findOne({ userId });
+  if (existing) throw new ApiError(409, "Mentor profile already exists for this user.");
+  return MentorProfile.create({ userId, status: "pending", ...data });
+}
+
+export async function updateMentorProfile(id, updates) {
+  if (!mongoose.isValidObjectId(id)) throw new ApiError(400, "Invalid mentor profile id.");
+  const mp = await MentorProfile.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
+  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  return mp;
+}
+
+export async function deleteMentorProfile(id) {
+  if (!mongoose.isValidObjectId(id)) throw new ApiError(400, "Invalid mentor profile id.");
+  const mp = await MentorProfile.findByIdAndDelete(id);
+  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  return mp;
+}
+
 // Mentor onboarding: LinkedIn scrape attempt (compliant seam) → CV extraction
 // fallback → write structured data onto MentorProfile. Never throws for missing
 // data; mentors are auto-approved.
@@ -111,9 +181,9 @@ export async function buildMentorProfile(user, req) {
   let mp = await MentorProfile.findOne({ userId: user._id });
   if (!mp) mp = await MentorProfile.create({ userId: user._id, status: "approved", isApproved: true });
 
-  if (mp.linkedinUrl) {
-    mp.linkedinScrape = { status: "failed", lastAttempt: new Date(), error: "no_compliant_integration" };
-  }
+  const linkedinScrape = mp.linkedinUrl
+    ? { status: "failed", lastAttempt: new Date(), error: "no_compliant_integration" }
+    : undefined;
 
   const { profile, text, meta } = await buildProfileFromSources({
     cv: mp.cv,
@@ -122,23 +192,32 @@ export async function buildMentorProfile(user, req) {
   });
   meta.textLength = text?.length || 0;
 
-  if (profile.skills?.length) mp.skills = profile.skills;
-  if (profile.certifications?.length) mp.certifications = profile.certifications;
-  if (profile.experience > 0) mp.experience = profile.experience;
-  if (profile.companies?.length) {
-    mp.company = profile.companies[0];
-    mp.currentCompany = { ...(mp.currentCompany || {}), name: profile.companies[0] };
+  const setFields = {};
+  if (linkedinScrape) setFields.linkedinScrape = linkedinScrape;
+  if (profile.skills?.length) setFields.skills = profile.skills;
+  if (profile.domains?.length) setFields.domains = profile.domains;
+  if (profile.industries?.length) setFields.industries = profile.industries;
+  if (profile.softSkills?.length) setFields.softSkills = profile.softSkills;
+  if (profile.languages?.length) setFields.languages = profile.languages;
+  if (profile.certifications?.length) setFields.certifications = profile.certifications;
+  if (profile.workExperience?.length) setFields.workExperience = profile.workExperience;
+  if (profile.education?.length) setFields.education = profile.education;
+  if (profile.experience > 0) setFields.experience = profile.experience;
+  if (profile.company) {
+    setFields.company = profile.company;
+    setFields.currentCompany = profile.currentCompany || { ...(mp.currentCompany || {}), name: profile.company };
   }
-  if (profile.education?.length) mp.education = profile.education.map((e) => ({ institution: e }));
-  if (profile.summary && !mp.bio) mp.bio = profile.summary;
-  if (profile.title && !mp.title) mp.title = profile.title;
-  if (profile.industry && !mp.industry) mp.industry = profile.industry;
-  if (text && text.trim()) {
-    if (!mp.cv) mp.cv = {};
-    mp.cv.parsedText = text.slice(0, 20000);
-    mp.markModified("cv");
-  }
-  await mp.save();
+  if (profile.bio && !mp.bio) setFields.bio = profile.bio;
+  if (profile.headline && !mp.headline) setFields.headline = profile.headline;
+  if (profile.title && !mp.title) setFields.title = profile.title;
+  if (profile.industry && !mp.industry) setFields.industry = profile.industry;
+  if (text && text.trim()) setFields["cv.parsedText"] = text.slice(0, 20000);
+
+  mp = await MentorProfile.findOneAndUpdate(
+    { userId: user._id },
+    { $set: setFields },
+    { new: true }
+  );
 
   await User.findByIdAndUpdate(user._id, {
     $set: { isProfileComplete: true, onboardingStep: "complete", mentorProfile: mp._id },
