@@ -38,11 +38,13 @@ const Skeleton = ({ className = '' }) => (
  * rewrite every field access in the UI, we hoist the fields it uses up to the
  * top level here so listing, the detail modal, and status counts all work.
  */
+// MenteeProfileFlat (collection "Mentee_Profiles") stores skills as "A | B | C"
+// pipe-joined strings, written by the Python AI_interviewer — split for display.
+const splitPipe = (v) => (typeof v === 'string' && v.trim() ? v.split('|').map((s) => s.trim()).filter(Boolean) : []);
+
 const normalizeAdminUser = (u) => {
   const mp = u.mentorProfile || {};
   const menteeP = u.menteeProfile || {};
-  const profile = u.role === 'mentor' ? mp : menteeP;
-  const menteeSkills = menteeP.skillsToLearn?.length ? menteeP.skillsToLearn : menteeP.skillProfile?.skills;
   return {
     ...u,
     id: u.id || u._id,
@@ -56,8 +58,8 @@ const normalizeAdminUser = (u) => {
     industry: mp.industry || (Array.isArray(mp.industries) ? mp.industries[0] : '') || '',
     hourlyRate: mp.hourlyRate ?? mp.pricePerSession ?? '',
     experience: mp.experience ?? '',
-    skills: (u.role === 'mentor' ? mp.skills : menteeSkills) || [],
-    bio: profile.bio || '',
+    skills: (u.role === 'mentor' ? mp.skills : splitPipe(menteeP.tech_skills)) || [],
+    bio: (u.role === 'mentor' ? mp.bio : menteeP.bio) || '',
     cv: mp.cv || null,
     rejectionReason: mp.rejectionReason || '',
   };

@@ -5,7 +5,9 @@ import bcrypt from "bcryptjs";
  * User = authentication + security + shared identity + account state ONLY.
  *
  * All mentor domain data lives on MentorProfile, all mentee domain data on
- * MenteeProfile (1:1 via userId). Never store role-specific onboarding data here.
+ * MenteeProfileFlat (the "Mentee_Profiles" collection, 1:1 via userId — see
+ * that model for why it's not a Mongoose ref). Never store role-specific
+ * onboarding data here.
  */
 const userSchema = new mongoose.Schema(
   {
@@ -47,10 +49,16 @@ const userSchema = new mongoose.Schema(
     passwordResetExpiry: { type: Date,   default: null },
 
     // ── Shared User Data ──────────────────────────────────────────────────────────
-    name:       { type: String, trim: true, minlength: 2, maxlength: 60, default: null },
-    country:    { type: String, default: null },
-    city:       { type: String, default: null },
-    profilePic: { type: String, default: null },
+    name:        { type: String, trim: true, minlength: 2, maxlength: 60, default: null },
+    country:     { type: String, default: null },
+    city:        { type: String, default: null },
+    profilePic:  { type: String, default: null },
+    // Captured at signup (optional, both roles). Mentors also keep a copy on
+    // MentorProfile.linkedinUrl (their profile exists from signup); mentees
+    // have no profile until the interview links one, so this is the durable
+    // home for it until interviewService.submitInterview copies it onto
+    // MenteeProfileFlat as a fallback.
+    linkedinUrl: { type: String, default: null },
 
     // ── Preferences (account-level, role-agnostic) ────────────────────────────────
     profileVisibility: {
@@ -76,8 +84,11 @@ const userSchema = new mongoose.Schema(
     isProfileComplete: { type: Boolean, default: false },
 
     // ── Profile References (role-specific data lives here) ────────────────────────
+    // Mentor: 1:1 ref (MentorProfile._id is an ObjectId, safe to ref directly).
+    // Mentee: NOT a ref — MenteeProfileFlat._id is the Python interview's
+    // session_id (a string), so the mentee profile is always resolved by
+    // MenteeProfileFlat.findOne({ userId }) instead of a stored ref.
     mentorProfile: { type: mongoose.Schema.Types.ObjectId, ref: "MentorProfile", default: null },
-    menteeProfile: { type: mongoose.Schema.Types.ObjectId, ref: "MenteeProfile", default: null },
 
     // ── Account State ─────────────────────────────────────────────────────────────
     isActive:    { type: Boolean, default: true },

@@ -1,7 +1,6 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
-import MenteeProfile from "../models/MenteeProfile.js";
 import { env } from "./env.js";
 
 passport.use(
@@ -45,10 +44,9 @@ passport.use(
           role: "mentee",
         });
 
-        // Keep the ownership structure intact — every user has its role profile.
-        const menteeProfile = await MenteeProfile.create({ userId: user._id });
-        user.menteeProfile = menteeProfile._id;
-        await user.save();
+        // No mentee profile created here — MenteeProfileFlat is created by the
+        // Python interviewer (keyed by session_id) and linked to this user via
+        // POST /api/interview once the interview completes.
 
         return done(null, user);
       } catch (error) {

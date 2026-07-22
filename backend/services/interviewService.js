@@ -1,89 +1,62 @@
 import User from "../models/User.js";
-import MenteeProfile from "../models/MenteeProfile.js";
-import AiAssessment from "../models/AiAssessment.js";
+import MenteeProfileFlat from "../models/Mentee_Profiles.js";
 import { logAudit } from "./auditLogService.js";
 import { ApiError } from "../middleware/errorHandler.js";
 
 /**
- * Mentee onboarding interview (NO LLM). Stores the answers verbatim on the
- * AiAssessment conversation AND mapped onto MenteeProfile (never on User) — the
- * Python EDA job reads these to populate the cleaned.* fields.
+ * Mentee interview LINKING (not the interview itself).
+ *
+ * The actual interview — conversation + profile extraction — runs in the
+ * Python AI_interviewer service, which writes a MenteeProfileFlat document
+ * keyed by session_id (its Mongo _id). That service has no notion of a
+ * ProLign account, so this is the step that closes the loop: given the
+ * sessionId the frontend obtained from the Python service, attach this
+ * authenticated user's userId (+ optional linkedinUrl) onto that document.
  */
+export async function submitInterview(user, { sessionId, linkedinUrl }, req) {
+  if (!sessionId) throw new ApiError(400, "sessionId is required.");
 
-const toArray = (val) =>
-  Array.isArray(val)
-    ? val.map((v) => String(v).trim()).filter(Boolean)
-    : String(val || "").split(",").map((s) => s.trim()).filter(Boolean);
-const uniq = (arr) => [...new Set(arr)];
-const str = (v) => (Array.isArray(v) ? v.join(", ") : String(v ?? "")).trim();
+  const profile = await MenteeProfileFlat.findById(sessionId);
+  if (!profile) throw new ApiError(404, "Interview session not found. Please complete the interview first.");
 
-export async function submitInterview(user, { answers, mode = "text" }, req) {
-  if (!Array.isArray(answers) || answers.length === 0) throw new ApiError(400, "answers are required.");
-
-  // Conversation turns (assistant asks → user answers), stored verbatim.
-  const conversation = [];
-  for (const a of answers) {
-    if (a?.question) conversation.push({ role: "assistant", content: String(a.question) });
-    conversation.push({ role: "user", content: Array.isArray(a?.answer) ? a.answer.join(", ") : String(a?.answer ?? "") });
+  if (profile.userId && String(profile.userId) !== String(user._id)) {
+    throw new ApiError(409, "This interview session is already linked to a different account.");
   }
 
-  const assessment = await AiAssessment.findOneAndUpdate(
-    { menteeId: user._id },
-    {
-      menteeId: user._id,
-      mode: mode === "voice" ? "voice" : "text",
-      status: "completed",
-      completedAt: new Date(),
-      conversation,
-    },
-    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
-  );
+  // One profile per user — drop any earlier session already linked to this
+  // user (e.g. a retaken interview) so the sparse-unique userId index stays clean.
+  await MenteeProfileFlat.deleteMany({ userId: user._id, _id: { $ne: sessionId } });
 
-  const byId = Object.fromEntries(answers.map((a) => [a.id, a.answer]));
-  const techSkills = uniq([...toArray(byId.languages), ...toArray(byId.frameworks_tools)]);
+  // req.user._id is already a Mongoose ObjectId — assign it directly. Never
+  // wrap a string userId in `new mongoose.Types.ObjectId(...)` unless it
+  // genuinely arrived as a raw string (e.g. from a JWT payload).
+  profile.userId = user._id;
+  // Prefer an explicit linkedinUrl from this call, else fall back to what was
+  // captured at signup (stored on User since the mentee had no profile yet).
+  const link = linkedinUrl || user.linkedinUrl;
+  if (link) profile.linkedinUrl = link;
+  await profile.save();
 
-  // All mentee onboarding data → MenteeProfile (never User).
-  const mp = await MenteeProfile.findOneAndUpdate(
-    { userId: user._id },
-    {
-      $set: {
-        university: str(byId.university) || null,
-        degree: str(byId.degree) || null,
-        education: [str(byId.degree), str(byId.university)].filter(Boolean).join(" — ") || null,
-        bio: str(byId.for_mentors).slice(0, 300) || null,
-        careerGoals: str(byId.target) || null,
-        softSkills: toArray(byId.soft_skills),
-        "skillProfile.skills": techSkills,
-        interviewAnswers: answers.map((a) => ({ id: a.id, question: a.question, answer: a.answer })),
-        "onboardingAnswers.targetRole": str(byId.target) || null,
-        "onboardingAnswers.notableProject": str(byId.notable_project) || null,
-        "onboardingAnswers.problemSolving": str(byId.problem_solving) || null,
-        "onboardingAnswers.experience": str(byId.experience) || null,
-      },
-      $setOnInsert: { userId: user._id },
-    },
-    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
-  );
-
-  // User: only account/onboarding state + the profile link.
   const updatedUser = await User.findByIdAndUpdate(
     user._id,
-    { $set: { isProfileComplete: true, onboardingStep: "complete", menteeProfile: mp._id } },
+    { $set: { isProfileComplete: true, onboardingStep: "complete" } },
     { returnDocument: "after", runValidators: true }
-  ).select("-password -refreshTokens").populate("menteeProfile");
+  ).select("-password -refreshTokens");
 
+  // targetType/targetId stay on "user" — MenteeProfileFlat._id is the Python
+  // session_id (a string), which the AuditLog schema's ObjectId targetId can't hold.
   await logAudit({
     actorId: user._id, actorRole: user.role, action: "mentee_interview_completed",
-    targetId: assessment._id, targetType: "ai_assessment",
-    after: { turns: conversation.length, menteeProfile: mp._id }, request: req,
+    targetId: user._id, targetType: "user",
+    after: { sessionId: profile._id }, request: req,
   });
 
-  return { assessment, user: updatedUser, menteeProfile: mp };
+  return { user: updatedUser, menteeProfile: profile };
 }
 
 export async function getInterview(userId) {
-  const assessment = await AiAssessment.findOne({ menteeId: userId }).lean();
-  return { assessment: assessment || null };
+  const profile = await MenteeProfileFlat.findOne({ userId }).lean();
+  return { profile: profile || null };
 }
 
 const toList = (value) =>

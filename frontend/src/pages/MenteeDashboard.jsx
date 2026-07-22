@@ -897,6 +897,67 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </div>
       </section>
 
+      {/* Profile — schema-backed fields only (MenteeProfileFlat), relevant to
+          mentor-mentee matching rather than exhaustive. Skills/interests are
+          already shown above under Learning Goals, so this covers the rest.
+          Each field only renders when set, so an incomplete profile doesn't
+          show empty rows. */}
+      {(user?.university || user?.degree || user?.bio || user?.domainInterest ||
+        user?.targetIndustry || user?.targetCompanyTier || user?.experienceLevel || user?.linkedinUrl) && (
+        <section className="space-y-4">
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Your Profile</h3>
+          <div className={`${cardClass} p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {user?.university && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">University</p>
+                  <p className="text-on-surface font-medium">{user.university}</p>
+                </div>
+              )}
+              {user?.degree && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Degree</p>
+                  <p className="text-on-surface font-medium">{user.degree}</p>
+                </div>
+              )}
+              {user?.domainInterest && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Domain Interest</p>
+                  <p className="text-on-surface font-medium">{user.domainInterest}</p>
+                </div>
+              )}
+              {user?.experienceLevel && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Experience Level</p>
+                  <p className="text-on-surface font-medium capitalize">{user.experienceLevel}</p>
+                </div>
+              )}
+              {user?.targetIndustry && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Target Industry</p>
+                  <p className="text-on-surface font-medium">{user.targetIndustry}</p>
+                </div>
+              )}
+              {user?.targetCompanyTier && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Target Company Tier</p>
+                  <p className="text-on-surface font-medium">{user.targetCompanyTier}</p>
+                </div>
+              )}
+              {user?.linkedinUrl && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">LinkedIn</p>
+                  <a href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline truncate block">
+                    {user.linkedinUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+            {user?.bio && <p className="mt-4 text-sm text-on-surface leading-relaxed">{user.bio}</p>}
+          </div>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="space-y-4 xl:col-span-2">
           <h3 className="font-headline-md text-2xl font-bold text-on-background">Upcoming Sessions</h3>
@@ -1461,7 +1522,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
               <span className="material-symbols-outlined text-[22px] text-primary">account_balance_wallet</span>
@@ -1485,14 +1546,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             <p className="text-2xl font-bold text-on-surface">{pendingBookings.length}</p>
             <p className="mt-1 text-xs font-semibold text-on-surface-variant">Pending Payments</p>
             <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Awaiting confirmation</p>
-          </div>
-          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
-              <span className="material-symbols-outlined text-[22px] text-primary">credit_card</span>
-            </span>
-            <p className="text-lg font-bold text-on-surface truncate">{user?.paymentMethod || '—'}</p>
-            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Payment Method</p>
-            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">{user?.paymentMethod ? 'Default card' : 'Not set'}</p>
           </div>
         </div>
 

@@ -4,7 +4,7 @@
 
 import User from "./User.js";
 import MentorProfile from "./MentorProfile.js";
-import MenteeProfile from "./MenteeProfile.js";
+import MenteeProfileFlat from "./Mentee_Profiles.js";
 import AiAssessment from "./AiAssessment.js";
 import AvailabilitySlot from "./AvailabilitySlot.js";
 import Session from "./Session.js";
@@ -17,7 +17,7 @@ import AuditLog from "./AuditLog.js";
 export {
   User,
   MentorProfile,
-  MenteeProfile,
+  MenteeProfileFlat,
   AiAssessment,
   AvailabilitySlot,
   Session,

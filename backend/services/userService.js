@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import MentorProfile from "../models/MentorProfile.js";
-import MenteeProfile from "../models/MenteeProfile.js";
+import MenteeProfileFlat from "../models/Mentee_Profiles.js";
 import { logAudit } from "./auditLogService.js";
 import { buildUserResponse } from "./authService.js";
 import { ApiError } from "../middleware/errorHandler.js";
@@ -54,6 +54,6 @@ export async function deleteAccount(userId) {
   if (!deleted) throw new ApiError(404, "User not found.");
   // Cascade: remove the linked role profile too.
   await MentorProfile.deleteOne({ userId });
-  await MenteeProfile.deleteOne({ userId });
+  await MenteeProfileFlat.deleteOne({ userId });
   return { message: "Account deleted successfully." };
 }
