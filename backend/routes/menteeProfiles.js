@@ -28,4 +28,5 @@ router.route("/:id")
   .patch(restrictTo("mentee", "admin"), updateMenteeProfile)
   .delete(restrictTo("admin"), deleteMenteeProfile);
 
+export { router };
 export default router;

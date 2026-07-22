@@ -195,7 +195,7 @@ def exit_session(session_id: str) -> Optional[InterviewSession]:
     if not session:
         return None
     if session.is_complete:
-        return session  # already finished normally, nothing to do
+        return session 
     session.is_abandoned = True
     session.completed_at = _now()
     _save_session(session)
