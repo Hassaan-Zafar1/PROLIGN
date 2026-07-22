@@ -24,7 +24,7 @@ const API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:
  *   restart later from their dashboard.
  */
 export default function MenteeInterview({ navigateTo }) {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
 
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]); // { role: 'ayla' | 'user', text, mode? }

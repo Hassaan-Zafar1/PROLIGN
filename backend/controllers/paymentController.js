@@ -25,3 +25,15 @@ export const deletePayment = asyncHandler(async (req, res) => {
   const result = await paymentService.deletePayment(req.params.id, req.user);
   res.status(200).json({ success: true, ...result });
 });
+
+export const createPaymentIntent = asyncHandler(async (req, res) => {
+  const result = await paymentService.createPaymentIntent(req.user, req.body);
+  res.status(200).json({ success: true, ...result });
+});
+
+export const handleWebhook = asyncHandler(async (req, res) => {
+  const signature = req.headers["stripe-signature"];
+  const result = await paymentService.handleStripeWebhook(signature, req.rawBody);
+  res.status(200).json(result);
+});
+

@@ -20,11 +20,31 @@ const parsePage = (q) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 
-const combineDateTime = (date, timeStr) => {
+const combineDateTime = (date, timeStr, timezone) => {
   const d = new Date(date);
-  const [h, m] = String(timeStr || "00:00").split(":").map(Number);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  
+  const localUtc = new Date(`${y}-${m}-${day}T${timeStr || "00:00"}:00.000Z`);
+  
+  const getTimezoneOffset = (timeZone, dateObj) => {
+    try {
+      const tz = dateObj.toLocaleString("en-US", { timeZone, timeZoneName: "longOffset" });
+      const match = tz.match(/GMT([+-]\d+)(?::(\d+))?/);
+      if (!match) return 0;
+      const hrs = parseInt(match[1], 10);
+      const mins = match[2] ? parseInt(match[2], 10) : 0;
+      const sign = hrs < 0 ? -1 : 1;
+      return (Math.abs(hrs) * 60 + mins) * sign;
+    } catch (e) {
+      console.error("Timezone offset parse error:", e);
+      return 0;
+    }
+  };
+
+  const offsetMin = getTimezoneOffset(timezone || "Asia/Karachi", localUtc);
+  return new Date(localUtc.getTime() - offsetMin * 60 * 1000);
 };
 
 const isParticipant = (session, user) =>
@@ -37,49 +57,99 @@ const populated = (q) =>
    .populate("mentorId", "name profilePic email")
    .populate("slotId", "date startTime endTime timezone status");
 
+export async function cleanupExpiredPendingSessions() {
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const expiredSessions = await Session.find({
+    status: "pending",
+    createdAt: { $lt: tenMinutesAgo }
+  });
+
+  if (expiredSessions.length > 0) {
+    const sessionIds = expiredSessions.map(s => s._id);
+    const slotIds = expiredSessions.map(s => s.slotId).filter(Boolean);
+
+    if (slotIds.length > 0) {
+      await AvailabilitySlot.updateMany(
+        { _id: { $in: slotIds } },
+        { $set: { status: "available", bookedBy: null, bookedAt: null, sessionId: null } }
+      );
+    }
+    await Session.deleteMany({ _id: { $in: sessionIds } });
+  }
+}
+
 // ─── Create (mentee books) ────────────────────────────────────────────────────
 export async function createSession(menteeId, body) {
+  await cleanupExpiredPendingSessions();
   const { mentorId, slotId, sessionType, agenda, title, durationMinutes } = body;
   if (!mentorId || !slotId || !sessionType) throw new ApiError(400, "mentorId, slotId and sessionType are required.");
   if (String(mentorId) === String(menteeId)) throw new ApiError(400, "You cannot book a session with yourself.");
 
-  const slot = await AvailabilitySlot.findById(slotId);
-  if (!slot) throw new ApiError(404, "Availability slot not found.");
-  if (String(slot.mentorId) !== String(mentorId)) throw new ApiError(400, "That slot does not belong to this mentor.");
+  let slot;
+  if (String(slotId).startsWith("rec-")) {
+    const [_, templateId, dateStr] = String(slotId).split("-");
+    const template = await AvailabilitySlot.findById(templateId);
+    if (!template) throw new ApiError(404, "Availability template slot not found.");
+
+    try {
+      slot = await AvailabilitySlot.create({
+        mentorId: template.mentorId,
+        slotType: "recurring",
+        dayOfWeek: template.dayOfWeek,
+        date: new Date(dateStr),
+        startTime: template.startTime,
+        endTime: template.endTime,
+        timezone: template.timezone,
+        status: "booked",
+        bookedBy: menteeId,
+        bookedAt: new Date()
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        throw new ApiError(409, "That slot is no longer available.");
+      }
+      throw err;
+    }
+  } else {
+    const foundSlot = await AvailabilitySlot.findById(slotId);
+    if (!foundSlot) throw new ApiError(404, "Availability slot not found.");
+    if (String(foundSlot.mentorId) !== String(mentorId)) throw new ApiError(400, "That slot does not belong to this mentor.");
+
+    const claimed = await AvailabilitySlot.findOneAndUpdate(
+      { _id: slotId, status: "available" },
+      { $set: { status: "booked", bookedBy: menteeId, bookedAt: new Date() } },
+      { returnDocument: "after" }
+    );
+    if (!claimed) throw new ApiError(409, "That slot is no longer available.");
+    slot = claimed;
+  }
 
   // Price snapshot from the mentor's profile at booking time.
   const profile = await MentorProfile.findOne({ userId: mentorId }).lean();
   const priceCharged = body.priceCharged ?? profile?.pricePerSession ?? profile?.hourlyRate ?? 0;
-  const currency = body.currency || profile?.currency || "PKR";
-
-  // Atomically claim the slot so two mentees can't book it at once.
-  const claimed = await AvailabilitySlot.findOneAndUpdate(
-    { _id: slotId, status: "available" },
-    { $set: { status: "booked", bookedBy: menteeId, bookedAt: new Date() } },
-    { returnDocument: "after" }
-  );
-  if (!claimed) throw new ApiError(409, "That slot is no longer available.");
+  const currency = body.currency || profile?.currency || "USD";
 
   try {
     const session = await Session.create({
       menteeId,
       mentorId,
-      slotId,
+      slotId: slot._id,
       sessionType,
       title: title || null,
       agenda: agenda || null,
-      scheduledDate: combineDateTime(slot.date, slot.startTime),
+      scheduledDate: combineDateTime(slot.date, slot.startTime, slot.timezone),
       ...(durationMinutes && { durationMinutes }), // else schema default (60)
       timezone: slot.timezone,
       priceCharged,
       currency,
       status: "pending",
     });
-    await AvailabilitySlot.updateOne({ _id: slotId }, { $set: { sessionId: session._id } });
+    await AvailabilitySlot.updateOne({ _id: slot._id }, { $set: { sessionId: session._id } });
     return populated(Session.findById(session._id));
   } catch (err) {
-    // Roll the slot back if the session couldn't be created.
-    await AvailabilitySlot.updateOne({ _id: slotId }, { $set: { status: "available", bookedBy: null, bookedAt: null, sessionId: null } });
+    if (slot) {
+      await AvailabilitySlot.updateOne({ _id: slot._id }, { $set: { status: "available", bookedBy: null, bookedAt: null, sessionId: null } });
+    }
     if (err.code === 11000) throw new ApiError(409, "This slot has already been booked.");
     throw err;
   }
@@ -87,6 +157,7 @@ export async function createSession(menteeId, body) {
 
 // ─── List (my sessions) ───────────────────────────────────────────────────────
 export async function listSessions(query, user) {
+  await cleanupExpiredPendingSessions();
   const { page, limit, skip } = parsePage(query);
 
   let filter;
@@ -108,6 +179,7 @@ export async function listSessions(query, user) {
 }
 
 export async function getSession(id, user) {
+  await cleanupExpiredPendingSessions();
   const session = await populated(Session.findById(id));
   if (!session) throw new ApiError(404, "Session not found.");
   if (!isParticipant(session, user)) throw new ApiError(403, "Not allowed to view this session.");

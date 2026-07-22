@@ -42,7 +42,16 @@ app.use(
 );
 
 // ─── Body Parsers ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "100kb" }));
+app.use(
+  express.json({
+    limit: "100kb",
+    verify: (req, res, buf) => {
+      if (req.originalUrl.startsWith("/api/payments/webhook")) {
+        req.rawBody = buf;
+      }
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());

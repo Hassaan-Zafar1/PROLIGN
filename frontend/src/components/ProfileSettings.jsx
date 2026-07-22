@@ -6,6 +6,7 @@ import { tokenManager } from '../utils/tokenManager';
 import { Input, Select, Textarea, Toggle, Card, Modal, Button, Avatar } from './common';
 import { authService } from '../services/authService';
 import { menteeProfileService } from '../services/menteeProfileService';
+import api from '../config/api';
 
 const sectionMap = {
   mentor: [
@@ -356,11 +357,47 @@ export default function ProfileSettings({ compact = false, onSaved, onAccountClo
 
   setSaving(true);
   try {
-    const response = await userService.updateProfile(payload);
-    updateUser(response.user);
-    const freshForm = makeInitialForm(response.user);
-    setForm(freshForm);
-    initialFormRef.current = freshForm;
+    if (role === 'mentor') {
+      const USER_FIELDS = [
+        "name", "country", "city", "profilePic",
+        "profileVisibility", "emailSessionRequests",
+        "emailReminders", "emailMarketing", "appearanceTheme"
+      ];
+      const userPayload = {};
+      const mentorPayload = {};
+
+      Object.entries(payload).forEach(([key, val]) => {
+        if (USER_FIELDS.includes(key)) {
+          userPayload[key] = val;
+        } else {
+          mentorPayload[key] = val;
+        }
+      });
+
+      if (Object.keys(userPayload).length > 0) {
+        await userService.updateProfile(userPayload);
+      }
+      if (Object.keys(mentorPayload).length > 0) {
+        if (mentorPayload.hourlyRate !== undefined) {
+          mentorPayload.pricePerSession = mentorPayload.hourlyRate;
+        }
+        await api.patch('/mentor-profiles/me', mentorPayload);
+      }
+
+      // Re-fetch fresh populated user details
+      const freshUser = await authService.getCurrentUser();
+      updateUser(freshUser);
+      const freshForm = makeInitialForm(freshUser);
+      setForm(freshForm);
+      initialFormRef.current = freshForm;
+    } else {
+      const response = await userService.updateProfile(payload);
+      updateUser(response.user);
+      const freshForm = makeInitialForm(response.user);
+      setForm(freshForm);
+      initialFormRef.current = freshForm;
+    }
+
     showStatus('Changes saved successfully.');
     onSaved?.();
   } catch (error) {

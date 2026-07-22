@@ -70,7 +70,7 @@ const toList = (value) =>
 export async function completeInterview(user, { menteeRecord, conversation = [], mode = "text" }, req) {
   if (!menteeRecord) throw new ApiError(400, "menteeRecord is required.");
 
-  const profile = await MenteeProfile.findOneAndUpdate(
+  const profile = await MenteeProfileFlat.findOneAndUpdate(
     { userId: user._id },
     {
       $set: {

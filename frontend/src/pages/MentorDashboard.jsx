@@ -16,10 +16,12 @@ import {
 } from '../utils/db';
 import { tokenManager } from '../utils/tokenManager';
 import ProfileSettings from '../components/ProfileSettings';
+import AvailabilityScheduler from '../components/AvailabilityScheduler';
 import { EmptyState } from '../components/common';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { getMentorProfileCompletion } from '../utils/profileCompletion';
 import { authService } from '../services/authService';
+import { sessionService } from '../services/sessionService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
@@ -107,11 +109,18 @@ const MentorDashboard = ({ navigateTo }) => {
     }
   };
 
-  const handleCancelSession = (session) => {
-    if (!window.confirm(`Cancel session with ${session.mentee?.name || 'mentee'}? This will notify them.`)) return;
-    updateSessionStatus(session.id, 'Cancelled');
-    addNotification(session.menteeId, `Your session with ${user?.name} on ${session.dateTime || session.date} at ${session.time} has been cancelled.`, 'cancellation');
-    refreshData();
+  const handleCancelSession = async (session) => {
+    if (!window.confirm(`Cancel session with ${session.menteeName || 'mentee'}? This will notify them.`)) return;
+    try {
+      setLoading(true);
+      await sessionService.deleteSession(session.id);
+      refreshData();
+    } catch (err) {
+      console.error('Failed to cancel session:', err);
+      alert('Failed to cancel session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openRescheduleModal = (session) => {
@@ -148,12 +157,43 @@ const MentorDashboard = ({ navigateTo }) => {
       }
       setUser(currentUser);
 
-      // Sessions / reviews / notifications still come from the local store until
-      // their dedicated backend endpoints exist (separate effort). For a real
-      // backend account these are simply empty until that work lands.
-      const dbSessions = getSessions()
-        .filter(s => s.mentorId === currentUser?.id)
-        .map((session) => ({ ...session, mentee: getUserById(session.menteeId) }));
+      const response = await sessionService.getSessions({ as: 'mentor' });
+      const backendSessions = response.data || [];
+      const dbSessions = backendSessions.map((s) => {
+        const mentee = s.menteeId || {};
+        const slot = s.slotId || {};
+        
+        let timeLabel = '';
+        if (slot && slot.startTime && slot.endTime) {
+          const format12h = (t24) => {
+            const [hStr, mStr] = t24.split(':');
+            const h = parseInt(hStr, 10);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const hr12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+            return `${String(hr12).padStart(2, '0')}:${mStr} ${period}`;
+          };
+          timeLabel = `${format12h(slot.startTime)} - ${format12h(slot.endTime)}`;
+        }
+        
+        return {
+          id: s._id,
+          mentorId: s.mentorId?._id || s.mentorId,
+          menteeId: mentee._id || mentee,
+          menteeName: mentee.name || 'Mentee',
+          menteeAvatar: mentee.profilePic || '',
+          date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: timeLabel,
+          sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
+          status: s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status,
+          amount: s.priceCharged,
+          agenda: s.agenda,
+          dateTime: s.scheduledDate,
+          mentee: {
+            name: mentee.name || 'Mentee',
+            avatar: mentee.profilePic || ''
+          }
+        };
+      });
       setSessions(dbSessions);
       setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser?.id));
       setReviews(currentUser ? getReviewsForMentor(currentUser.id) : []);
@@ -380,6 +420,7 @@ const MentorDashboard = ({ navigateTo }) => {
   const navItems = [
     { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
     { id: 'sessions', icon: 'event_available', label: 'My Sessions' },
+    { id: 'availability', icon: 'calendar_month', label: 'Availability' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
     { id: 'ratings', icon: 'star', label: 'Ratings' },
     { id: 'settings', icon: 'settings', label: 'Settings' },
@@ -901,23 +942,29 @@ const MentorDashboard = ({ navigateTo }) => {
       case 'earnings': return renderEarnings();
       case 'ratings': return renderRatings();
       case 'settings': return renderSettings();
+      case 'availability': return <AvailabilityScheduler mentorId={user?.id} />;
       case 'sessions': {
         const groups = {
-          pending: sessions.filter((session) => session.status === 'Pending'),
-          scheduled: sessions.filter((session) => ['Confirmed', 'scheduled'].includes(session.status)),
-          completed: sessions.filter((session) => session.status === 'Completed'),
-          cancelled: sessions.filter((session) => ['Cancelled', 'Canceled', 'Rejected'].includes(session.status)),
+          pending: sessions.filter((session) => (session.status || '').toLowerCase() === 'pending'),
+          scheduled: sessions.filter((session) => ['confirmed', 'scheduled'].includes((session.status || '').toLowerCase())),
+          completed: sessions.filter((session) => (session.status || '').toLowerCase() === 'completed'),
+          cancelled: sessions.filter((session) => {
+            const st = (session.status || '').toLowerCase();
+            return st.includes('cancel') || st.includes('reject');
+          }),
         };
         const visibleSessions = groups[sessionTab] || groups.pending;
         const today = new Date();
         const todaySessions = sessions.filter(s => {
           const d = new Date(s.dateTime || s.date || s.createdAt);
-          return d.toDateString() === today.toDateString() && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+          const st = (s.status || '').toLowerCase();
+          return d.toDateString() === today.toDateString() && ['confirmed', 'pending', 'scheduled'].includes(st);
         });
         const weekSessions = sessions.filter(s => {
           const d = new Date(s.dateTime || s.date || s.createdAt);
           const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
-          return d >= today && d <= weekEnd && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+          const st = (s.status || '').toLowerCase();
+          return d >= today && d <= weekEnd && ['confirmed', 'pending', 'scheduled'].includes(st);
         });
         const nextSession = groups.scheduled[0] || groups.pending[0];
 

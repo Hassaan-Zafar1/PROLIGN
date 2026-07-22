@@ -122,8 +122,10 @@ export async function listMentorProfiles(query) {
 }
 
 export async function getMyMentorProfile(userId) {
-  const mp = await MentorProfile.findOne({ userId });
-  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  let mp = await MentorProfile.findOne({ userId });
+  if (!mp) {
+    mp = await MentorProfile.create({ userId, status: "approved", isApproved: true });
+  }
   return mp;
 }
 
@@ -138,12 +140,14 @@ export async function updateMyMentorProfile(userId, updates) {
   for (const key of SELF_EDITABLE_FIELDS) {
     if (updates[key] !== undefined) setFields[key] = updates[key];
   }
-  const mp = await MentorProfile.findOneAndUpdate(
+  let mp = await MentorProfile.findOneAndUpdate(
     { userId },
     { $set: setFields },
     { new: true, runValidators: true }
   );
-  if (!mp) throw new ApiError(404, "Mentor profile not found.");
+  if (!mp) {
+    mp = await MentorProfile.create({ userId, status: "approved", isApproved: true, ...setFields });
+  }
   return mp;
 }
 

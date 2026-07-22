@@ -3,13 +3,13 @@ const { Schema } = mongoose;
 
 const videoConferenceSchema = new Schema(
   {
-    provider:   { type: String, enum: ["jitsi", "zoom"], default: "jitsi" },
-    roomName:   { type: String, default: null }, // Jitsi unique room name
+    provider: { type: String, enum: ["jitsi", "zoom"], default: "jitsi" },
+    roomName: { type: String, default: null }, // Jitsi unique room name
     meetingUrl: { type: String, default: null }, // full join URL for both parties
-    meetingId:  { type: String, default: null }, // Zoom meeting ID
-    hostToken:  { type: String, default: null }, // Jitsi JWT for mentor (host priv)
-    startUrl:   { type: String, default: null }, // Zoom host-only start URL
-    createdAt:  { type: Date,   default: null },
+    meetingId: { type: String, default: null }, // Zoom meeting ID
+    hostToken: { type: String, default: null }, // Jitsi JWT for mentor (host priv)
+    startUrl: { type: String, default: null }, // Zoom host-only start URL
+    createdAt: { type: Date, default: null },
   },
   { _id: false }
 );
@@ -17,7 +17,7 @@ const videoConferenceSchema = new Schema(
 const resourceSchema = new Schema(
   {
     label: { type: String },
-    url:   { type: String },
+    url: { type: String },
   },
   { _id: false }
 );
@@ -26,7 +26,7 @@ const sessionSchema = new Schema(
   {
     menteeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     mentorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    slotId:   { type: Schema.Types.ObjectId, ref: "AvailabilitySlot", required: true },
+    slotId: { type: Schema.Types.ObjectId, ref: "AvailabilitySlot", required: true },
 
     // ── Session Details ────────────────────────────────────────────
     sessionType: {
@@ -34,13 +34,13 @@ const sessionSchema = new Schema(
       enum: ["mock_interview", "resume_review", "career_counseling", "technical", "workshop"],
       required: true,
     },
-    title:  { type: String, default: null },
+    title: { type: String, default: null },
     agenda: { type: String, default: null }, // mentee's stated goal
 
     // ── Schedule ───────────────────────────────────────────────────
-    scheduledDate:   { type: Date,   required: true }, // UTC datetime
+    scheduledDate: { type: Date, required: true }, // UTC datetime
     durationMinutes: { type: Number, enum: [30, 60, 90], default: 60 },
-    timezone:        { type: String, default: "Asia/Karachi" }, // mentee's timezone
+    timezone: { type: String, default: "Asia/Karachi" }, // mentee's timezone
 
     // ── Video Conference ───────────────────────────────────────────
     videoConference: { type: videoConferenceSchema, default: () => ({}) },
@@ -65,22 +65,22 @@ const sessionSchema = new Schema(
     },
 
     // ── State Transition Timestamps ────────────────────────────────
-    confirmedAt:        { type: Date, default: null },
-    startedAt:          { type: Date, default: null },
-    completedAt:        { type: Date, default: null },
-    cancelledAt:        { type: Date, default: null },
-    cancelledBy:        { type: String, enum: ["mentee", "mentor", "admin"], default: null },
+    confirmedAt: { type: Date, default: null },
+    startedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: String, enum: ["mentee", "mentor", "admin"], default: null },
     cancellationReason: { type: String, default: null },
 
     // ── Payment ────────────────────────────────────────────────────
-    paymentId:    { type: Schema.Types.ObjectId, ref: "Payment", default: null },
+    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", default: null },
     priceCharged: { type: Number, required: true }, // snapshot at booking time
-    currency:     { type: String, enum: ["PKR", "USD"], default: "PKR" },
+    currency: { type: String, enum: ["PKR", "USD"], default: "USD" },
 
     // ── Post-Session ───────────────────────────────────────────────
-    reviewId:    { type: Schema.Types.ObjectId, ref: "Review", default: null },
+    reviewId: { type: Schema.Types.ObjectId, ref: "Review", default: null },
     mentorNotes: { type: String, default: null }, // private mentor notes
-    resources:   { type: [resourceSchema], default: [] }, // mentor shared links
+    resources: { type: [resourceSchema], default: [] }, // mentor shared links
 
     // ── Reminder Tracking ──────────────────────────────────────────
     remindersSent: { type: [String], default: [] }, // ["24h", "1h", "15min"]

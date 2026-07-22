@@ -21,6 +21,7 @@ import {
 } from '../utils/db';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { recommendationService } from '../services/recommendationService';
+import { sessionService } from '../services/sessionService';
 import { authService } from '../services/authService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
@@ -127,43 +128,78 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       .finally(() => setMatchLoading(false));
   };
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
-      // Mentee profile (incl. learning goals from the Task 7 interview) is now
-      // backend-driven via /auth/me; fall back to the cached user offline.
-      authService.getCurrentUser()
-        .then((backendUser) => {
-          // Interview data lives on the populated menteeProfile now — flatten it
-          // up so the "Learning Goals" cards (careerGoals/skillsToLearn/…) render.
-          const merged = flattenUserProfile(backendUser);
-          updateUser(merged);
-          setUser(merged);
-          loadRecommendedMentors(merged);
-          loadMatchedMentors(backendUser?.menteeProfile?._id || backendUser?.menteeProfile?.id);
-        })
-        .catch(() => {
-          const cachedUser = authUser || getCurrentUser();
-          setUser(cachedUser);
-          loadRecommendedMentors(cachedUser);
+      let mergedUser;
+      try {
+        const backendUser = await authService.getCurrentUser();
+        mergedUser = flattenUserProfile(backendUser);
+        updateUser(mergedUser);
+        setUser(mergedUser);
+        loadRecommendedMentors(mergedUser);
+        loadMatchedMentors(backendUser?.menteeProfile?._id || backendUser?.menteeProfile?.id);
+      } catch (err) {
+        mergedUser = authUser || getCurrentUser();
+        setUser(mergedUser);
+        loadRecommendedMentors(mergedUser);
+      }
+
+      if (!mergedUser) return;
+
+      // Fetch sessions from real backend
+      try {
+        const response = await sessionService.getSessions({ as: 'mentee' });
+        const backendSessions = response.data || [];
+        const dbSessions = backendSessions.map((s) => {
+          const mentor = s.mentorId || {};
+          const slot = s.slotId || {};
+          
+          let timeLabel = '';
+          if (slot && slot.startTime && slot.endTime) {
+            const format12h = (t24) => {
+              const [hStr, mStr] = t24.split(':');
+              const h = parseInt(hStr, 10);
+              const period = h >= 12 ? 'PM' : 'AM';
+              const hr12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+              return `${String(hr12).padStart(2, '0')}:${mStr} ${period}`;
+            };
+            timeLabel = `${format12h(slot.startTime)} - ${format12h(slot.endTime)}`;
+          }
+          
+          return {
+            id: s._id,
+            mentorId: s.mentorId?._id || s.mentorId,
+            menteeId: s.menteeId?._id || s.menteeId,
+            mentorName: mentor.name || 'Mentor',
+            mentorAvatar: mentor.profilePic || '',
+            mentorTitle: mentor.title || mentor.industry || 'Mentor',
+            date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            time: timeLabel,
+            sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
+            status: s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status,
+            amount: s.priceCharged,
+            agenda: s.agenda,
+            dateTime: s.scheduledDate,
+            mentor: {
+              name: mentor.name || 'Mentor',
+              avatar: mentor.profilePic || '',
+              title: mentor.title || mentor.industry || 'Mentor',
+            }
+          };
         });
-
-      const currentUser = authUser || getCurrentUser();
-      if (!currentUser) return;
-
-      setSessions(
-        getSessions()
-          .filter((session) => session.menteeId === currentUser.id)
-          .map((session) => ({ ...session, mentor: getUserById(session.mentorId) }))
-      );
+        setSessions(dbSessions);
+      } catch (err) {
+        console.error('Failed to load sessions from backend:', err);
+      }
 
       setBookings(
-        getBookingsForUser(currentUser.id).map((booking) => ({
+        getBookingsForUser(mergedUser.id).map((booking) => ({
           ...booking,
           mentor: getUserById(booking.mentorId),
         }))
       );
 
-      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser.id));
+      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === mergedUser.id));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -204,7 +240,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         .filter((session) => ['completed', 'done'].includes(session.statusLabel))
         .sort((left, right) => bySoonest(right, left)),
       cancelled: normalized
-        .filter((session) => ['cancelled', 'canceled'].includes(session.statusLabel))
+        .filter((session) => session.statusLabel.includes('cancel') || session.statusLabel.includes('reject'))
         .sort((left, right) => bySoonest(right, left)),
     };
   }, [sessions]);
@@ -332,25 +368,20 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     }
   };
 
-  const handleCancelSession = (session) => {
+  const handleCancelSession = async (session) => {
     if (!session) return;
     const confirmed = window.confirm(`Cancel your session with ${session.mentor?.name || 'this mentor'}?`);
     if (!confirmed) return;
 
     try {
-      cancelSession(session.id);
-      addNotification(session.mentorId, `${user?.name} cancelled the session on ${session.dateTime || session.date} at ${session.time}.`, 'cancellation');
-
-      const matchingBooking = bookings.find(
-        (booking) => booking.mentorId === session.mentorId && booking.menteeId === user?.id
-      );
-      if (matchingBooking) {
-        updateBookingStatus(matchingBooking.id, 'Cancelled');
-      }
-
+      setLoading(true);
+      await sessionService.deleteSession(session.id);
       loadData();
     } catch (err) {
       console.error('Failed to cancel session:', err);
+      alert('Failed to cancel session.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -689,7 +720,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     const isConfirmed = ['confirmed', 'scheduled'].includes(session.statusLabel);
     const isPending = session.statusLabel === 'pending';
     const isCompleted = session.statusLabel === 'completed';
-    const isCancelled = ['cancelled', 'canceled'].includes(session.statusLabel);
+    const isCancelled = session.statusLabel.includes('cancel') || session.statusLabel.includes('reject');
     const isRescheduled = session.statusLabel === 'rescheduled';
 
     return (
@@ -1079,19 +1110,31 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => handleJoinSession(session)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span className="material-symbols-outlined text-[14px]">videocam</span>
-              Join Session
-            </button>
-            <button
-              onClick={() => openNotesModal(session)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
-            >
-              Prepare Notes
-            </button>
+            {session.status === 'Pending' ? (
+              <button
+                onClick={() => navigateTo('booking', { mentorId: session.mentorId, sessionId: session.id })}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-on-secondary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span className="material-symbols-outlined text-[14px]">payments</span>
+                Complete Payment
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleJoinSession(session)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">videocam</span>
+                  Join Session
+                </button>
+                <button
+                  onClick={() => openNotesModal(session)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+                >
+                  Prepare Notes
+                </button>
+              </>
+            )}
             <button
               onClick={() => handleCancelSession(session)}
               className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10"

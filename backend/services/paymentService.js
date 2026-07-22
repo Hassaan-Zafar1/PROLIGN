@@ -1,6 +1,9 @@
 import Payment from "../models/Payment.js";
 import Session from "../models/Session.js";
 import { ApiError } from "../middleware/errorHandler.js";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 /**
  * Payments for sessions.
@@ -57,7 +60,7 @@ export async function createPayment(user, body) {
       platformCommission,
       mentorEarnings,
       commissionRate,
-      currency: (body.currency || "pkr").toLowerCase(),
+      currency: (body.currency || "usd").toLowerCase(),
       chargeStatus: body.chargeStatus || "captured",
     });
     // Link the payment onto the session.
@@ -116,4 +119,95 @@ export async function deletePayment(id, user) {
   if (!payment) throw new ApiError(404, "Payment not found.");
   await payment.deleteOne();
   return { message: "Payment deleted." };
+}
+
+export async function createPaymentIntent(user, { sessionId }) {
+  const session = await Session.findById(sessionId);
+  if (!session) throw new ApiError(404, "Session not found.");
+  if (user.role !== "admin" && String(session.menteeId) !== String(user._id)) {
+    throw new ApiError(403, "Only the booking mentee can pay for this session.");
+  }
+
+  const gross = Number(session.priceCharged);
+  const commissionRate = 0.15; // platform commission
+  const platformCommission = Math.round(gross * commissionRate);
+  const mentorEarnings = gross - platformCommission;
+
+  // Convert amount to the smallest unit (e.g. cents/paisas)
+  const amountInCents = Math.round(gross * 100);
+
+  // 1. Create the PaymentIntent on Stripe
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amountInCents,
+    currency: session.currency.toLowerCase(),
+    metadata: { sessionId: String(sessionId) },
+  });
+
+  // 2. Save the payment record locally in "initiated" state
+  const payment = await Payment.create({
+    sessionId,
+    menteeId: session.menteeId,
+    mentorId: session.mentorId,
+    stripePaymentIntentId: paymentIntent.id,
+    grossAmount: gross,
+    platformCommission,
+    mentorEarnings,
+    commissionRate,
+    currency: session.currency.toLowerCase(),
+    chargeStatus: "initiated",
+  });
+
+  // 3. Link the payment onto the session
+  await Session.updateOne({ _id: sessionId }, { $set: { paymentId: payment._id } });
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+    payment,
+  };
+}
+
+export async function handleStripeWebhook(signature, rawBody) {
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    throw new ApiError(400, `Webhook signature verification failed: ${err.message}`);
+  }
+
+  const intent = event.data.object;
+
+  if (event.type === "payment_intent.succeeded") {
+    // Find the payment, update status, and record the webhook event
+    const payment = await Payment.findOneAndUpdate(
+      { stripePaymentIntentId: intent.id },
+      {
+        $set: { chargeStatus: "captured" },
+        $push: { webhookEvents: { event: event.type } },
+      },
+      { new: true }
+    );
+
+    if (payment) {
+      // Confirm the session now that payment was completed
+      await Session.updateOne(
+        { _id: payment.sessionId },
+        { $set: { status: "confirmed" } }
+      );
+    }
+  } else if (event.type === "payment_intent.payment_failed") {
+    // Record payment failure
+    await Payment.updateOne(
+      { stripePaymentIntentId: intent.id },
+      {
+        $set: { chargeStatus: "failed" },
+        $push: { webhookEvents: { event: event.type } },
+      }
+    );
+  }
+
+  return { received: true };
 }

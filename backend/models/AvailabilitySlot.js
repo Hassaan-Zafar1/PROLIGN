@@ -20,7 +20,7 @@ const availabilitySlotSchema = new Schema(
     dayOfWeek: { type: Number, min: 0, max: 6 }, // 0=Sun … 6=Sat
 
     // ── Concrete Bookable Fields ───────────────────────────────────
-    date:      { type: Date,   required: true },  // exact calendar date (UTC midnight)
+    date:      { type: Date },  // exact calendar date (UTC midnight, optional for templates)
     startTime: { type: String, required: true },  // "10:00" (24hr, mentor local time)
     endTime:   { type: String, required: true },  // "10:30"
     timezone:  { type: String, default: "Asia/Karachi" },
@@ -45,10 +45,16 @@ const availabilitySlotSchema = new Schema(
 availabilitySlotSchema.index({ mentorId: 1, dayOfWeek: 1, startTime: 1 });
 availabilitySlotSchema.index({ mentorId: 1, date: 1, status: 1 });
 
-// CRITICAL: prevents double-booking at the DB level (not just app level)
+// Prevent double-booking on concrete dates
 availabilitySlotSchema.index(
   { mentorId: 1, date: 1, startTime: 1 },
-  { unique: true }
+  { unique: true, partialFilterExpression: { date: { $exists: true } } }
+);
+
+// Prevent duplicate templates for the same day of week and time
+availabilitySlotSchema.index(
+  { mentorId: 1, dayOfWeek: 1, startTime: 1 },
+  { unique: true, partialFilterExpression: { date: { $exists: false } } }
 );
 
 export default mongoose.models.AvailabilitySlot ||

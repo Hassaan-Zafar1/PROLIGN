@@ -31,7 +31,7 @@ export function flattenUserProfile(user) {
       avatar: user.avatar || user.profilePic || '',
       title: pick(user.title, mp.title || mp.headline),
       headline: pick(user.headline, mp.headline),
-      company: pick(user.company, mp.company || mp.currentCompany),
+      company: pick(user.company, mp.company || mp.currentCompany?.name),
       industry: pick(user.industry, mp.industry || (Array.isArray(mp.industries) ? mp.industries[0] : undefined)),
       bio: pick(user.bio, mp.bio),
       skills: pick(user.skills, mp.skills) || [],

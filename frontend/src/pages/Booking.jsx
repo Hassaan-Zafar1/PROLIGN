@@ -1,10 +1,13 @@
-﻿import { useEffect, useMemo, useState, useCallback } from 'react';
-// Sessions/booking creation still use the mock DB (Task 6 — scheduling);
-// mentor identity now comes from the backend via the mentor hook.
-import { createBooking, getCurrentUser, getSessions } from '../utils/db';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useMentor } from '../hooks/useMentors';
 import { errorHandler } from '../utils/errorHandler';
 import { Button, Card, Modal, Input, Textarea, Avatar, EmptyState } from '../components/common';
+import { useAuth } from '../context/AuthContext';
+import api from '../config/api';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 const dateKey = (date) => {
   const y = date.getFullYear();
@@ -15,36 +18,8 @@ const dateKey = (date) => {
 const monthLabels = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const dayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-const expandTimeRanges = (slots) => {
-  const expanded = [];
-  (slots || []).forEach((slot) => {
-    if (slot.includes('\u2013')) {
-      const [startStr, endStr] = slot.split(' \u2013 ').map((s) => s.trim());
-      const toMin = (t) => {
-        const [time, period] = t.split(' ');
-        let [h, m] = time.split(':').map(Number);
-        if (period === 'PM' && h !== 12) h += 12;
-        if (period === 'AM' && h === 12) h = 0;
-        return h * 60 + m;
-      };
-      const fromMin = toMin(startStr);
-      const toMinutes = toMin(endStr);
-      for (let m = fromMin; m < toMinutes; m += 60) {
-        const h = Math.floor(m / 60);
-        const mm = m % 60;
-        const period = h >= 12 ? 'PM' : 'AM';
-        const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-        expanded.push(`${String(h12).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${period}`);
-      }
-    } else {
-      expanded.push(slot);
-    }
-  });
-  return [...new Set(expanded)];
-};
-
-export default function Booking({ navigateTo, params }) {
-  const user = getCurrentUser();
+function Booking({ navigateTo, params }) {
+  const { user } = useAuth();
   const getToday = useCallback(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -52,38 +27,75 @@ export default function Booking({ navigateTo, params }) {
   }, []);
   const [selectedDateObj, setSelectedDateObj] = useState(getToday);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState('');
   const [sessionTopic, setSessionTopic] = useState('');
   const [sessionNotes, setSessionNotes] = useState('');
   const [confirmedBooking, setConfirmedBooking] = useState(null);
   const { mentor, loading: mentorLoading } = useMentor(params?.mentorId);
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
+
+  const [dbSlots, setDbSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [createdSessionId, setCreatedSessionId] = useState(params?.sessionId || null);
+  const [paymentError, setPaymentError] = useState('');
+
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStep, setPaymentStep] = useState(false);
+  const [paymentStep, setPaymentStep] = useState(Boolean(params?.sessionId));
   const [showTimeAlert, setShowTimeAlert] = useState(false);
 
-  const rawAvailabilitySlots = mentor?.availabilitySlots || {};
+  const stripe = useStripe();
+  const elements = useElements();
+
+  useEffect(() => {
+    if (!params?.sessionId) return;
+    const loadPendingSession = async () => {
+      try {
+        const sessionData = await api.get(`/sessions/${params.sessionId}`);
+        const session = sessionData.data.data;
+        if (session) {
+          setSessionTopic(session.title || '');
+          setSessionNotes(session.agenda || '');
+          if (session.slotId) {
+            setSelectedSlot(session.slotId);
+            const slotDate = new Date(session.slotId.date);
+            setSelectedDateObj(slotDate);
+            setVisibleMonth(new Date(slotDate.getFullYear(), slotDate.getMonth(), 1));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load pending session details:', err);
+      }
+    };
+    loadPendingSession();
+  }, [params?.sessionId]);
+
+  useEffect(() => {
+    if (!mentor?.id) return;
+    const fetchSlots = async () => {
+      setSlotsLoading(true);
+      try {
+        const response = await api.get('/availability', {
+          params: { mentorId: mentor.id, status: 'available', limit: 100 }
+        });
+        setDbSlots(response.data.data || []);
+      } catch (err) {
+        console.error('Error fetching availability slots:', err);
+      } finally {
+        setSlotsLoading(false);
+      }
+    };
+    fetchSlots();
+  }, [mentor?.id]);
+
   const availabilitySlots = useMemo(() => {
     const expanded = {};
-    Object.entries(rawAvailabilitySlots).forEach(([date, slots]) => {
-      expanded[date] = expandTimeRanges(slots);
+    dbSlots.forEach((slot) => {
+      const d = new Date(slot.date);
+      const key = dateKey(d);
+      if (!expanded[key]) expanded[key] = [];
+      expanded[key].push(slot);
     });
     return expanded;
-  }, [rawAvailabilitySlots]);
-  const bookedSlots = useMemo(() => {
-    if (!mentor) return {};
-    return getSessions()
-      .filter((session) => session.mentorId === mentor.id && !['Rejected', 'Cancelled', 'Canceled'].includes(session.status))
-      .reduce((acc, session) => {
-        const key = session.dateTime || session.date;
-        if (!key) return acc;
-        acc[key] = [...(acc[key] || []), session.time];
-        return acc;
-      }, {});
-  }, [mentor]);
+  }, [dbSlots]);
 
   const calendarDays = useMemo(() => {
     const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
@@ -104,9 +116,7 @@ export default function Booking({ navigateTo, params }) {
   const hasAvailableSlot = (date) => {
     if (isPastDate(date)) return false;
     const key = dateKey(date);
-    const slots = availabilitySlots[key] || [];
-    const unavailable = bookedSlots[key] || [];
-    return slots.some((time) => !unavailable.includes(time));
+    return (availabilitySlots[key] || []).length > 0;
   };
 
   const canGoPrevMonth = () => {
@@ -124,56 +134,54 @@ export default function Booking({ navigateTo, params }) {
 
   const availableTimes = useMemo(() => {
     const key = dateKey(selectedDateObj);
-    const rawTimes = availabilitySlots[key] || [];
-    const alreadyBooked = bookedSlots[key] || [];
+    const slotsForDate = availabilitySlots[key] || [];
     const now = new Date();
-    const isToday = selectedDateObj.toDateString() === now.toDateString();
-    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-    return rawTimes.filter((timeStr) => {
-      if (alreadyBooked.includes(timeStr)) return false;
-      if (!isToday) return true;
-      const [time, period] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours !== 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-      const slotTime = new Date(selectedDateObj);
+    return slotsForDate.filter((slot) => {
+      const slotTime = new Date(slot.date);
+      const [hours, minutes] = slot.startTime.split(':').map(Number);
       slotTime.setHours(hours, minutes, 0, 0);
-      return slotTime >= twoHoursFromNow;
+      return slotTime >= now;
     });
-  }, [availabilitySlots, bookedSlots, selectedDateObj]);
+  }, [availabilitySlots, selectedDateObj]);
 
   useEffect(() => {
-    if (availableTimes.length > 0 && !availableTimes.includes(selectedTime)) {
-      setSelectedTime(availableTimes[0]);
-    } else if (availableTimes.length === 0) {
-      setSelectedTime('');
+    if (availableTimes.length > 0) {
+      if (!selectedSlot || !availableTimes.some(s => s._id === selectedSlot._id)) {
+        setSelectedSlot(availableTimes[0]);
+      }
+    } else {
+      setSelectedSlot(null);
     }
-  }, [availableTimes, selectedTime]);
+  }, [availableTimes, selectedSlot]);
 
   useEffect(() => {
     if (!mentor || hasAvailableSlot(selectedDateObj)) return;
     const nextAvailableKey = Object.keys(availabilitySlots)
       .filter((key) => new Date(`${key}T00:00:00`) >= new Date(new Date().toDateString()))
       .sort()
-      .find((key) => {
-        const unavailable = bookedSlots[key] || [];
-        return (availabilitySlots[key] || []).some((time) => !unavailable.includes(time));
-      });
+      .find((key) => (availabilitySlots[key] || []).length > 0);
     if (nextAvailableKey) {
       const nextDate = new Date(`${nextAvailableKey}T00:00:00`);
       setSelectedDateObj(nextDate);
       setVisibleMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
     }
-  }, [availabilitySlots, bookedSlots, mentor]);
+  }, [availabilitySlots, mentor]);
 
   const basePrice = mentor?.hourlyRate || 120;
   const fee = basePrice * 0.05;
   const total = basePrice + fee;
 
-  const handlePaymentSubmit = (event) => {
-    event.preventDefault();
-    if (!cardName || !cardNumber || !expiry || !cvv) {
-      errorHandler.notify('Please fill in all payment details.');
+  const formatTime = (tStr) => {
+    if (!tStr) return '';
+    const [h, m] = tStr.split(':').map(Number);
+    const p = h >= 12 ? 'PM' : 'AM';
+    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`;
+  };
+
+  const handleContinueToPayment = async () => {
+    if (!selectedSlot) {
+      setShowTimeAlert(true);
       return;
     }
     if (!user) {
@@ -181,34 +189,103 @@ export default function Booking({ navigateTo, params }) {
       navigateTo('login');
       return;
     }
-    if (!mentor || !selectedTime) {
+    setIsProcessing(true);
+    try {
+      const notes = sessionTopic ? `${sessionTopic}${sessionNotes ? '\n\n' + sessionNotes : ''}` : sessionNotes;
+      const response = await api.post('/sessions', {
+        mentorId: mentor.id,
+        slotId: selectedSlot._id,
+        sessionType: 'mock_interview',
+        agenda: notes,
+        title: sessionTopic || 'Mentorship Session',
+        currency: 'USD',
+      });
+      setCreatedSessionId(response.data.data._id);
+      setPaymentStep(true);
+    } catch (err) {
+      console.error('Failed to create session:', err);
+      errorHandler.notify(err.response?.data?.message || 'Failed to initialize booking.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCancelPayment = async () => {
+    if (createdSessionId) {
+      try {
+        setIsProcessing(true);
+        await api.delete(`/sessions/${createdSessionId}`);
+        setCreatedSessionId(null);
+        if (mentor?.id) {
+          setSlotsLoading(true);
+          const response = await api.get('/availability', {
+            params: { mentorId: mentor.id, status: 'available', limit: 100 }
+          });
+          setDbSlots(response.data.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to cancel pending session:', err);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+    setPaymentStep(false);
+  };
+
+
+  const handlePaymentSubmit = async (event) => {
+    event.preventDefault();
+    if (!stripe || !elements) return;
+
+    if (!user) {
+      errorHandler.notify('Please login first to book a session.');
+      navigateTo('login');
+      return;
+    }
+    if (!mentor || !selectedSlot) {
       errorHandler.notify('Please select an available mentor slot first.');
       return;
     }
+
     setIsProcessing(true);
-    const notes = sessionTopic ? `${sessionTopic}${sessionNotes ? '\n\n' + sessionNotes : ''}` : sessionNotes;
-    setTimeout(() => {
-      const booking = createBooking({
-        menteeId: user.id,
-        mentorId: mentor.id,
-        date: dateKey(selectedDateObj),
-        time: selectedTime,
-        sessionType: 'Mentorship Session',
-        notes,
-        amount: total,
+    setPaymentError('');
+
+    try {
+      const response = await api.post('/payments/create-intent', {
+        sessionId: createdSessionId,
       });
+      const { clientSecret } = response.data;
+
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
+
+      if (result.error) {
+        setPaymentError(result.error.message);
+        errorHandler.notify(result.error.message);
+      } else {
+        if (result.paymentIntent.status === 'succeeded') {
+          setConfirmedBooking({
+            mentorName: mentor.name,
+            mentorAvatar: mentor.avatar,
+            mentorTitle: mentor.title || mentor.industry,
+            date: selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            time: `${formatTime(selectedSlot.startTime)} - ${formatTime(selectedSlot.endTime)}`,
+            sessionType: 'Mentorship Session',
+            total,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Payment confirmation error:', err);
+      const errMsg = err.response?.data?.message || err.message || 'An error occurred during payment.';
+      setPaymentError(errMsg);
+      errorHandler.notify(errMsg);
+    } finally {
       setIsProcessing(false);
-      setConfirmedBooking({
-        ...booking,
-        mentorName: mentor.name,
-        mentorAvatar: mentor.avatar,
-        mentorTitle: mentor.title || mentor.industry,
-        date: selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-        time: selectedTime,
-        sessionType: 'Mentorship Session',
-        total,
-      });
-    }, 800);
+    }
   };
 
   if (mentorLoading) {
@@ -279,7 +356,9 @@ export default function Booking({ navigateTo, params }) {
         </div>
         <div className="flex justify-between">
           <span className="text-on-surface-variant">Time</span>
-          <span className="font-semibold text-on-surface">{selectedTime || '\u2014'}</span>
+          <span className="font-semibold text-on-surface">
+            {selectedSlot ? `${formatTime(selectedSlot.startTime)} - ${formatTime(selectedSlot.endTime)}` : '\u2014'}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-on-surface-variant">Duration</span>
@@ -375,22 +454,28 @@ export default function Booking({ navigateTo, params }) {
           {availableTimes.length > 0 && ` \u00b7 ${availableTimes.length} slot${availableTimes.length > 1 ? 's' : ''}`}
         </p>
       </div>
-      {availableTimes.length > 0 ? (
+      {slotsLoading ? (
+        <div className="flex items-center gap-2 text-xs text-on-surface-variant py-2">
+          <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+          Loading slots...
+        </div>
+      ) : availableTimes.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
-          {availableTimes.map((time) => {
-            const isSelected = selectedTime === time;
+          {availableTimes.map((slot) => {
+            const isSelected = selectedSlot?._id === slot._id;
+            const timeLabel = `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`;
             return (
               <button
-                key={time}
+                key={slot._id}
                 type="button"
-                onClick={() => setSelectedTime(time)}
+                onClick={() => setSelectedSlot(slot)}
                 className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
                   isSelected
                     ? 'bg-primary text-on-primary shadow-sm shadow-primary/20'
                     : 'bg-surface-container-high text-on-surface hover:bg-primary/10 hover:text-primary border border-outline-variant/10'
                 }`}
               >
-                {time}
+                {timeLabel}
               </button>
             );
           })}
@@ -398,7 +483,7 @@ export default function Booking({ navigateTo, params }) {
       ) : (
         <div className="flex items-center gap-2 rounded-xl bg-surface-container-low px-3 py-2.5 text-xs text-on-surface-variant">
           <span className="material-symbols-outlined text-[14px]">event_busy</span>
-          <span>No available slots for this date. Choose another date.</span>
+          No available slots for this date. Choose another date.
         </div>
       )}
     </div>
@@ -436,74 +521,32 @@ export default function Booking({ navigateTo, params }) {
   const renderPaymentForm = () => (
     <form onSubmit={handlePaymentSubmit} className="rounded-2xl border border-outline-variant/10 bg-surface p-4 space-y-3">
       <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Payment</h4>
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-on-surface-variant">Cardholder Name</label>
-        <input
-          value={cardName}
-          onChange={(e) => setCardName(e.target.value)}
-          className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          placeholder="Full name on card"
-          type="text"
-          required
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-on-surface-variant">Card Number</label>
-        <div className="relative">
-          <input
-            value={cardNumber}
-            onChange={(e) => {
-              const raw = e.target.value.replace(/\D/g, '');
-              setCardNumber(raw.replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 19));
-            }}
-            className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 font-mono text-sm tracking-wider text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="0000 0000 0000 0000"
-            type="text"
-            maxLength={19}
-            required
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40">
-            <span className="material-symbols-outlined text-xl">credit_card</span>
-          </span>
+      <div className="p-4 bg-surface-container-low border border-outline-variant/20 rounded-xl space-y-2">
+        <label className="block text-xs font-semibold text-on-surface-variant">Credit or Debit Card</label>
+        <div className="p-3 border border-outline-variant/15 bg-surface rounded-lg">
+          <CardElement options={{
+            style: {
+              base: {
+                fontSize: '14px',
+                color: 'var(--color-on-surface, #1f2937)',
+                fontFamily: 'system-ui, sans-serif',
+                '::placeholder': { color: '#aab7c4' },
+              },
+              invalid: { color: 'var(--color-error, #ef4444)' },
+            },
+          }} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-on-surface-variant">Expiry</label>
-          <input
-            value={expiry}
-            onChange={(e) => {
-              const raw = e.target.value.replace(/\D/g, '');
-              if (raw.length <= 2) setExpiry(raw);
-              else setExpiry(`${raw.slice(0, 2)}/${raw.slice(2, 4)}`);
-            }}
-            className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 font-mono text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="MM/YY"
-            type="text"
-            maxLength={5}
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-on-surface-variant">CVV</label>
-          <input
-            value={cvv}
-            onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 font-mono text-sm tracking-widest text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="***"
-            type="password"
-            maxLength={4}
-            required
-          />
-        </div>
-      </div>
+      {paymentError && (
+        <p className="text-error text-xs font-semibold mt-1">{paymentError}</p>
+      )}
       <div className="flex items-center gap-2 rounded-xl bg-success-container/30 px-3 py-2 text-[10px] font-semibold text-on-surface-variant">
         <span className="material-symbols-outlined text-[14px] text-success">lock</span>
-        <span>Secured with end-to-end encryption.</span>
+        <span>Secured by Stripe end-to-end encryption.</span>
       </div>
       <div className="flex gap-2 pt-1">
-        <Button variant="secondary" size="md" className="flex-1" onClick={() => setPaymentStep(false)}>Back</Button>
-        <Button variant="primary" size="md" className="flex-1" type="submit" disabled={isProcessing} loading={isProcessing} icon={isProcessing ? undefined : 'lock'}>
+        <Button variant="secondary" size="md" className="flex-1" onClick={handleCancelPayment} disabled={isProcessing}>Back</Button>
+        <Button variant="primary" size="md" className="flex-1" type="submit" disabled={isProcessing || !stripe} loading={isProcessing} icon={isProcessing ? undefined : 'lock'}>
           {isProcessing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
         </Button>
       </div>
@@ -544,7 +587,8 @@ export default function Booking({ navigateTo, params }) {
             {!paymentStep && (
               <div className="flex flex-col gap-2">
                 <Button variant="primary" size="lg" className="w-full"
-                  onClick={() => { if (!selectedTime) { setShowTimeAlert(true); return; } setPaymentStep(true); }}
+                  onClick={handleContinueToPayment}
+                  loading={isProcessing}
                 >
                   Continue to Payment
                 </Button>
@@ -574,12 +618,12 @@ export default function Booking({ navigateTo, params }) {
 
           {availableTimes.length > 0 ? (
             <div className="mb-6 flex flex-wrap gap-2 justify-center">
-              {availableTimes.map((time) => (
-                <button key={time} type="button" onClick={() => { setSelectedTime(time); setShowTimeAlert(false); }}
+              {availableTimes.map((slot) => (
+                <button key={slot._id} type="button" onClick={() => { setSelectedSlot(slot); setShowTimeAlert(false); }}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/15 bg-surface-container-high px-4 py-2.5 text-sm font-semibold text-on-surface transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30"
                 >
                   <span className="material-symbols-outlined text-[14px]">schedule</span>
-                  {time}
+                  {`${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`}
                 </button>
               ))}
             </div>
@@ -626,5 +670,13 @@ export default function Booking({ navigateTo, params }) {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function BookingWrapper(props) {
+  return (
+    <Elements stripe={stripePromise}>
+      <Booking {...props} />
+    </Elements>
   );
 }
