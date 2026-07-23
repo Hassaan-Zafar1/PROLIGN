@@ -2,13 +2,11 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   getCurrentUser,
   logout as dbLogout,
-  getSessions,
   updateSessionStatus,
   getUserById,
   getNotifications,
   markNotificationRead as markStoredNotificationRead,
   deleteNotification as deleteStoredNotification,
-  getReviewsForMentor,
   updateMentorAvailability,
   getDB,
   saveDB,
@@ -22,6 +20,7 @@ import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { getMentorProfileCompletion } from '../utils/profileCompletion';
 import { authService } from '../services/authService';
 import { sessionService } from '../services/sessionService';
+import { reviewService } from '../services/reviewService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
@@ -51,11 +50,20 @@ const getAvailableSlots = (dateStr) => {
   });
 };
 
-const MentorDashboard = ({ navigateTo }) => {
+const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
   const { theme, toggleTheme } = useTheme();
   const { user: authUser, updateUser, logout } = useAuth();
   const [user, setUser] = useState(authUser || getCurrentUser());
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(initialView);
+
+  useEffect(() => {
+    setActiveView(initialView);
+  }, [initialView]);
+
+  const setView = (view) => {
+    setActiveView(view);
+    navigateTo(view);
+  };
   
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -184,9 +192,18 @@ const MentorDashboard = ({ navigateTo }) => {
           date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
           time: timeLabel,
           sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
-          status: s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status,
+          status: (() => {
+            const d = new Date(s.scheduledDate);
+            const hasPassed = d && d.getTime() < Date.now();
+            const rawLower = (s.status || '').toLowerCase();
+            if (['confirmed', 'pending', 'scheduled'].includes(rawLower) && hasPassed) {
+              return 'Completed';
+            }
+            return s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status;
+          })(),
           amount: s.priceCharged,
           agenda: s.agenda,
+          notes: s.agenda,
           dateTime: s.scheduledDate,
           mentee: {
             name: mentee.name || 'Mentee',
@@ -196,7 +213,24 @@ const MentorDashboard = ({ navigateTo }) => {
       });
       setSessions(dbSessions);
       setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser?.id));
-      setReviews(currentUser ? getReviewsForMentor(currentUser.id) : []);
+      if (currentUser) {
+        try {
+          const revsResponse = await reviewService.getReviews({ mentorId: currentUser.id });
+          const revs = (revsResponse.data || []).map((r) => ({
+            id: r._id,
+            menteeName: r.menteeId?.name || 'Mentee',
+            createdAt: r.createdAt,
+            score: r.rating,
+            reviewText: r.reviewText,
+          }));
+          setReviews(revs);
+        } catch (err) {
+          console.error('Failed to load reviews from backend:', err);
+          setReviews([]);
+        }
+      } else {
+        setReviews([]);
+      }
     } catch (err) {
       console.error('Failed to refresh dashboard data:', err);
     } finally {
@@ -337,15 +371,41 @@ const MentorDashboard = ({ navigateTo }) => {
     }));
   }, [hourlyRate, metricMode, metricMonth, metricSessions, metricYear]);
 
-  const approveSession = (session) => {
-    updateSessionStatus(session.id, 'Confirmed');
-    refreshData();
+  const approveSession = async (session) => {
+    try {
+      setLoading(true);
+      await sessionService.updateSession(session.id, { status: 'confirmed' });
+      try {
+        addNotification(session.menteeId, `${user?.name} has approved your session booking request.`, 'info');
+      } catch (nErr) {
+        console.warn('Failed to send local notification:', nErr);
+      }
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to approve session:', err);
+      alert(err.response?.data?.message || 'Failed to approve session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const rejectSession = (session) => {
+  const rejectSession = async (session) => {
     if (!window.confirm(`Reject the booking request from ${session.menteeName || session.mentee?.name || 'this mentee'}?`)) return;
-    updateSessionStatus(session.id, 'Rejected');
-    refreshData();
+    try {
+      setLoading(true);
+      await sessionService.updateSession(session.id, { status: 'cancelled_by_mentor' });
+      try {
+        addNotification(session.menteeId, `${user?.name} has rejected your session booking request.`, 'info');
+      } catch (nErr) {
+        console.warn('Failed to send local notification:', nErr);
+      }
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to reject session:', err);
+      alert(err.response?.data?.message || 'Failed to reject session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const downloadCsv = (kind) => {
@@ -428,7 +488,7 @@ const MentorDashboard = ({ navigateTo }) => {
 
   const renderSidebar = () => (
     <aside className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
-      <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
+      <div className="px-6 mb-8 cursor-pointer" onClick={() => setView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
           ProLign
@@ -440,7 +500,7 @@ const MentorDashboard = ({ navigateTo }) => {
         {navItems.map(item => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => setView(item.id)}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
                 ? 'brand-olive-menu-active scale-95' 

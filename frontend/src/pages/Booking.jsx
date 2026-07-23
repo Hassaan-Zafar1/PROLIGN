@@ -191,12 +191,11 @@ function Booking({ navigateTo, params }) {
     }
     setIsProcessing(true);
     try {
-      const notes = sessionTopic ? `${sessionTopic}${sessionNotes ? '\n\n' + sessionNotes : ''}` : sessionNotes;
       const response = await api.post('/sessions', {
         mentorId: mentor.id,
         slotId: selectedSlot._id,
         sessionType: 'mock_interview',
-        agenda: notes,
+        agenda: sessionNotes || 'No agenda provided.',
         title: sessionTopic || 'Mentorship Session',
         currency: 'USD',
       });
@@ -497,7 +496,8 @@ function Booking({ navigateTo, params }) {
         <input
           value={sessionTopic}
           onChange={(e) => setSessionTopic(e.target.value)}
-          className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          disabled={paymentStep || isProcessing}
+          className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
           placeholder="e.g. Career guidance, Resume review"
           type="text"
         />
@@ -507,7 +507,8 @@ function Booking({ navigateTo, params }) {
         <textarea
           value={sessionNotes}
           onChange={(e) => setSessionNotes(e.target.value)}
-          className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+          disabled={paymentStep || isProcessing}
+          className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface outline-none transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none disabled:opacity-60"
           placeholder="What would you like to discuss?"
           rows={3}
         />

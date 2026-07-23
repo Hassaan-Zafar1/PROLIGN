@@ -49,13 +49,14 @@ const combineDateTime = (date, timeStr, timezone) => {
 
 const isParticipant = (session, user) =>
   user.role === "admin" ||
-  String(session.menteeId) === String(user._id) ||
-  String(session.mentorId) === String(user._id);
+  String(session.menteeId?._id || session.menteeId) === String(user._id) ||
+  String(session.mentorId?._id || session.mentorId) === String(user._id);
 
 const populated = (q) =>
   q.populate("menteeId", "name profilePic email")
    .populate("mentorId", "name profilePic email")
-   .populate("slotId", "date startTime endTime timezone status");
+   .populate("slotId", "date startTime endTime timezone status")
+   .populate("reviewId", "rating reviewText createdAt");
 
 export async function cleanupExpiredPendingSessions() {
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -87,28 +88,60 @@ export async function createSession(menteeId, body) {
 
   let slot;
   if (String(slotId).startsWith("rec-")) {
-    const [_, templateId, dateStr] = String(slotId).split("-");
+    const parts = String(slotId).split("-");
+    const templateId = parts[1];
+    const dateStr = parts.slice(2).join("-");
     const template = await AvailabilitySlot.findById(templateId);
     if (!template) throw new ApiError(404, "Availability template slot not found.");
 
-    try {
-      slot = await AvailabilitySlot.create({
-        mentorId: template.mentorId,
-        slotType: "recurring",
-        dayOfWeek: template.dayOfWeek,
-        date: new Date(dateStr),
-        startTime: template.startTime,
-        endTime: template.endTime,
-        timezone: template.timezone,
-        status: "booked",
-        bookedBy: menteeId,
-        bookedAt: new Date()
-      });
-    } catch (err) {
-      if (err.code === 11000) {
+    const parsedDate = new Date(dateStr);
+    const existingConcrete = await AvailabilitySlot.findOne({
+      mentorId: template.mentorId,
+      date: parsedDate,
+      startTime: template.startTime
+    });
+
+    if (existingConcrete) {
+      let isAvailable = existingConcrete.status === "available";
+      if (existingConcrete.status === "booked") {
+        const activeSession = await Session.findOne({
+          slotId: existingConcrete._id,
+          status: { $in: ["pending", "confirmed", "scheduled", "in_progress"] }
+        });
+        if (!activeSession) {
+          isAvailable = true; // orphaned slot
+        }
+      }
+
+      if (!isAvailable) {
         throw new ApiError(409, "That slot is no longer available.");
       }
-      throw err;
+
+      existingConcrete.status = "booked";
+      existingConcrete.bookedBy = menteeId;
+      existingConcrete.bookedAt = new Date();
+      await existingConcrete.save();
+      slot = existingConcrete;
+    } else {
+      try {
+        slot = await AvailabilitySlot.create({
+          mentorId: template.mentorId,
+          slotType: "recurring",
+          dayOfWeek: template.dayOfWeek,
+          date: parsedDate,
+          startTime: template.startTime,
+          endTime: template.endTime,
+          timezone: template.timezone,
+          status: "booked",
+          bookedBy: menteeId,
+          bookedAt: new Date()
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          throw new ApiError(409, "That slot is no longer available.");
+        }
+        throw err;
+      }
     }
   } else {
     const foundSlot = await AvailabilitySlot.findById(slotId);
@@ -192,8 +225,8 @@ export async function updateSession(id, user, body) {
   if (!session) throw new ApiError(404, "Session not found.");
   if (!isParticipant(session, user)) throw new ApiError(403, "Not allowed to modify this session.");
 
-  const isMentor = String(session.mentorId) === String(user._id) || user.role === "admin";
-  const isMentee = String(session.menteeId) === String(user._id) || user.role === "admin";
+  const isMentor = String(session.mentorId?._id || session.mentorId) === String(user._id) || user.role === "admin";
+  const isMentee = String(session.menteeId?._id || session.menteeId) === String(user._id) || user.role === "admin";
 
   if (body.status) {
     await applyStatus(session, body.status, { isMentor, isMentee });

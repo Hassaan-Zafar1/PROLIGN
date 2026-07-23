@@ -31,9 +31,9 @@ export const normalizeMentor = (u) => {
     certifications: u.certifications || [],
     hourlyRate: u.hourlyRate ?? 0,
     experience: u.experience ?? 0,
-    // Ratings land with the reviews feature (Task 6). Default to 0 for now.
-    rating: u.rating ?? 0,
-    reviews: u.reviews ?? 0,
+    // Ratings and reviews mapped from MongoDB stats
+    rating: u.averageRating ?? u.rating ?? 5,
+    reviews: u.totalReviews ?? u.reviews ?? 0,
     availability: u.availableSlots || [],
     country: u.country || '',
     city: u.city || '',

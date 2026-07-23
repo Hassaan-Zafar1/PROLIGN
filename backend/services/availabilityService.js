@@ -39,10 +39,25 @@ export async function listSlots(query, requester) {
   }
 
   // Expanded Booking View
-  const fromDate = query.from ? new Date(query.from) : new Date();
-  fromDate.setHours(0, 0, 0, 0);
-  const toDate = query.to ? new Date(query.to) : new Date(fromDate.getTime() + 60 * 24 * 60 * 60 * 1000);
-  toDate.setHours(23, 59, 59, 999);
+  let fromDate;
+  if (query.from) {
+    fromDate = new Date(query.from);
+  } else {
+    const localNow = new Date();
+    const yyyy = localNow.getFullYear();
+    const mm = String(localNow.getMonth() + 1).padStart(2, '0');
+    const dd = String(localNow.getDate()).padStart(2, '0');
+    fromDate = new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`);
+  }
+  fromDate.setUTCHours(0, 0, 0, 0);
+
+  let toDate;
+  if (query.to) {
+    toDate = new Date(query.to);
+  } else {
+    toDate = new Date(fromDate.getTime() + 60 * 24 * 60 * 60 * 1000);
+  }
+  toDate.setUTCHours(23, 59, 59, 999);
 
   // Fetch all recurring templates for the mentor
   const recurringTemplates = await AvailabilitySlot.find({
@@ -75,7 +90,7 @@ export async function listSlots(query, requester) {
   // Expand templates for the next 60 days
   const loopDate = new Date(fromDate);
   while (loopDate <= toDate) {
-    const dayOfWeek = loopDate.getDay();
+    const dayOfWeek = loopDate.getUTCDay();
     const dStr = loopDate.toISOString().split('T')[0];
 
     const dayTemplates = recurringTemplates.filter(t => t.dayOfWeek === dayOfWeek);
@@ -101,7 +116,7 @@ export async function listSlots(query, requester) {
       }
     });
 
-    loopDate.setDate(loopDate.getDate() + 1);
+    loopDate.setUTCDate(loopDate.getUTCDate() + 1);
   }
 
   // Sort by date, then startTime

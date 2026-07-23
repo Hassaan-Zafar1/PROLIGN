@@ -3,18 +3,10 @@ import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
 import {
-  addReview,
-  cancelSession,
   getBookingsForUser,
   getCurrentUser,
-  getSessions,
   getUserById,
   logout as dbLogout,
-  saveSessions,
-  updateBookingStatus,
-  updateSessionStatus,
-  getDB,
-  saveDB,
   getNotifications,
   markNotificationRead,
   deleteNotification,
@@ -23,6 +15,7 @@ import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { recommendationService } from '../services/recommendationService';
 import { sessionService } from '../services/sessionService';
 import { authService } from '../services/authService';
+import { reviewService } from '../services/reviewService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
@@ -176,10 +169,22 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
             time: timeLabel,
             sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
-            status: s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status,
+            status: (() => {
+              const d = new Date(s.scheduledDate);
+              const hasPassed = d && d.getTime() < Date.now();
+              const rawLower = (s.status || '').toLowerCase();
+              if (['confirmed', 'pending', 'scheduled'].includes(rawLower) && hasPassed) {
+                return 'Completed';
+              }
+              return s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status;
+            })(),
             amount: s.priceCharged,
             agenda: s.agenda,
+            notes: s.agenda,
             dateTime: s.scheduledDate,
+            isRated: !!s.reviewId,
+            rating: s.reviewId?.rating || null,
+            reviewText: s.reviewId?.reviewText || '',
             mentor: {
               name: mentor.name || 'Mentor',
               avatar: mentor.profilePic || '',
@@ -221,10 +226,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   };
 
   const sessionGroups = useMemo(() => {
-    const normalized = sessions.map((session) => ({
-      ...session,
-      statusLabel: (session.status || '').toLowerCase(),
-    }));
+    const normalized = sessions.map((session) => {
+      const d = parseSessionDate(session);
+      const hasPassed = d && d.getTime() < Date.now();
+      const rawStatusLabel = (session.status || '').toLowerCase();
+      
+      const statusLabel = (['confirmed', 'pending', 'scheduled'].includes(rawStatusLabel) && hasPassed)
+        ? 'completed'
+        : rawStatusLabel;
+
+      return {
+        ...session,
+        statusLabel,
+        status: statusLabel === 'completed' ? 'Completed' : session.status
+      };
+    });
 
     const bySoonest = (left, right) => {
       const leftTime = parseSessionDate(left)?.getTime() || 0;
@@ -325,7 +341,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const setView = (view) => {
     setActiveView(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateTo(view);
   };
 
   const handleLogout = () => {
@@ -423,27 +439,23 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     setRatingText(session.reviewText || '');
   };
 
-  const handleRatingSubmit = (event) => {
+  const handleRatingSubmit = async (event) => {
     event.preventDefault();
     if (!ratingSession || ratingSession.isRated || !user) return;
 
     setRatingSaving(true);
     try {
-      const result = addReview(
-        ratingSession.mentorId,
-        user.id,
-        user.name,
-        ratingScore,
-        ratingText,
-        ratingSession.id
-      );
+      await reviewService.createReview({
+        sessionId: ratingSession.id,
+        rating: ratingScore,
+        reviewText: ratingText,
+      });
 
-      if (result.success) {
-        loadData();
-        setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
-      }
+      await loadData();
+      setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
     } catch (err) {
       console.error('Failed to submit rating:', err);
+      alert(err.response?.data?.message || 'Failed to submit rating.');
     } finally {
       setRatingSaving(false);
     }
@@ -452,23 +464,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const openNotesModal = (session) => {
     if (!session) return;
     setNotesSession(session);
-    setNotesDraft(session.notes || '');
+    setNotesDraft(session.notes || session.agenda || '');
   };
 
-  const saveNotes = (event) => {
+  const saveNotes = async (event) => {
     event.preventDefault();
     if (!notesSession) return;
 
     setSavingNotes(true);
     try {
-      const updatedSessions = getSessions().map((session) =>
-        session.id === notesSession.id ? { ...session, notes: notesDraft } : session
-      );
-      saveSessions(updatedSessions);
+      await sessionService.updateSession(notesSession.id, { agenda: notesDraft });
       setNotesSession(null);
       loadData();
     } catch (err) {
       console.error('Failed to save notes:', err);
+      alert('Failed to save notes.');
     } finally {
       setSavingNotes(false);
     }

@@ -20,7 +20,7 @@ const Booking = lazy(() => import('../pages/Booking'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
 const Settings = lazy(() => import('../pages/Settings'));
 const Analytics = lazy(() => import('../pages/Analytics'));
-// const VideoInterview = lazy(() => import('../pages/VideoInterview'));
+const VideoInterview = lazy(() => import('../pages/VideoInterview'));
 const HowItWorks = lazy(() => import('../pages/HowItWorks'));
 const TermsOfService = lazy(() => import('../pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy'));
@@ -48,16 +48,16 @@ const DashboardRoute = () => {
   const { user } = useAuth();
   const navigateTo = useAppNavigate();
   if (user?.role === 'admin') return <AdminDashboard navigateTo={navigateTo} />;
-  if (user?.role === 'mentor') return <MentorDashboard navigateTo={navigateTo} />;
+  if (user?.role === 'mentor') return <MentorDashboard navigateTo={navigateTo} initialView="dashboard" />;
   return <MenteeDashboard navigateTo={navigateTo} initialView="dashboard" />;
 };
 
 const SettingsRoute = () => {
   const { user } = useAuth();
   const navigateTo = useAppNavigate();
-  return user?.role === 'mentee'
-    ? <MenteeDashboard navigateTo={navigateTo} initialView="settings" />
-    : <Settings navigateTo={navigateTo} />;
+  if (user?.role === 'mentee') return <MenteeDashboard navigateTo={navigateTo} initialView="settings" />;
+  if (user?.role === 'mentor') return <MentorDashboard navigateTo={navigateTo} initialView="settings" />;
+  return <Settings navigateTo={navigateTo} />;
 };
 
 const AnalyticsRoute = () => {
@@ -71,9 +71,41 @@ const AnalyticsRoute = () => {
 const SessionsRoute = () => {
   const { user } = useAuth();
   const navigateTo = useAppNavigate();
+  if (user?.role === 'mentee') return <MenteeDashboard navigateTo={navigateTo} initialView="sessions" />;
+  if (user?.role === 'mentor') return <MentorDashboard navigateTo={navigateTo} initialView="sessions" />;
+  return <Navigate to="/dashboard" replace />;
+};
+
+const PaymentsRoute = () => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
   return user?.role === 'mentee'
-    ? <MenteeDashboard navigateTo={navigateTo} initialView="sessions" />
-    : <MentorDashboard navigateTo={navigateTo} />;
+    ? <MenteeDashboard navigateTo={navigateTo} initialView="payments" />
+    : <Navigate to="/dashboard" replace />;
+};
+
+const AvailabilityRoute = () => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
+  return user?.role === 'mentor'
+    ? <MentorDashboard navigateTo={navigateTo} initialView="availability" />
+    : <Navigate to="/dashboard" replace />;
+};
+
+const EarningsRoute = () => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
+  return user?.role === 'mentor'
+    ? <MentorDashboard navigateTo={navigateTo} initialView="earnings" />
+    : <Navigate to="/dashboard" replace />;
+};
+
+const RatingsRoute = () => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
+  return user?.role === 'mentor'
+    ? <MentorDashboard navigateTo={navigateTo} initialView="ratings" />
+    : <Navigate to="/dashboard" replace />;
 };
 
 // A mentor still awaiting approval shouldn't reach the mentor dashboard directly
@@ -82,7 +114,15 @@ const MentorDashboardRoute = () => {
   const navigateTo = useAppNavigate();
   // Mentors access their dashboard immediately after onboarding — approval
   // status is admin-side only and no longer blocks access here.
-  return <MentorDashboard navigateTo={navigateTo} />;
+  return <MentorDashboard navigateTo={navigateTo} initialView="dashboard" />;
+};
+
+const AdminRoute = ({ initialView = 'dashboard' }) => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
+  return user?.role === 'admin'
+    ? <AdminDashboard navigateTo={navigateTo} initialView={initialView} />
+    : <Navigate to="/dashboard" replace />;
 };
 
 // Parameterized routes: read the URL param and hand it to pages in the shape
@@ -99,11 +139,11 @@ const BookingRoute = () => {
   return <Booking navigateTo={navigateTo} params={{ mentorId }} />;
 };
 
-// const VideoInterviewRoute = () => {
-//   const { sessionId } = useParams();
-//   const navigateTo = useAppNavigate();
-//   return <VideoInterview onNavigate={navigateTo} sessionId={sessionId} />;
-// };
+const VideoInterviewRoute = () => {
+  const { sessionId } = useParams();
+  const navigateTo = useAppNavigate();
+  return <VideoInterview navigateTo={navigateTo} params={{ sessionId }} />;
+};
 
 /**
  * Application route tree.
@@ -146,13 +186,21 @@ const AppRoutes = ({ openChatbot }) => {
         <Route path="/settings" element={<ProtectedRoute><SettingsRoute /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsRoute /></ProtectedRoute>} />
         <Route path="/sessions" element={<ProtectedRoute><SessionsRoute /></ProtectedRoute>} />
-        {/* <Route path="/video-interview/:sessionId" element={<ProtectedRoute><VideoInterviewRoute /></ProtectedRoute>} /> */}
+        <Route path="/payments" element={<ProtectedRoute><PaymentsRoute /></ProtectedRoute>} />
+        <Route path="/availability" element={<ProtectedRoute><AvailabilityRoute /></ProtectedRoute>} />
+        <Route path="/earnings" element={<ProtectedRoute><EarningsRoute /></ProtectedRoute>} />
+        <Route path="/ratings" element={<ProtectedRoute><RatingsRoute /></ProtectedRoute>} />
+        <Route path="/video-interview/:sessionId" element={<ProtectedRoute><VideoInterviewRoute /></ProtectedRoute>} />
 
         {/* ---------- Role-based ---------- */}
-        <Route path="/mentor/onboarding" element={<RoleRoute roles={['mentor']}><MentorOnboarding navigateTo={navigateTo} /></RoleRoute>} />
+         <Route path="/mentor/onboarding" element={<RoleRoute roles={['mentor']}><MentorOnboarding navigateTo={navigateTo} /></RoleRoute>} />
         <Route path="/mentor/dashboard" element={<RoleRoute roles={['mentor']}><MentorDashboardRoute /></RoleRoute>} />
         <Route path="/mentee/dashboard" element={<RoleRoute roles={['mentee']}><MenteeDashboard navigateTo={navigateTo} initialView="dashboard" /></RoleRoute>} />
-        <Route path="/admin" element={<RoleRoute roles={['admin']}><AdminDashboard navigateTo={navigateTo} /></RoleRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminRoute initialView="dashboard" /></ProtectedRoute>} />
+        <Route path="/admin/mentors" element={<ProtectedRoute><AdminRoute initialView="mentors" /></ProtectedRoute>} />
+        <Route path="/admin/mentees" element={<ProtectedRoute><AdminRoute initialView="mentees" /></ProtectedRoute>} />
+        <Route path="/admin/applications" element={<ProtectedRoute><AdminRoute initialView="applications" /></ProtectedRoute>} />
+        <Route path="/admin/earnings" element={<ProtectedRoute><AdminRoute initialView="earnings" /></ProtectedRoute>} />
 
         {/* ---------- Fallback ---------- */}
         <Route path="*" element={<Navigate to="/" replace />} />

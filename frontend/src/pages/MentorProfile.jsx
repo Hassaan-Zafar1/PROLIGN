@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 // Reviews & booking still use the mock DB (Tasks 6 & later); mentor identity
 // now comes from the backend via the mentor service/hook.
-import { getReviewsForMentor, getCurrentUser, createBooking } from '../utils/db';
+import { getCurrentUser } from '../utils/db';
 import { useMentor } from '../hooks/useMentors';
+import { reviewService } from '../services/reviewService';
 import { errorHandler } from '../utils/errorHandler';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 
@@ -19,7 +20,27 @@ const dateKey = (date) => date.toISOString().split('T')[0];
 const MentorProfile = ({ navigateTo, params }) => {
   const mentorId = params?.mentorId;
   const { mentor, loading, error } = useMentor(mentorId);
-  const reviews = useMemo(() => getReviewsForMentor(mentorId), [mentorId]);
+  const [reviews, setReviews] = useState([]);
+
+  useEffect(() => {
+    if (!mentorId) return;
+    reviewService.getReviews({ mentorId })
+      .then((res) => {
+        const mapped = (res.data || []).map((r) => ({
+          id: r._id,
+          menteeName: r.menteeId?.name || 'Mentee',
+          createdAt: r.createdAt,
+          score: r.rating,
+          reviewText: r.reviewText,
+        }));
+        setReviews(mapped);
+      })
+      .catch((err) => {
+        console.error('Failed to load mentor reviews:', err);
+        setReviews([]);
+      });
+  }, [mentorId]);
+
   const user = getCurrentUser();
   const mentorLevelInfo = useMemo(() => getMentorLevel(mentor), [mentor]);
 
@@ -389,94 +410,25 @@ const MentorProfile = ({ navigateTo, params }) => {
                 Book a Session
               </h3>
             </div>
-            <div className="p-4 sm:p-5 lg:p-6 space-y-4 lg:space-y-5">
-              {/* Calendar */}
-              <div>
-                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Select Date</label>
-                <div className="bg-surface-variant/20 rounded-xl p-2.5 lg:p-3 border border-outline-variant/10">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))} className="flex h-7 w-7 lg:h-8 lg:w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
-                      <span className="material-symbols-outlined text-sm lg:text-lg">chevron_left</span>
-                    </button>
-                    <span className="text-xs lg:text-sm font-bold text-on-surface">{monthLabels[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</span>
-                    <button onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))} className="flex h-7 w-7 lg:h-8 lg:w-8 items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
-                      <span className="material-symbols-outlined text-sm lg:text-lg">chevron_right</span>
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] lg:text-xs font-bold text-on-surface-variant mb-1">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (<span key={d} className="py-0.5 lg:py-1">{d}</span>))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (<div key={`e-${i}`} />))}
-                    {calendarDays.map(day => {
-                      const isSelected = day.toDateString() === selectedDateObj.toDateString();
-                      const isAvail = isDateAvailable(day);
-                      const isPast = day < new Date(new Date().toDateString());
-                      return (
-                        <button
-                          key={dateKey(day)}
-                          onClick={() => !isPast && isAvail && setSelectedDateObj(day)}
-                          disabled={isPast || !isAvail}
-                          className={`h-7 lg:h-8 text-[10px] lg:text-xs rounded-full font-semibold transition-all ${
-                            isSelected ? 'bg-primary text-on-primary shadow-sm' :
-                            isAvail && !isPast ? 'text-on-surface hover:bg-secondary/10 cursor-pointer' :
-                            'text-on-surface-variant/30 cursor-not-allowed'
-                          }`}
-                        >{day.getDate()}</button>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div className="p-5 sm:p-6 text-center space-y-5">
+              <div className="space-y-2">
+                <p className="text-3xl font-bold text-primary">
+                  ${(mentor?.pricePerSession ?? mentor?.hourlyRate ?? 30).toFixed(2)}
+                  <span className="text-xs text-on-surface-variant font-normal"> / session</span>
+                </p>
+                <p className="text-sm font-semibold text-on-surface-variant leading-relaxed">
+                  1-on-1 personalized mentorship session ({mentor?.sessionDuration || 60} mins)
+                </p>
               </div>
 
-              {/* Time Slots */}
-              <div>
-                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">
-                  {selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                </label>
-                <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                  {availableTimes.length > 0 ? availableTimes.map(time => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-semibold border transition-all ${
-                        selectedTime === time
-                          ? 'bg-primary text-on-primary border-primary shadow-sm'
-                          : 'border-outline-variant/10 bg-surface-variant/20 text-on-surface hover:border-secondary/30'
-                      }`}
-                    >{time}</button>
-                  )) : (
-                    <p className="text-[10px] lg:text-xs text-on-surface-variant py-2">No available slots for this date.</p>
-                  )}
-                </div>
-              </div>
+              <div className="h-px bg-outline-variant/10" />
 
-              {/* Notes */}
-              <div>
-                <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Notes (optional)</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full rounded-xl border border-outline-variant/10 bg-surface-variant/20 px-3 lg:px-4 py-2.5 lg:py-3 text-xs lg:text-sm text-on-surface outline-none focus:ring-2 focus:ring-secondary/30 resize-none"
-                  rows={2}
-                  placeholder="What would you like to discuss?"
-                />
-              </div>
-
-              {/* Price Summary */}
-              <div className="bg-surface-variant/20 rounded-xl p-3 lg:p-4 space-y-1.5 lg:space-y-2 text-xs lg:text-sm border border-outline-variant/10">
-                <div className="flex justify-between"><span className="text-on-surface-variant">Session</span><span className="font-semibold text-on-surface">${basePrice.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-on-surface-variant">Platform fee</span><span className="font-semibold text-on-surface">${fee.toFixed(2)}</span></div>
-                <div className="flex justify-between border-t border-outline-variant/20 pt-2"><span className="font-bold text-on-surface">Total</span><span className="font-bold text-primary text-base lg:text-lg">${total.toFixed(2)}</span></div>
-              </div>
-
-              {/* Book Button */}
               <button
-                onClick={handleBook}
-                className="w-full h-11 lg:h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2 text-sm lg:text-base"
+                onClick={() => navigateTo('booking', { mentorId: mentor?.id })}
+                className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2 text-sm lg:text-base"
               >
-                <span className="material-symbols-outlined text-base lg:text-lg">calendar_month</span>
-                {selectedTime ? `Book for ${selectedTime}` : 'Select a Time Slot'}
+                <span className="material-symbols-outlined text-lg">calendar_month</span>
+                Book a Session
               </button>
             </div>
           </div>
@@ -486,11 +438,11 @@ const MentorProfile = ({ navigateTo, params }) => {
       {/* Mobile Sticky Book Button */}
       <div className="fixed bottom-0 left-0 right-0 lg:hidden p-4 bg-surface/95 backdrop-blur-sm border-t border-outline-variant/10 z-40">
         <button
-          onClick={handleBook}
-          className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2"
+          onClick={() => navigateTo('booking', { mentorId: mentor?.id })}
+          className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-on-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2 text-sm"
         >
           <span className="material-symbols-outlined text-lg">calendar_month</span>
-          {selectedTime ? `Book for ${selectedTime}` : 'Book Session'}
+          Book a Session
         </button>
       </div>
 

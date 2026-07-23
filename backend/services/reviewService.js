@@ -38,7 +38,13 @@ export async function createReview(menteeId, body) {
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, "Session not found.");
   if (String(session.menteeId) !== String(menteeId)) throw new ApiError(403, "You can only review your own sessions.");
-  if (session.status !== "completed") throw new ApiError(409, "You can only review a completed session.");
+  
+  const now = new Date();
+  const sessionDate = new Date(session.scheduledDate);
+  const isPast = sessionDate && sessionDate.getTime() < now.getTime();
+  if (session.status !== "completed" && !isPast) {
+    throw new ApiError(409, "You can only review a completed session.");
+  }
 
   try {
     const review = await Review.create({
@@ -50,7 +56,7 @@ export async function createReview(menteeId, body) {
       reviewText: body.reviewText || null,
       isAnonymous: !!body.isAnonymous,
     });
-    await Session.updateOne({ _id: sessionId }, { $set: { reviewId: review._id } });
+    await Session.updateOne({ _id: sessionId }, { $set: { reviewId: review._id, status: "completed" } });
     return review; // post-save hook has updated the mentor's rating stats
   } catch (err) {
     if (err.code === 11000) throw new ApiError(409, "You have already reviewed this session.");

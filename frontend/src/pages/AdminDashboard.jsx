@@ -78,11 +78,29 @@ const emptyMemberForm = {
   hourlyRate: '',
 };
 
-const AdminDashboard = ({ navigateTo }) => {
+const normalizeView = (view) => {
+  if (view === 'admin') return 'dashboard';
+  if (view === 'admin-mentors') return 'mentors';
+  if (view === 'admin-mentees') return 'mentees';
+  if (view === 'admin-applications') return 'applications';
+  if (view === 'admin-earnings') return 'earnings';
+  return view || 'dashboard';
+};
+
+const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
   const { logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(normalizeView(initialView));
+
+  useEffect(() => {
+    setActiveView(normalizeView(initialView));
+  }, [initialView]);
+
+  const setView = (view) => {
+    setActiveView(normalizeView(view));
+    navigateTo(view);
+  };
   const [mentors, setMentors] = useState([]);
   const [mentees, setMentees] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -461,7 +479,7 @@ const AdminDashboard = ({ navigateTo }) => {
 
   const renderSidebar = () => (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
-      <button className="mb-8 px-6 text-left" onClick={() => setActiveView('dashboard')}>
+      <button className="mb-8 px-6 text-left" onClick={() => setView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary">ProLign</h1>
         <p className="text-sm font-semibold text-on-primary/80">Modern Mentorship Admin</p>
       </button>
@@ -469,7 +487,16 @@ const AdminDashboard = ({ navigateTo }) => {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => {
+              const routeMap = {
+                dashboard: 'admin',
+                mentors: 'admin-mentors',
+                mentees: 'admin-mentees',
+                applications: 'admin-applications',
+                earnings: 'admin-earnings'
+              };
+              setView(routeMap[item.id] || item.id);
+            }}
             className={`group flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all ${
               activeView === item.id ? 'scale-[0.98] bg-secondary-container text-on-secondary-container' : 'hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}
