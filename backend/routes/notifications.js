@@ -5,6 +5,7 @@ import {
   listNotifications,
   getNotification,
   createNotification,
+  markAllRead,
   updateNotification,
   deleteNotification,
 } from "../controllers/notificationController.js";
@@ -15,6 +16,9 @@ router.use(protect);
 router.route("/")
   .get(listNotifications)
   .post(createNotification);
+
+// Bulk mark-as-read (must be declared before "/:id")
+router.patch("/read-all", markAllRead);
 
 router.route("/:id")
   .get(validateObjectId, getNotification)

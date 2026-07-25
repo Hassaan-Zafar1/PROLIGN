@@ -29,6 +29,42 @@ const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse rounded bg-surface-variant/50 ${className}`} />
 );
 
+/**
+ * Flatten a backend admin-user record into the shape this dashboard's JSX reads.
+ *
+ * After the data-ownership refactor the backend returns role data nested under
+ * `mentorProfile` / `menteeProfile` (populated) and uses `profilePic` instead of
+ * `avatar`. Mentor moderation status also moved onto the profile. Rather than
+ * rewrite every field access in the UI, we hoist the fields it uses up to the
+ * top level here so listing, the detail modal, and status counts all work.
+ */
+// MenteeProfileFlat (collection "Mentee_Profiles") stores skills as "A | B | C"
+// pipe-joined strings, written by the Python AI_interviewer — split for display.
+const splitPipe = (v) => (typeof v === 'string' && v.trim() ? v.split('|').map((s) => s.trim()).filter(Boolean) : []);
+
+const normalizeAdminUser = (u) => {
+  const mp = u.mentorProfile || {};
+  const menteeP = u.menteeProfile || {};
+  return {
+    ...u,
+    id: u.id || u._id,
+    avatar: u.profilePic || u.avatar || '',
+    // Moderation status lives on MentorProfile now; mentees have no gate.
+    status: u.role === 'mentor' ? (mp.status || 'approved') : 'active',
+    title: u.role === 'mentor'
+      ? (mp.title || mp.headline || '')
+      : (menteeP.degree || menteeP.university || ''),
+    company: mp.company || '',
+    industry: mp.industry || (Array.isArray(mp.industries) ? mp.industries[0] : '') || '',
+    hourlyRate: mp.hourlyRate ?? mp.pricePerSession ?? '',
+    experience: mp.experience ?? '',
+    skills: (u.role === 'mentor' ? mp.skills : splitPipe(menteeP.tech_skills)) || [],
+    bio: (u.role === 'mentor' ? mp.bio : menteeP.bio) || '',
+    cv: mp.cv || null,
+    rejectionReason: mp.rejectionReason || '',
+  };
+};
+
 const emptyMemberForm = {
   role: 'mentee',
   name: '',
@@ -42,11 +78,29 @@ const emptyMemberForm = {
   hourlyRate: '',
 };
 
-const AdminDashboard = ({ navigateTo }) => {
+const normalizeView = (view) => {
+  if (view === 'admin') return 'dashboard';
+  if (view === 'admin-mentors') return 'mentors';
+  if (view === 'admin-mentees') return 'mentees';
+  if (view === 'admin-applications') return 'applications';
+  if (view === 'admin-earnings') return 'earnings';
+  return view || 'dashboard';
+};
+
+const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
   const { logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(getCurrentUser());
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(normalizeView(initialView));
+
+  useEffect(() => {
+    setActiveView(normalizeView(initialView));
+  }, [initialView]);
+
+  const setView = (view) => {
+    setActiveView(normalizeView(view));
+    navigateTo(view);
+  };
   const [mentors, setMentors] = useState([]);
   const [mentees, setMentees] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -83,7 +137,7 @@ const AdminDashboard = ({ navigateTo }) => {
       // Real mentors/mentees from the backend — this is the actual admin
       // moderation queue, not the seeded mock accounts.
       const response = await adminService.getUsers();
-      const allUsers = response.users || [];
+      const allUsers = (response.users || []).map(normalizeAdminUser);
       setMentors(allUsers.filter((u) => u.role === 'mentor'));
       setMentees(allUsers.filter((u) => u.role === 'mentee'));
 
@@ -425,7 +479,7 @@ const AdminDashboard = ({ navigateTo }) => {
 
   const renderSidebar = () => (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-primary py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
-      <button className="mb-8 px-6 text-left" onClick={() => setActiveView('dashboard')}>
+      <button className="mb-8 px-6 text-left" onClick={() => setView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary">ProLign</h1>
         <p className="text-sm font-semibold text-on-primary/80">Modern Mentorship Admin</p>
       </button>
@@ -433,7 +487,16 @@ const AdminDashboard = ({ navigateTo }) => {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => {
+              const routeMap = {
+                dashboard: 'admin',
+                mentors: 'admin-mentors',
+                mentees: 'admin-mentees',
+                applications: 'admin-applications',
+                earnings: 'admin-earnings'
+              };
+              setView(routeMap[item.id] || item.id);
+            }}
             className={`group flex w-full items-center rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all ${
               activeView === item.id ? 'scale-[0.98] bg-secondary-container text-on-secondary-container' : 'hover:bg-primary-fixed-variant/20 hover:text-on-primary'
             }`}

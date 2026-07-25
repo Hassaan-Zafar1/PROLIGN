@@ -3,27 +3,26 @@ import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
 import {
-  addReview,
-  cancelSession,
   getBookingsForUser,
   getCurrentUser,
-  getSessions,
   getUserById,
   logout as dbLogout,
-  saveSessions,
-  updateBookingStatus,
-  updateSessionStatus,
-  getDB,
-  saveDB,
   getNotifications,
   markNotificationRead,
   deleteNotification,
 } from '../utils/db';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { recommendationService } from '../services/recommendationService';
+import { sessionService } from '../services/sessionService';
 import { authService } from '../services/authService';
+import { reviewService } from '../services/reviewService';
+import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
+
+// Python AI interviewer/matcher backend (uvicorn api:app --port 8000) —
+// separate from the Node API `authService`/`recommendationService` call.
+const INTERVIEWER_API_BASE = import.meta.env?.VITE_INTERVIEWER_API_URL || 'http://localhost:8000';
 
 const normalizeView = (view) => {
   return view || 'dashboard';
@@ -62,6 +61,8 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [user, setUser] = useState(authUser || getCurrentUser());
   const [activeView, setActiveView] = useState(normalizeView(initialView));
   const [mentors, setMentors] = useState([]);
+  const [matchedMentors, setMatchedMentors] = useState([]);
+  const [matchLoading, setMatchLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [sessionTab, setSessionTab] = useState('upcoming');
@@ -94,39 +95,116 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       .catch(() => setMentors([]));
   };
 
-  const loadData = () => {
+  // Ayla's AI-matching engine (Python/matcher.py) — separate from the generic
+  // "all mentors" recommendation SEAM above. Keyed on the mentee's real
+  // MenteeProfile _id, so it works any time after the interview, not just
+  // right when it completes.
+  const loadMatchedMentors = (menteeProfileId) => {
+    if (!menteeProfileId) return;
+    setMatchLoading(true);
+    fetch(`${INTERVIEWER_API_BASE}/match/${menteeProfileId}?top_k=5`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        const mapped = (data.top_mentors || []).map((m) => ({
+          id: m.mentor_id,
+          name: m.full_name || 'Mentor',
+          avatar: m.profile_pic || null,
+          title: m.current_role,
+          industry: m.industry,
+          rating: m.avg_rating,
+          hourlyRate: m.hourly_rate,
+          matchScore: m.final_score,
+        }));
+        setMatchedMentors(mapped);
+      })
+      .catch(() => setMatchedMentors([]))
+      .finally(() => setMatchLoading(false));
+  };
+
+  const loadData = async () => {
     try {
-      // Mentee profile (incl. learning goals from the Task 7 interview) is now
-      // backend-driven via /auth/me; fall back to the cached user offline.
-      authService.getCurrentUser()
-        .then((backendUser) => {
-          updateUser(backendUser);
-          setUser(backendUser);
-          loadRecommendedMentors(backendUser);
-        })
-        .catch(() => {
-          const cachedUser = authUser || getCurrentUser();
-          setUser(cachedUser);
-          loadRecommendedMentors(cachedUser);
+      let mergedUser;
+      try {
+        const backendUser = await authService.getCurrentUser();
+        mergedUser = flattenUserProfile(backendUser);
+        updateUser(mergedUser);
+        setUser(mergedUser);
+        loadRecommendedMentors(mergedUser);
+        loadMatchedMentors(backendUser?.menteeProfile?._id || backendUser?.menteeProfile?.id);
+      } catch (err) {
+        mergedUser = authUser || getCurrentUser();
+        setUser(mergedUser);
+        loadRecommendedMentors(mergedUser);
+      }
+
+      if (!mergedUser) return;
+
+      // Fetch sessions from real backend
+      try {
+        const response = await sessionService.getSessions({ as: 'mentee' });
+        const backendSessions = response.data || [];
+        const dbSessions = backendSessions.map((s) => {
+          const mentor = s.mentorId || {};
+          const slot = s.slotId || {};
+          
+          let timeLabel = '';
+          if (slot && slot.startTime && slot.endTime) {
+            const format12h = (t24) => {
+              const [hStr, mStr] = t24.split(':');
+              const h = parseInt(hStr, 10);
+              const period = h >= 12 ? 'PM' : 'AM';
+              const hr12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+              return `${String(hr12).padStart(2, '0')}:${mStr} ${period}`;
+            };
+            timeLabel = `${format12h(slot.startTime)} - ${format12h(slot.endTime)}`;
+          }
+          
+          return {
+            id: s._id,
+            mentorId: s.mentorId?._id || s.mentorId,
+            menteeId: s.menteeId?._id || s.menteeId,
+            mentorName: mentor.name || 'Mentor',
+            mentorAvatar: mentor.profilePic || '',
+            mentorTitle: mentor.title || mentor.industry || 'Mentor',
+            date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            time: timeLabel,
+            sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
+            status: (() => {
+              const d = new Date(s.scheduledDate);
+              const hasPassed = d && d.getTime() < Date.now();
+              const rawLower = (s.status || '').toLowerCase();
+              if (['confirmed', 'pending', 'scheduled'].includes(rawLower) && hasPassed) {
+                return 'Completed';
+              }
+              return s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status;
+            })(),
+            amount: s.priceCharged,
+            agenda: s.agenda,
+            notes: s.agenda,
+            dateTime: s.scheduledDate,
+            isRated: !!s.reviewId,
+            rating: s.reviewId?.rating || null,
+            reviewText: s.reviewId?.reviewText || '',
+            mentor: {
+              name: mentor.name || 'Mentor',
+              avatar: mentor.profilePic || '',
+              title: mentor.title || mentor.industry || 'Mentor',
+            }
+          };
         });
-
-      const currentUser = authUser || getCurrentUser();
-      if (!currentUser) return;
-
-      setSessions(
-        getSessions()
-          .filter((session) => session.menteeId === currentUser.id)
-          .map((session) => ({ ...session, mentor: getUserById(session.mentorId) }))
-      );
+        setSessions(dbSessions);
+      } catch (err) {
+        console.error('Failed to load sessions from backend:', err);
+      }
 
       setBookings(
-        getBookingsForUser(currentUser.id).map((booking) => ({
+        getBookingsForUser(mergedUser.id).map((booking) => ({
           ...booking,
           mentor: getUserById(booking.mentorId),
         }))
       );
 
-      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser.id));
+      setNotifications(getNotifications().filter((item) => !item.userId || item.userId === mergedUser.id));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -148,10 +226,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   };
 
   const sessionGroups = useMemo(() => {
-    const normalized = sessions.map((session) => ({
-      ...session,
-      statusLabel: (session.status || '').toLowerCase(),
-    }));
+    const normalized = sessions.map((session) => {
+      const d = parseSessionDate(session);
+      const hasPassed = d && d.getTime() < Date.now();
+      const rawStatusLabel = (session.status || '').toLowerCase();
+      
+      const statusLabel = (['confirmed', 'pending', 'scheduled'].includes(rawStatusLabel) && hasPassed)
+        ? 'completed'
+        : rawStatusLabel;
+
+      return {
+        ...session,
+        statusLabel,
+        status: statusLabel === 'completed' ? 'Completed' : session.status
+      };
+    });
 
     const bySoonest = (left, right) => {
       const leftTime = parseSessionDate(left)?.getTime() || 0;
@@ -167,7 +256,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         .filter((session) => ['completed', 'done'].includes(session.statusLabel))
         .sort((left, right) => bySoonest(right, left)),
       cancelled: normalized
-        .filter((session) => ['cancelled', 'canceled'].includes(session.statusLabel))
+        .filter((session) => session.statusLabel.includes('cancel') || session.statusLabel.includes('reject'))
         .sort((left, right) => bySoonest(right, left)),
     };
   }, [sessions]);
@@ -252,7 +341,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const setView = (view) => {
     setActiveView(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateTo(view);
   };
 
   const handleLogout = () => {
@@ -295,25 +384,20 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     }
   };
 
-  const handleCancelSession = (session) => {
+  const handleCancelSession = async (session) => {
     if (!session) return;
     const confirmed = window.confirm(`Cancel your session with ${session.mentor?.name || 'this mentor'}?`);
     if (!confirmed) return;
 
     try {
-      cancelSession(session.id);
-      addNotification(session.mentorId, `${user?.name} cancelled the session on ${session.dateTime || session.date} at ${session.time}.`, 'cancellation');
-
-      const matchingBooking = bookings.find(
-        (booking) => booking.mentorId === session.mentorId && booking.menteeId === user?.id
-      );
-      if (matchingBooking) {
-        updateBookingStatus(matchingBooking.id, 'Cancelled');
-      }
-
+      setLoading(true);
+      await sessionService.deleteSession(session.id);
       loadData();
     } catch (err) {
       console.error('Failed to cancel session:', err);
+      alert('Failed to cancel session.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -355,27 +439,23 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     setRatingText(session.reviewText || '');
   };
 
-  const handleRatingSubmit = (event) => {
+  const handleRatingSubmit = async (event) => {
     event.preventDefault();
     if (!ratingSession || ratingSession.isRated || !user) return;
 
     setRatingSaving(true);
     try {
-      const result = addReview(
-        ratingSession.mentorId,
-        user.id,
-        user.name,
-        ratingScore,
-        ratingText,
-        ratingSession.id
-      );
+      await reviewService.createReview({
+        sessionId: ratingSession.id,
+        rating: ratingScore,
+        reviewText: ratingText,
+      });
 
-      if (result.success) {
-        loadData();
-        setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
-      }
+      await loadData();
+      setRatingSession({ ...ratingSession, isRated: true, rating: ratingScore, reviewText: ratingText });
     } catch (err) {
       console.error('Failed to submit rating:', err);
+      alert(err.response?.data?.message || 'Failed to submit rating.');
     } finally {
       setRatingSaving(false);
     }
@@ -384,23 +464,21 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const openNotesModal = (session) => {
     if (!session) return;
     setNotesSession(session);
-    setNotesDraft(session.notes || '');
+    setNotesDraft(session.notes || session.agenda || '');
   };
 
-  const saveNotes = (event) => {
+  const saveNotes = async (event) => {
     event.preventDefault();
     if (!notesSession) return;
 
     setSavingNotes(true);
     try {
-      const updatedSessions = getSessions().map((session) =>
-        session.id === notesSession.id ? { ...session, notes: notesDraft } : session
-      );
-      saveSessions(updatedSessions);
+      await sessionService.updateSession(notesSession.id, { agenda: notesDraft });
       setNotesSession(null);
       loadData();
     } catch (err) {
       console.error('Failed to save notes:', err);
+      alert('Failed to save notes.');
     } finally {
       setSavingNotes(false);
     }
@@ -652,7 +730,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     const isConfirmed = ['confirmed', 'scheduled'].includes(session.statusLabel);
     const isPending = session.statusLabel === 'pending';
     const isCompleted = session.statusLabel === 'completed';
-    const isCancelled = ['cancelled', 'canceled'].includes(session.statusLabel);
+    const isCancelled = session.statusLabel.includes('cancel') || session.statusLabel.includes('reject');
     const isRescheduled = session.statusLabel === 'rescheduled';
 
     return (
@@ -773,6 +851,24 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </div>
       </section>
 
+      {(matchLoading || matchedMentors.length > 0) && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-headline-md text-2xl font-bold text-on-background">Matched For You</h3>
+            <span className="material-symbols-outlined text-secondary text-lg">auto_awesome</span>
+          </div>
+          {matchLoading ? (
+            <p className="text-sm text-on-surface-variant">Finding your best mentor matches…</p>
+          ) : (
+            <div className="-mx-2 flex snap-x gap-6 overflow-x-auto px-2 pb-4">
+              {matchedMentors.map((mentor) => (
+                <React.Fragment key={mentor.id}>{renderMentorCard(mentor)}</React.Fragment>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <h3 className="font-headline-md text-2xl font-bold text-on-background">Recommended Mentors</h3>
@@ -841,6 +937,67 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
           )}
         </div>
       </section>
+
+      {/* Profile — schema-backed fields only (MenteeProfileFlat), relevant to
+          mentor-mentee matching rather than exhaustive. Skills/interests are
+          already shown above under Learning Goals, so this covers the rest.
+          Each field only renders when set, so an incomplete profile doesn't
+          show empty rows. */}
+      {(user?.university || user?.degree || user?.bio || user?.domainInterest ||
+        user?.targetIndustry || user?.targetCompanyTier || user?.experienceLevel || user?.linkedinUrl) && (
+        <section className="space-y-4">
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Your Profile</h3>
+          <div className={`${cardClass} p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {user?.university && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">University</p>
+                  <p className="text-on-surface font-medium">{user.university}</p>
+                </div>
+              )}
+              {user?.degree && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Degree</p>
+                  <p className="text-on-surface font-medium">{user.degree}</p>
+                </div>
+              )}
+              {user?.domainInterest && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Domain Interest</p>
+                  <p className="text-on-surface font-medium">{user.domainInterest}</p>
+                </div>
+              )}
+              {user?.experienceLevel && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Experience Level</p>
+                  <p className="text-on-surface font-medium capitalize">{user.experienceLevel}</p>
+                </div>
+              )}
+              {user?.targetIndustry && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Target Industry</p>
+                  <p className="text-on-surface font-medium">{user.targetIndustry}</p>
+                </div>
+              )}
+              {user?.targetCompanyTier && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Target Company Tier</p>
+                  <p className="text-on-surface font-medium">{user.targetCompanyTier}</p>
+                </div>
+              )}
+              {user?.linkedinUrl && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">LinkedIn</p>
+                  <a href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline truncate block">
+                    {user.linkedinUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+            {user?.bio && <p className="mt-4 text-sm text-on-surface leading-relaxed">{user.bio}</p>}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="space-y-4 xl:col-span-2">
@@ -963,19 +1120,31 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => handleJoinSession(session)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span className="material-symbols-outlined text-[14px]">videocam</span>
-              Join Session
-            </button>
-            <button
-              onClick={() => openNotesModal(session)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
-            >
-              Prepare Notes
-            </button>
+            {session.status === 'Pending' ? (
+              <button
+                onClick={() => navigateTo('booking', { mentorId: session.mentorId, sessionId: session.id })}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-on-secondary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span className="material-symbols-outlined text-[14px]">payments</span>
+                Complete Payment
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleJoinSession(session)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">videocam</span>
+                  Join Session
+                </button>
+                <button
+                  onClick={() => openNotesModal(session)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/20 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+                >
+                  Prepare Notes
+                </button>
+              </>
+            )}
             <button
               onClick={() => handleCancelSession(session)}
               className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-error transition-colors hover:bg-error/10"
@@ -1406,7 +1575,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
               <span className="material-symbols-outlined text-[22px] text-primary">account_balance_wallet</span>
@@ -1430,14 +1599,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
             <p className="text-2xl font-bold text-on-surface">{pendingBookings.length}</p>
             <p className="mt-1 text-xs font-semibold text-on-surface-variant">Pending Payments</p>
             <p className="mt-0.5 text-[11px] text-on-surface-variant/70">Awaiting confirmation</p>
-          </div>
-          <div className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 mb-3">
-              <span className="material-symbols-outlined text-[22px] text-primary">credit_card</span>
-            </span>
-            <p className="text-lg font-bold text-on-surface truncate">{user?.paymentMethod || '—'}</p>
-            <p className="mt-1 text-xs font-semibold text-on-surface-variant">Payment Method</p>
-            <p className="mt-0.5 text-[11px] text-on-surface-variant/70">{user?.paymentMethod ? 'Default card' : 'Not set'}</p>
           </div>
         </div>
 

@@ -1,17 +1,27 @@
-import AvailabilitySlot from "../models/AvailabilitySlot.js";
-import { crudHandlers } from "../services/crudService.js";
+import * as availabilityService from "../services/availabilityService.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
-// Mentor availability slots. Reads open (browse a mentor's slots via
-// ?mentorId=…); writes are owner-scoped and mentorId is set from the token.
-const h = crudHandlers(AvailabilitySlot, {
-  owners: ["mentorId"],
-  setOwner: "mentorId",
-  immutable: ["mentorId"],
-  publicRead: true,
+export const listAvailability = asyncHandler(async (req, res) => {
+  const { data, total, page, pages } = await availabilityService.listSlots(req.query, req.user);
+  res.status(200).json({ success: true, count: data.length, total, page, pages, data });
 });
 
-export const listAvailability = h.list;
-export const getAvailability = h.getOne;
-export const createAvailability = h.create;
-export const updateAvailability = h.update;
-export const deleteAvailability = h.remove;
+export const getAvailability = asyncHandler(async (req, res) => {
+  const slot = await availabilityService.getSlot(req.params.id);
+  res.status(200).json({ success: true, data: slot });
+});
+
+export const createAvailability = asyncHandler(async (req, res) => {
+  const slot = await availabilityService.createSlot(req.user._id, req.body);
+  res.status(201).json({ success: true, message: "Availability slot created.", data: slot });
+});
+
+export const updateAvailability = asyncHandler(async (req, res) => {
+  const slot = await availabilityService.updateSlot(req.params.id, req.user, req.body);
+  res.status(200).json({ success: true, message: "Availability slot updated.", data: slot });
+});
+
+export const deleteAvailability = asyncHandler(async (req, res) => {
+  const result = await availabilityService.deleteSlot(req.params.id, req.user);
+  res.status(200).json({ success: true, ...result });
+});

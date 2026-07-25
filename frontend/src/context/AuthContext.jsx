@@ -96,12 +96,28 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {}
   }, []);
 
+  // Re-fetch the current user from the backend and merge it in — used after
+  // a background action (e.g. linking the AI interview session) that changes
+  // server state the client didn't set directly, so a stale cached user
+  // isn't left behind. Swallows errors: this is a best-effort refresh, not
+  // something that should surface as a hard failure to the caller.
+  const refreshUser = useCallback(async () => {
+    try {
+      const freshUser = await authService.getCurrentUser();
+      updateUser(freshUser);
+      return freshUser;
+    } catch (error) {
+      console.warn('refreshUser failed:', error.message);
+      return null;
+    }
+  }, [updateUser]);
+
   // Also memoize the context value itself — otherwise every consumer
   // re-renders (and re-runs effects keyed on the context value) whenever
   // AuthProvider re-renders for any reason, even if nothing here changed.
   const value = useMemo(
-    () => ({ user, isAuthenticated, loading, login, logout, updateUser }),
-    [user, isAuthenticated, loading, login, logout, updateUser]
+    () => ({ user, isAuthenticated, loading, login, logout, updateUser, refreshUser }),
+    [user, isAuthenticated, loading, login, logout, updateUser, refreshUser]
   );
 
   return (

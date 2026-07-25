@@ -42,7 +42,17 @@ async function extractPdfText(file) {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
-    text += content.items.map((item) => item.str).join(' ') + '\n';
+    // Joining every item with a single space (the old behavior) collapses an
+    // entire page into ~one line, which breaks the backend's section-header
+    // detection (cvExtractionService.js's findSectionLines needs a line to
+    // *equal* "experience"/"top skills"/etc.) — exactly the layout a LinkedIn
+    // "Save to PDF" export uses. pdf.js already computes line breaks for us:
+    // each TextItem has `hasEOL`, true when a line break follows it.
+    for (const item of content.items) {
+      text += item.str;
+      text += item.hasEOL ? '\n' : ' ';
+    }
+    text += '\n';
     if (text.length >= MAX_CHARS) break;
   }
   return text.slice(0, MAX_CHARS).trim();

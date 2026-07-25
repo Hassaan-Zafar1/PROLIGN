@@ -1,6 +1,22 @@
 import { env } from "../config/env.js";
 
 /**
+ * Typed error services throw for expected failures (validation, not-found,
+ * forbidden, …). The global errorHandler reads `statusCode` off it.
+ *   throw new ApiError(404, "Mentor not found.");
+ */
+export class ApiError extends Error {
+  constructor(statusCode, message, details = null) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = "ApiError";
+    // Optional extra fields merged into the JSON response (e.g. { userId } for
+    // an "email not verified" 403 so the client can continue the OTP flow).
+    this.details = details;
+  }
+}
+
+/**
  * Global error handling middleware.
  * Must be registered LAST in Express (after all routes).
  */
@@ -38,6 +54,7 @@ export function errorHandler(err, req, res, next) {
   const response = {
     success: false,
     message,
+    ...(err.details && typeof err.details === "object" ? err.details : {}),
     ...(env.NODE_ENV === "development" && { stack: err.stack }),
   };
 
@@ -48,7 +65,5 @@ export function errorHandler(err, req, res, next) {
  * 404 handler — register this BEFORE errorHandler but AFTER all routes.
  */
 export function notFound(req, res, next) {
-  const error = new Error(`Route not found: ${req.method} ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error);
+  next(new ApiError(404, `Route not found: ${req.method} ${req.originalUrl}`));
 }

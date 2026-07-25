@@ -2,13 +2,11 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   getCurrentUser,
   logout as dbLogout,
-  getSessions,
   updateSessionStatus,
   getUserById,
   getNotifications,
   markNotificationRead as markStoredNotificationRead,
   deleteNotification as deleteStoredNotification,
-  getReviewsForMentor,
   updateMentorAvailability,
   getDB,
   saveDB,
@@ -16,10 +14,14 @@ import {
 } from '../utils/db';
 import { tokenManager } from '../utils/tokenManager';
 import ProfileSettings from '../components/ProfileSettings';
+import AvailabilityScheduler from '../components/AvailabilityScheduler';
 import { EmptyState } from '../components/common';
 import { getMentorLevel, getMentorLevelStyle } from '../utils/mentorLevel';
 import { getMentorProfileCompletion } from '../utils/profileCompletion';
 import { authService } from '../services/authService';
+import { sessionService } from '../services/sessionService';
+import { reviewService } from '../services/reviewService';
+import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
@@ -48,11 +50,20 @@ const getAvailableSlots = (dateStr) => {
   });
 };
 
-const MentorDashboard = ({ navigateTo }) => {
+const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
   const { theme, toggleTheme } = useTheme();
   const { user: authUser, updateUser, logout } = useAuth();
   const [user, setUser] = useState(authUser || getCurrentUser());
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(initialView);
+
+  useEffect(() => {
+    setActiveView(initialView);
+  }, [initialView]);
+
+  const setView = (view) => {
+    setActiveView(view);
+    navigateTo(view);
+  };
   
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -106,11 +117,18 @@ const MentorDashboard = ({ navigateTo }) => {
     }
   };
 
-  const handleCancelSession = (session) => {
-    if (!window.confirm(`Cancel session with ${session.mentee?.name || 'mentee'}? This will notify them.`)) return;
-    updateSessionStatus(session.id, 'Cancelled');
-    addNotification(session.menteeId, `Your session with ${user?.name} on ${session.dateTime || session.date} at ${session.time} has been cancelled.`, 'cancellation');
-    refreshData();
+  const handleCancelSession = async (session) => {
+    if (!window.confirm(`Cancel session with ${session.menteeName || 'mentee'}? This will notify them.`)) return;
+    try {
+      setLoading(true);
+      await sessionService.deleteSession(session.id);
+      refreshData();
+    } catch (err) {
+      console.error('Failed to cancel session:', err);
+      alert('Failed to cancel session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openRescheduleModal = (session) => {
@@ -138,22 +156,81 @@ const MentorDashboard = ({ navigateTo }) => {
       // to the cached user when offline.
       let currentUser;
       try {
-        currentUser = await authService.getCurrentUser();
+        // The CV-built profile lives on the populated mentorProfile now —
+        // flatten it up so the profile-completion card / header read it.
+        currentUser = flattenUserProfile(await authService.getCurrentUser());
         updateUser(currentUser);
       } catch {
-        currentUser = authUser || getCurrentUser();
+        currentUser = flattenUserProfile(authUser || getCurrentUser());
       }
       setUser(currentUser);
 
-      // Sessions / reviews / notifications still come from the local store until
-      // their dedicated backend endpoints exist (separate effort). For a real
-      // backend account these are simply empty until that work lands.
-      const dbSessions = getSessions()
-        .filter(s => s.mentorId === currentUser?.id)
-        .map((session) => ({ ...session, mentee: getUserById(session.menteeId) }));
+      const response = await sessionService.getSessions({ as: 'mentor' });
+      const backendSessions = response.data || [];
+      const dbSessions = backendSessions.map((s) => {
+        const mentee = s.menteeId || {};
+        const slot = s.slotId || {};
+        
+        let timeLabel = '';
+        if (slot && slot.startTime && slot.endTime) {
+          const format12h = (t24) => {
+            const [hStr, mStr] = t24.split(':');
+            const h = parseInt(hStr, 10);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const hr12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+            return `${String(hr12).padStart(2, '0')}:${mStr} ${period}`;
+          };
+          timeLabel = `${format12h(slot.startTime)} - ${format12h(slot.endTime)}`;
+        }
+        
+        return {
+          id: s._id,
+          mentorId: s.mentorId?._id || s.mentorId,
+          menteeId: mentee._id || mentee,
+          menteeName: mentee.name || 'Mentee',
+          menteeAvatar: mentee.profilePic || '',
+          date: new Date(s.scheduledDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: timeLabel,
+          sessionType: s.sessionType === 'mock_interview' ? 'Mock Interview' : s.sessionType,
+          status: (() => {
+            const d = new Date(s.scheduledDate);
+            const hasPassed = d && d.getTime() < Date.now();
+            const rawLower = (s.status || '').toLowerCase();
+            if (['confirmed', 'pending', 'scheduled'].includes(rawLower) && hasPassed) {
+              return 'Completed';
+            }
+            return s.status === 'confirmed' || s.status === 'scheduled' ? 'Confirmed' : s.status === 'pending' ? 'Pending' : s.status === 'completed' ? 'Completed' : s.status;
+          })(),
+          amount: s.priceCharged,
+          agenda: s.agenda,
+          notes: s.agenda,
+          dateTime: s.scheduledDate,
+          mentee: {
+            name: mentee.name || 'Mentee',
+            avatar: mentee.profilePic || ''
+          }
+        };
+      });
       setSessions(dbSessions);
       setNotifications(getNotifications().filter((item) => !item.userId || item.userId === currentUser?.id));
-      setReviews(currentUser ? getReviewsForMentor(currentUser.id) : []);
+      if (currentUser) {
+        try {
+          const revsResponse = await reviewService.getReviews({ mentorId: currentUser.id });
+          const revs = (revsResponse.data || []).map((r) => ({
+            id: r._id,
+            menteeName: r.menteeId?.name || 'Mentee',
+            createdAt: r.createdAt,
+            score: r.rating,
+            reviewText: r.reviewText,
+          }));
+          setReviews(revs);
+        } catch (err) {
+          console.error('Failed to load reviews from backend:', err);
+          setReviews([]);
+        }
+      } else {
+        setReviews([]);
+      }
     } catch (err) {
       console.error('Failed to refresh dashboard data:', err);
     } finally {
@@ -294,15 +371,41 @@ const MentorDashboard = ({ navigateTo }) => {
     }));
   }, [hourlyRate, metricMode, metricMonth, metricSessions, metricYear]);
 
-  const approveSession = (session) => {
-    updateSessionStatus(session.id, 'Confirmed');
-    refreshData();
+  const approveSession = async (session) => {
+    try {
+      setLoading(true);
+      await sessionService.updateSession(session.id, { status: 'confirmed' });
+      try {
+        addNotification(session.menteeId, `${user?.name} has approved your session booking request.`, 'info');
+      } catch (nErr) {
+        console.warn('Failed to send local notification:', nErr);
+      }
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to approve session:', err);
+      alert(err.response?.data?.message || 'Failed to approve session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const rejectSession = (session) => {
+  const rejectSession = async (session) => {
     if (!window.confirm(`Reject the booking request from ${session.menteeName || session.mentee?.name || 'this mentee'}?`)) return;
-    updateSessionStatus(session.id, 'Rejected');
-    refreshData();
+    try {
+      setLoading(true);
+      await sessionService.updateSession(session.id, { status: 'cancelled_by_mentor' });
+      try {
+        addNotification(session.menteeId, `${user?.name} has rejected your session booking request.`, 'info');
+      } catch (nErr) {
+        console.warn('Failed to send local notification:', nErr);
+      }
+      await refreshData();
+    } catch (err) {
+      console.error('Failed to reject session:', err);
+      alert(err.response?.data?.message || 'Failed to reject session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const downloadCsv = (kind) => {
@@ -377,6 +480,7 @@ const MentorDashboard = ({ navigateTo }) => {
   const navItems = [
     { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
     { id: 'sessions', icon: 'event_available', label: 'My Sessions' },
+    { id: 'availability', icon: 'calendar_month', label: 'Availability' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
     { id: 'ratings', icon: 'star', label: 'Ratings' },
     { id: 'settings', icon: 'settings', label: 'Settings' },
@@ -384,7 +488,7 @@ const MentorDashboard = ({ navigateTo }) => {
 
   const renderSidebar = () => (
     <aside className="brand-olive-surface flex h-full w-64 shrink-0 flex-col py-6 text-on-primary shadow-xl hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex">
-      <div className="px-6 mb-8 cursor-pointer" onClick={() => setActiveView('dashboard')}>
+      <div className="px-6 mb-8 cursor-pointer" onClick={() => setView('dashboard')}>
         <h1 className="font-headline-md text-2xl font-bold text-on-primary flex items-center gap-2">
           <span className="material-symbols-outlined">school</span>
           ProLign
@@ -396,7 +500,7 @@ const MentorDashboard = ({ navigateTo }) => {
         {navItems.map(item => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => setView(item.id)}
             className={`w-full text-left flex items-center px-4 py-3 rounded-lg transition-all font-label-sm text-sm font-semibold cursor-pointer ${
               activeView === item.id 
                 ? 'brand-olive-menu-active scale-95' 
@@ -440,7 +544,10 @@ const MentorDashboard = ({ navigateTo }) => {
             )}
             <h2 className="font-headline-lg text-3xl font-bold text-on-primary">Welcome back{user?.name?.split(' ')[0] ? `, ${user.name.split(' ')[0]}!` : '!'}</h2>
             <p className="brand-muted-text max-w-md">
-            You have {upcomingSessions.length} upcoming sessions. Your recent mentees have rated you {user?.rating?.toFixed(1) || '5.0'} stars!
+            You have {upcomingSessions.length} upcoming sessions.{' '}
+            {user?.totalReviews > 0
+              ? `Your recent mentees have rated you ${Number(user.averageRating || 0).toFixed(1)} stars!`
+              : 'Complete a few sessions to start earning reviews.'}
           </p>
         </div>
           {/* Profile image with rings — matches Mentee Dashboard style */}
@@ -512,6 +619,103 @@ const MentorDashboard = ({ navigateTo }) => {
                   {label}
                 </span>
               ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Profile — schema-backed fields only (MentorProfile), relevant to
+          mentor-mentee matching rather than exhaustive. Each field only
+          renders when set, so an incomplete profile doesn't show empty rows. */}
+      <section className="mb-8">
+        <div className="bg-surface-container-low rounded-2xl border border-outline-variant/10 natural-shadow p-6">
+          <h3 className="font-headline-md text-lg font-bold text-on-surface mb-4">Your Profile</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {user?.title && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Title</p>
+                <p className="text-on-surface font-medium">{user.title}</p>
+              </div>
+            )}
+            {user?.company && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Company</p>
+                <p className="text-on-surface font-medium">{user.company}</p>
+              </div>
+            )}
+            {user?.industry && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Industry</p>
+                <p className="text-on-surface font-medium">{user.industry}</p>
+              </div>
+            )}
+            {user?.experience > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Experience</p>
+                <p className="text-on-surface font-medium">{user.experience} {user.experience === 1 ? 'year' : 'years'}</p>
+              </div>
+            )}
+            {user?.hourlyRate > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Hourly Rate</p>
+                <p className="text-on-surface font-medium">${user.hourlyRate}/hr</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">Rating</p>
+              <p className="text-on-surface font-medium">
+                {user?.totalReviews > 0
+                  ? `${Number(user.averageRating || 0).toFixed(1)} ⭐ (${user.totalReviews} review${user.totalReviews === 1 ? '' : 's'})`
+                  : 'No reviews yet'}
+                {user?.totalSessions > 0 && ` · ${user.totalSessions} session${user.totalSessions === 1 ? '' : 's'}`}
+              </p>
+            </div>
+            {user?.linkedinUrl && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-1">LinkedIn</p>
+                <a href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline truncate block">
+                  {user.linkedinUrl}
+                </a>
+              </div>
+            )}
+          </div>
+          {user?.headline && <p className="mt-4 text-sm italic text-on-surface-variant">{user.headline}</p>}
+          {user?.bio && <p className="mt-4 text-sm text-on-surface leading-relaxed">{user.bio}</p>}
+          {user?.skills?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Skills</p>
+              <div className="flex flex-wrap gap-2">
+                {user.skills.map((skill) => (
+                  <span key={skill} className="inline-flex items-center bg-primary/10 text-primary text-xs font-medium px-2.5 py-1 rounded-full">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {user?.languages?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Languages</p>
+              <div className="flex flex-wrap gap-2">
+                {user.languages.map((lang) => (
+                  <span key={lang} className="inline-flex items-center bg-surface-container-high text-on-surface-variant text-xs font-medium px-2.5 py-1 rounded-full">
+                    {lang}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {user?.certifications?.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant/70 mb-2">Certifications</p>
+              <div className="flex flex-wrap gap-2">
+                {user.certifications.map((cert) => (
+                  <span key={cert} className="inline-flex items-center gap-1 bg-secondary/10 text-secondary text-xs font-medium px-2.5 py-1 rounded-full">
+                    <span className="material-symbols-outlined text-[14px]">workspace_premium</span>
+                    {cert}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -798,23 +1002,29 @@ const MentorDashboard = ({ navigateTo }) => {
       case 'earnings': return renderEarnings();
       case 'ratings': return renderRatings();
       case 'settings': return renderSettings();
+      case 'availability': return <AvailabilityScheduler mentorId={user?.id} />;
       case 'sessions': {
         const groups = {
-          pending: sessions.filter((session) => session.status === 'Pending'),
-          scheduled: sessions.filter((session) => ['Confirmed', 'scheduled'].includes(session.status)),
-          completed: sessions.filter((session) => session.status === 'Completed'),
-          cancelled: sessions.filter((session) => ['Cancelled', 'Canceled', 'Rejected'].includes(session.status)),
+          pending: sessions.filter((session) => (session.status || '').toLowerCase() === 'pending'),
+          scheduled: sessions.filter((session) => ['confirmed', 'scheduled'].includes((session.status || '').toLowerCase())),
+          completed: sessions.filter((session) => (session.status || '').toLowerCase() === 'completed'),
+          cancelled: sessions.filter((session) => {
+            const st = (session.status || '').toLowerCase();
+            return st.includes('cancel') || st.includes('reject');
+          }),
         };
         const visibleSessions = groups[sessionTab] || groups.pending;
         const today = new Date();
         const todaySessions = sessions.filter(s => {
           const d = new Date(s.dateTime || s.date || s.createdAt);
-          return d.toDateString() === today.toDateString() && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+          const st = (s.status || '').toLowerCase();
+          return d.toDateString() === today.toDateString() && ['confirmed', 'pending', 'scheduled'].includes(st);
         });
         const weekSessions = sessions.filter(s => {
           const d = new Date(s.dateTime || s.date || s.createdAt);
           const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
-          return d >= today && d <= weekEnd && ['Confirmed', 'Pending', 'scheduled'].includes(s.status);
+          const st = (s.status || '').toLowerCase();
+          return d >= today && d <= weekEnd && ['confirmed', 'pending', 'scheduled'].includes(st);
         });
         const nextSession = groups.scheduled[0] || groups.pending[0];
 
