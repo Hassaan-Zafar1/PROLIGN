@@ -1,18 +1,27 @@
-import Review from "../models/Review.js";
-import { crudHandlers } from "../services/crudService.js";
+import * as reviewService from "../services/reviewService.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 
-// Session reviews. Reads open (browse a mentor's reviews via ?mentorId=…);
-// author (menteeId) set from the token. Creating a review also updates the
-// mentor's denormalized rating stats (post-save hook on the model).
-const h = crudHandlers(Review, {
-  owners: ["menteeId", "mentorId"],
-  setOwner: "menteeId",
-  immutable: ["menteeId"],
-  publicRead: true,
+export const listReviews = asyncHandler(async (req, res) => {
+  const { data, total, page, pages } = await reviewService.listReviews(req.query, req.user);
+  res.status(200).json({ success: true, count: data.length, total, page, pages, data });
 });
 
-export const listReviews = h.list;
-export const getReview = h.getOne;
-export const createReview = h.create;
-export const updateReview = h.update;
-export const deleteReview = h.remove;
+export const getReview = asyncHandler(async (req, res) => {
+  const review = await reviewService.getReview(req.params.id);
+  res.status(200).json({ success: true, data: review });
+});
+
+export const createReview = asyncHandler(async (req, res) => {
+  const review = await reviewService.createReview(req.user._id, req.body);
+  res.status(201).json({ success: true, message: "Review submitted.", data: review });
+});
+
+export const updateReview = asyncHandler(async (req, res) => {
+  const review = await reviewService.updateReview(req.params.id, req.user, req.body);
+  res.status(200).json({ success: true, message: "Review updated.", data: review });
+});
+
+export const deleteReview = asyncHandler(async (req, res) => {
+  const result = await reviewService.deleteReview(req.params.id, req.user);
+  res.status(200).json({ success: true, ...result });
+});

@@ -34,15 +34,19 @@ passport.use(
           return done(null, user);
         }
 
-        // New user via Google — role will be set on frontend redirect
-        // We create with a temporary role; user picks role after OAuth
+        // New user via Google — defaults to mentee; role can change in onboarding.
         user = await User.create({
           email,
           googleId: profile.id,
           authProvider: "google",
           isEmailVerified: true, // Google verified
-          role: "mentee", // Default; can be changed during onboarding
+          name: profile.displayName || null,
+          role: "mentee",
         });
+
+        // No mentee profile created here — MenteeProfileFlat is created by the
+        // Python interviewer (keyed by session_id) and linked to this user via
+        // POST /api/interview once the interview completes.
 
         return done(null, user);
       } catch (error) {

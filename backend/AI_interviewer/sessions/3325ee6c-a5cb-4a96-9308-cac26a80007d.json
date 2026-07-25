@@ -1,0 +1,16 @@
+{
+  "session_id": "3325ee6c-a5cb-4a96-9308-cac26a80007d",
+  "started_at": "2026-06-29T12:19:56.085610",
+  "completed_at": null,
+  "current_phase": "introduction",
+  "current_question": 1,
+  "history": [
+    {
+      "role": "assistant",
+      "content": "[Q:1] I'm excited to get started with you. Could you please tell me a little bit about yourself, including your name, program of study, and year of study at FAST National University, Karachi?",
+      "timestamp": "2026-06-29T12:19:59.175681"
+    }
+  ],
+  "profile": null,
+  "is_complete": false
+}
