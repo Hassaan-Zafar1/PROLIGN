@@ -23,6 +23,11 @@ export async function listSlots(query, requester) {
   await cleanupExpiredPendingSessions();
   const { page, limit, skip } = parsePage(query);
 
+  // Public browse case (query.mentorId set) never touches `requester`, so a
+  // guest can reach it. Only the "my own slots" fallback needs a real session.
+  if (!query.mentorId && !requester) {
+    throw new ApiError(401, "Login required to view your own availability.");
+  }
   const mentorId = query.mentorId || requester._id;
 
   // If status is "available", or if date/range is specified, we perform dynamic expansion.
