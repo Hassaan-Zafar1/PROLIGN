@@ -3,7 +3,7 @@ const { Schema } = mongoose;
 
 const webhookEventSchema = new Schema(
   {
-    event:      { type: String }, // "payment_intent.succeeded"
+    event: { type: String }, // "payment_intent.succeeded"
     receivedAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -12,23 +12,23 @@ const webhookEventSchema = new Schema(
 const paymentSchema = new Schema(
   {
     sessionId: { type: Schema.Types.ObjectId, ref: "Session", required: true },
-    menteeId:  { type: Schema.Types.ObjectId, ref: "User",    required: true },
-    mentorId:  { type: Schema.Types.ObjectId, ref: "User",    required: true },
+    menteeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    mentorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
 
     // ── Stripe Object IDs ──────────────────────────────────────────
     // NEVER store raw card data or Stripe secret keys here
     stripePaymentIntentId: { type: String, required: true }, // pi_xxx — idempotency key
-    stripeCustomerId:      { type: String, default: null },  // cus_xxx
-    stripeChargeId:        { type: String, default: null },  // ch_xxx
-    stripeRefundId:        { type: String, default: null },  // re_xxx
+    stripeCustomerId: { type: String, default: null },  // cus_xxx
+    stripeChargeId: { type: String, default: null },  // ch_xxx
+    stripeRefundId: { type: String, default: null },  // re_xxx
 
     // ── Amounts (in smallest unit: paisas for PKR, cents for USD) ──
-    grossAmount:        { type: Number, required: true }, // what mentee paid
+    grossAmount: { type: Number, required: true }, // what mentee paid
     platformCommission: { type: Number, required: true }, // platform cut
-    mentorEarnings:     { type: Number, required: true }, // grossAmount - commission
-    refundAmount:       { type: Number, default: 0 },
-    currency:           { type: String, enum: ["pkr", "usd"], default: "pkr" },
-    commissionRate:     { type: Number, required: true }, // snapshot e.g. 0.15
+    mentorEarnings: { type: Number, required: true }, // grossAmount - commission
+    refundAmount: { type: Number, default: 0 },
+    currency: { type: String, enum: ["pkr", "usd"], default: "usd" },
+    commissionRate: { type: Number, required: true }, // snapshot e.g. 0.15
 
     // ── Charge Status ──────────────────────────────────────────────
     chargeStatus: {
@@ -43,13 +43,13 @@ const paymentSchema = new Schema(
       enum: ["pending", "processing", "paid", "failed"],
       default: "pending",
     },
-    payoutId:           { type: String, default: null }, // Stripe Transfer ID
-    payoutInitiatedAt:  { type: Date,   default: null },
-    payoutCompletedAt:  { type: Date,   default: null },
+    payoutId: { type: String, default: null }, // Stripe Transfer ID
+    payoutInitiatedAt: { type: Date, default: null },
+    payoutCompletedAt: { type: Date, default: null },
 
     // ── Refund ────────────────────────────────────────────────────
-    refundReason:  { type: String, default: null }, // "mentor_cancelled"
-    refundedAt:    { type: Date,   default: null },
+    refundReason: { type: String, default: null }, // "mentor_cancelled"
+    refundedAt: { type: Date, default: null },
 
     // ── Webhook Event Log (for debugging, not for business logic) ──
     webhookEvents: { type: [webhookEventSchema], default: [] },

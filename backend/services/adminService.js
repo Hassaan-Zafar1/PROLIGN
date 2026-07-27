@@ -1,24 +1,36 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import MentorProfile from "../models/MentorProfile.js";
-import MenteeProfile from "../models/MenteeProfile.js";
+import MenteeProfileFlat from "../models/Mentee_Profiles.js";
 import { logAudit } from "./auditLogService.js";
 import { ApiError } from "../middleware/errorHandler.js";
 
-// User fields safe for an admin; role data comes from the populated profile.
+// User fields safe for an admin; role data comes from the populated/joined profile.
 const ADMIN_USER_FIELDS =
   "name email role profilePic country city isActive isBanned " +
   "isEmailVerified isProfileComplete onboardingStep createdAt lastLoginAt " +
-  "mentorProfile menteeProfile";
+  "mentorProfile";
 
 export async function listUsers({ role } = {}) {
   const filter = role ? { role } : { role: { $in: ["mentor", "mentee"] } };
   const users = await User.find(filter)
     .select(ADMIN_USER_FIELDS)
     .populate("mentorProfile")
-    .populate("menteeProfile")
     .sort({ createdAt: -1 })
     .lean();
+
+  // menteeProfile isn't a Mongoose ref — MenteeProfileFlat._id is the Python
+  // interview's session_id (a string), not this user's ObjectId — so join
+  // manually by userId instead of populate().
+  const menteeIds = users.filter((u) => u.role === "mentee").map((u) => u._id);
+  if (menteeIds.length) {
+    const profiles = await MenteeProfileFlat.find({ userId: { $in: menteeIds } }).lean();
+    const byUserId = new Map(profiles.map((p) => [String(p.userId), p]));
+    users.forEach((u) => {
+      if (u.role === "mentee") u.menteeProfile = byUserId.get(String(u._id)) || null;
+    });
+  }
+
   return { users: users.map((u) => ({ ...u, id: u._id })) };
 }
 
@@ -63,7 +75,7 @@ export async function deleteUser(admin, id, req) {
   const deleted = await User.findByIdAndDelete(id);
   if (!deleted) throw new ApiError(404, "User not found.");
   await MentorProfile.deleteOne({ userId: id });
-  await MenteeProfile.deleteOne({ userId: id });
+  await MenteeProfileFlat.deleteOne({ userId: id });
 
   await logAudit({
     actorId: admin._id, actorRole: admin.role, action: "user_deleted",

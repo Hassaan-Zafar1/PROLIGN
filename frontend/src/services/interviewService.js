@@ -1,21 +1,22 @@
 import api from '../config/api';
 
 /**
- * Mentee interview service (Task 7).
+ * Mentee interview LINK service.
  *
- * Persists the text-based onboarding interview responses. No LLM involved yet —
- * this just stores the Q&A framework's answers so the future AI model can
- * process them. Keeps API calls out of components.
+ * The actual interview (conversation + profile extraction) runs against the
+ * Python AI_interviewer service directly from MenteeInterview.jsx — this
+ * service is only the last step: telling Node "this sessionId belongs to me"
+ * so the Mentee_Profiles doc gets userId + linkedinUrl stamped onto it and
+ * the dashboard can find it via GET /auth/me.
  */
 export const interviewService = {
   getInterview: async () => {
     const response = await api.get('/interview');
-    return response.data; // { success, assessment }
+    return response.data; // { success, profile }
   },
 
-  // answers: [{ id, question, answer }]
-  submitInterview: async (answers, mode = 'text') => {
-    const response = await api.post('/interview', { answers, mode });
-    return response.data; // { success, assessment, user }
+  linkInterview: async (sessionId, linkedinUrl) => {
+    const response = await api.post('/interview', { sessionId, linkedinUrl });
+    return response.data; // { success, message, user, menteeProfile }
   },
 };

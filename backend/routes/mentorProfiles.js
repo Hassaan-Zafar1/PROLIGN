@@ -9,7 +9,7 @@ import {
   createMentorProfile,
   updateMentorProfile,
   deleteMentorProfile,
-} from "../controllers/mentorProfileController.js";
+} from "../controllers/mentorController.js";
 
 const router = express.Router();
 router.use(protect);
@@ -28,4 +28,5 @@ router.route("/:id")
   .patch(validateObjectId, restrictTo("mentor", "admin"), updateMentorProfile)
   .delete(validateObjectId, restrictTo("admin"), deleteMentorProfile);
 
+export { router };
 export default router;

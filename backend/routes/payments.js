@@ -7,10 +7,19 @@ import {
   createPayment,
   updatePayment,
   deletePayment,
+  createPaymentIntent,
+  handleWebhook,
 } from "../controllers/paymentController.js";
 
 const router = express.Router();
+
+// ── Webhook: Needs to be raw and public (NO protect middleware) ──
+router.post("/webhook", handleWebhook);
+
+// Protected routes
 router.use(protect);
+
+router.post("/create-intent", createPaymentIntent);
 
 router.route("/")
   .get(listPayments)

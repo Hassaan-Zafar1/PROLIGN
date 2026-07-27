@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
 import MentorProfile from "../models/MentorProfile.js";
-import MenteeProfile from "../models/MenteeProfile.js";
+import MenteeProfileFlat from "../models/Mentee_Profiles.js";
 import { env } from "../config/env.js";
 import { generateAndSaveOTP, verifyOTP as verifyOtpCode, clearOTP } from "./otpService.js";
 import { sendOTPEmail, sendPasswordResetEmail } from "./emailService.js";
@@ -16,9 +16,18 @@ const signRefresh = (userId) =>
   jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, { expiresIn: env.JWT_REFRESH_EXPIRES_IN });
 const hashToken = (t) => crypto.createHash("sha256").update(t).digest("hex");
 
-// Populate the user's role profile so the response carries role-specific data.
-const populateProfiles = (user) =>
-  user.populate([{ path: "mentorProfile" }, { path: "menteeProfile" }]);
+// Attach the user's role profile so the response carries role-specific data.
+// Mentor: a real Mongoose ref, populated in place. Mentee: MenteeProfileFlat's
+// _id is the Python interview's session_id (a string), so it can't be a ref —
+// resolve it by userId instead and hang it on the user object for buildUserResponse.
+async function populateProfiles(user) {
+  if (user.role === "mentor") {
+    await user.populate({ path: "mentorProfile" });
+  } else if (user.role === "mentee") {
+    user.menteeProfile = await MenteeProfileFlat.findOne({ userId: user._id }).lean();
+  }
+  return user;
+}
 
 // Public user shape: auth + shared identity + account state ONLY.
 export function buildUserResponse(user) {
@@ -32,6 +41,7 @@ export function buildUserResponse(user) {
     country: user.country,
     city: user.city,
     profilePic: user.profilePic,
+    linkedinUrl: user.linkedinUrl,
     onboardingStep: user.onboardingStep,
     isProfileComplete: user.isProfileComplete,
     isActive: user.isActive,
@@ -75,7 +85,13 @@ export async function register(data, req) {
   }
 
   // User holds ONLY auth + shared identity; role data goes on the profile.
-  const user = await User.create({ email, password, role, ...(name && { name }) });
+  // linkedinUrl is stored here too (in addition to MentorProfile for mentors)
+  // since mentees have no profile yet at signup — see User.js's comment.
+  const user = await User.create({
+    email, password, role,
+    ...(name && { name }),
+    ...(linkedinUrl && { linkedinUrl }),
+  });
 
   if (role === "mentor") {
     const mentorProfile = await MentorProfile.create({
@@ -98,10 +114,10 @@ export async function register(data, req) {
       approvedAt: new Date(),
     });
     user.mentorProfile = mentorProfile._id;
-  } else {
-    const menteeProfile = await MenteeProfile.create({ userId: user._id, ...(linkedinUrl && { linkedinUrl }) });
-    user.menteeProfile = menteeProfile._id;
   }
+  // Mentees get no profile at signup — MenteeProfileFlat is created by the
+  // Python interviewer (keyed by session_id) and linked to this user later via
+  // POST /api/interview once the interview completes.
   await user.save();
 
   const otp = await generateAndSaveOTP(user._id);

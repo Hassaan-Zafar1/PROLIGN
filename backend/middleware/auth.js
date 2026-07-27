@@ -29,6 +29,29 @@ export async function protect(req, res, next) {
 }
 
 /**
+ * Attaches req.user if a valid Bearer token is present, but never rejects when
+ * one is missing or invalid — the request just proceeds as a guest (req.user
+ * stays undefined). For routes that are genuinely public reads but still want
+ * to know "is this a logged-in user, and who" when available (e.g. browsing a
+ * mentor's public reviews vs. fetching "my own reviews").
+ */
+export async function optionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) return next();
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("-password");
+    if (user && user.isActive) req.user = user;
+    next();
+  } catch {
+    next(); // invalid/expired token — proceed as guest rather than reject
+  }
+}
+
+/**
  * Restricts route access to specific roles.
  * Usage: router.get("/admin", protect, restrictTo("admin"), handler)
  */

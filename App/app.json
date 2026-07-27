@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "ProLign",
+    "slug": "prolign-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "prolign",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1a280a",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#1a280a" }
+    }
+  }
+}

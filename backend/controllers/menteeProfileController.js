@@ -21,11 +21,6 @@ export const getMenteeProfile = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: profile });
 });
 
-export const createMenteeProfile = asyncHandler(async (req, res) => {
-  const profile = await menteeProfileService.createProfile(req.user, req.body);
-  res.status(201).json({ success: true, message: "Mentee profile created.", data: profile });
-});
-
 export const updateMenteeProfile = asyncHandler(async (req, res) => {
   const profile = await menteeProfileService.updateProfile(req.params.id, req.user, req.body);
   res.status(200).json({ success: true, message: "Profile updated.", data: profile });

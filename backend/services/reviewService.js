@@ -38,7 +38,13 @@ export async function createReview(menteeId, body) {
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, "Session not found.");
   if (String(session.menteeId) !== String(menteeId)) throw new ApiError(403, "You can only review your own sessions.");
-  if (session.status !== "completed") throw new ApiError(409, "You can only review a completed session.");
+  
+  const now = new Date();
+  const sessionDate = new Date(session.scheduledDate);
+  const isPast = sessionDate && sessionDate.getTime() < now.getTime();
+  if (session.status !== "completed" && !isPast) {
+    throw new ApiError(409, "You can only review a completed session.");
+  }
 
   try {
     const review = await Review.create({
@@ -50,7 +56,7 @@ export async function createReview(menteeId, body) {
       reviewText: body.reviewText || null,
       isAnonymous: !!body.isAnonymous,
     });
-    await Session.updateOne({ _id: sessionId }, { $set: { reviewId: review._id } });
+    await Session.updateOne({ _id: sessionId }, { $set: { reviewId: review._id, status: "completed" } });
     return review; // post-save hook has updated the mentor's rating stats
   } catch (err) {
     if (err.code === 11000) throw new ApiError(409, "You have already reviewed this session.");
@@ -61,11 +67,20 @@ export async function createReview(menteeId, body) {
 export async function listReviews(query, user) {
   const { page, limit, skip } = parsePage(query);
 
+  // Public browse case first — doesn't touch `user` at all, so a guest can
+  // reach it. Everything below requires a real session.
   let filter;
-  if (query.mine === "true") filter = { menteeId: user._id };
-  else if (query.mentorId) filter = { mentorId: query.mentorId, isVisible: true, flagged: false };
-  else if (user.role === "admin") filter = {}; // admin can browse everything (incl. flagged)
-  else filter = { menteeId: user._id };
+  if (query.mentorId) {
+    filter = { mentorId: query.mentorId, isVisible: true, flagged: false };
+  } else if (!user) {
+    throw new ApiError(401, "Login required to view your reviews.");
+  } else if (query.mine === "true") {
+    filter = { menteeId: user._id };
+  } else if (user.role === "admin") {
+    filter = {}; // admin can browse everything (incl. flagged)
+  } else {
+    filter = { menteeId: user._id };
+  }
 
   const [rows, total] = await Promise.all([
     Review.find(filter).populate("menteeId", "name profilePic").sort({ createdAt: -1 }).skip(skip).limit(limit),
