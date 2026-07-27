@@ -63,15 +63,9 @@ class Settings:
 
 
 settings = Settings(
-<<<<<<< HEAD:backend/chatbot/config.py
-    groq_api_key=_required("GROQ_API_KEY"),
-    mongodb_uri=_required("MONGODB_URI"),
-    mongodb_db_name=os.getenv("MONGODB_DB_NAME", "prolign"),
-=======
-    groq_api_keys=_list_env("GROQ_API_KEYS", fallback_name="GROQ_API_KEY"), 
+    groq_api_keys=_list_env("GROQ_API_KEYS", fallback_name="GROQ_API_KEY"),
     mongodb_uri=_required("MONGO_URI"),
     mongodb_db_name=os.getenv("MONGODB_DB_NAME", "Prolign"),
->>>>>>> main:backend/Rag_Chatbot/app/core/config.py
     slack_webhook_url=_required("SLACK_WEBHOOK_URL"),
     slack_complaint_webhook_url=_required("SLACK_COMPLAINT_WEBHOOK_URL"),
     groq_model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),

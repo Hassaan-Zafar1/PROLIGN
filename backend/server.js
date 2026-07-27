@@ -142,4 +142,13 @@ async function startServer() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-startServer();
+// Export `app` so Supertest can drive it directly (supertest binds its own
+// ephemeral port per test, no real network needed) without also connecting to
+// the real database or binding env.PORT. Only actually start the server (DB
+// connect + listen) when this file is run directly — not when imported by a
+// test file.
+export default app;
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
+}

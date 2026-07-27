@@ -1,3 +1,4 @@
+import math
 import os
 import re
 from pathlib import Path
@@ -15,6 +16,10 @@ except Exception:
     util = None
 
 from datacleaning import clean_text, encode_experience_level
+from mm_selector.mentee_selector import load_mentee_df  # fixed: mentee data now comes from
+                                                          # Mentee_Profiles (Ayla's cleaned
+                                                          # interview output), not Node's
+                                                          # menteeprofiles collection.
 
 # One .env for the whole backend, lives at backend/.env — this file is at
 # backend/Mentor_Mentee_Match/matcher.py, so parents[1] is the backend root.
@@ -97,6 +102,27 @@ def parse_skills(skill_str):
     return {clean_text(piece).strip() for piece in pieces if clean_text(piece).strip()}
 
 
+def _to_native(obj):
+    """Recursively convert numpy/pandas scalar types to native Python types
+    so FastAPI's jsonable_encoder can serialize the response. DataFrame.get()
+    and .to_dict(orient="records") both preserve numpy dtypes (numpy.int64,
+    numpy.float64) rather than casting to plain int/float. Also converts NaN
+    to None - Starlette's JSONResponse calls json.dumps(allow_nan=False), so
+    a NaN float (e.g. a mentor with no hourly_rate, coercing that whole
+    numeric column to float64 with NaN gaps) raises ValueError otherwise."""
+    if isinstance(obj, dict):
+        return {key: _to_native(value) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_to_native(value) for value in obj]
+    if isinstance(obj, np.generic):
+        obj = obj.item()
+    if isinstance(obj, float) and math.isnan(obj):
+        return None
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    return obj
+
+
 def _load_mentor_df_from_mentorprofiles(db):
     """
     Build the flat mentor dataframe MentorMatcher needs, from Node's real
@@ -153,60 +179,14 @@ def _load_mentor_df_from_mentorprofiles(db):
     return pd.DataFrame(rows)
 
 
-def _load_mentee_df_from_menteeprofiles(db):
-    """
-    Build the flat mentee dataframe MentorMatcher needs, but from Node's real
-    `menteeprofiles` (Mongoose) + `users` collections instead of the old flat
-    `mentees` collection (removed — menteeprofiles is now the single source of
-    truth for mentee data).
-
-    Field mapping (menteeprofiles/users → matcher's expected flat columns):
-      _id                        → mentee_id (stringified ObjectId)
-      users.name                 → full_name
-      onboardingAnswers.targetRole      → target_role
-      onboardingAnswers.targetIndustry  → target_industry (schema stores a list; join with " ")
-      onboardingAnswers.targetCompanyTier → target_company_tier
-      domainInterest              → domain_interest
-      bio                         → bio
-      onboardingAnswers.experienceLevel → experience_level (raw label)
-      onboardingAnswers.yearsOfExp → mentee_experience_years
-      skillProfile.skills (array) → tech_skills (pipe-joined, matches parse_skills' separator)
-      skillProfile.domains (array)→ domain_skills (pipe-joined)
-      softSkills (array)          → soft_skills (pipe-joined)
-    """
-    pipeline = [
-        {"$lookup": {"from": "users", "localField": "userId", "foreignField": "_id", "as": "user"}},
-        {"$unwind": {"path": "$user", "preserveNullAndEmptyArrays": True}},
-    ]
-    rows = []
-    for doc in db["menteeprofiles"].aggregate(pipeline):
-        oa = doc.get("onboardingAnswers") or {}
-        sp = doc.get("skillProfile") or {}
-        target_industry = oa.get("targetIndustry") or []
-        rows.append({
-            "mentee_id": str(doc.get("_id", "")),
-            "full_name": (doc.get("user") or {}).get("name", "") or "",
-            "target_role": oa.get("targetRole") or "",
-            "target_industry": " ".join(target_industry) if isinstance(target_industry, list) else str(target_industry or ""),
-            "target_company_tier": oa.get("targetCompanyTier") or "",
-            "domain_interest": doc.get("domainInterest") or "",
-            "bio": doc.get("bio") or "",
-            "experience_level": oa.get("experienceLevel") or "",
-            "mentee_experience_years": oa.get("yearsOfExp") or 0,
-            "tech_skills": " | ".join(sp.get("skills") or []),
-            "domain_skills": " | ".join(sp.get("domains") or []),
-            "soft_skills": " | ".join(doc.get("softSkills") or []),
-        })
-    return pd.DataFrame(rows)
-
-
 class MentorMatcher:
     def __init__(
         self,
         mongo_uri=None,
         mongo_db=None,
         mentor_collection="mentorprofiles",  # was "mentors" — now reads Node's real collection
-        mentee_collection="menteeprofiles",  # was "mentees" — now reads Node's real collection
+        mentee_collection="Mentee_Profiles",  # was "mentees", then "menteeprofiles" — now reads
+                                               # our own cleaned interview output (see load_mentee_df)
         model_name="all-MiniLM-L6-v2",
     ):
         self._uri = mongo_uri or os.environ.get("MONGO_URI") or "mongodb://localhost:27017"
@@ -218,13 +198,13 @@ class MentorMatcher:
         client = MongoClient(self._uri)
         db = client[self._db_name]
         self.mentor_df = _load_mentor_df_from_mentorprofiles(db)
-        self.mentee_df = _load_mentee_df_from_menteeprofiles(db)
+        self.mentee_df = load_mentee_df(db)  # fixed: was _load_mentee_df_from_menteeprofiles(db)
         client.close()
 
         if self.mentor_df.empty:
             raise ValueError(f"No documents found in '{self._db_name}.{mentor_collection}' (mentorprofiles)")
         if self.mentee_df.empty:
-            raise ValueError(f"No documents found in '{self._db_name}.{mentee_collection}' (menteeprofiles)")
+            raise ValueError(f"No documents found in '{self._db_name}.{mentee_collection}' (Mentee_Profiles)")
 
         print(f"Loaded {len(self.mentor_df)} mentors from '{self._db_name}.{mentor_collection}'")
         print(f"Loaded {len(self.mentee_df)} mentees from '{self._db_name}.{mentee_collection}'")
@@ -240,16 +220,16 @@ class MentorMatcher:
 
     def refresh_mentees(self):
         """
-        Reload just the mentee data from menteeprofiles/users. Call this before
+        Reload just the mentee data from Mentee_Profiles. Call this before
         matching if mentees may have been added since this MentorMatcher was
         created (e.g. a long-lived API process where interviews complete after
         startup). Cheap — does not touch the mentor embeddings or reload the ML model.
         """
         client = MongoClient(self._uri)
-        self.mentee_df = _load_mentee_df_from_menteeprofiles(client[self._db_name])
+        self.mentee_df = load_mentee_df(client[self._db_name])  # fixed: indentation + correct loader
         client.close()
         if self.mentee_df.empty:
-            raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}' (menteeprofiles)")
+            raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}' (Mentee_Profiles)")
         self._recover_mentee_fields()
         self._prepare_mentee_numeric_fields()
 
@@ -430,8 +410,8 @@ class MentorMatcher:
             "mentee_experience_years": mentee_row.get("mentee_experience_years", 0),
         }
 
-        return {
+        return _to_native({
             "mentee": mentee_profile,
             "top_mentors": top_mentors.to_dict(orient="records"),
             "skill_recommendations": skill_recommendations,
-        }
+        })
