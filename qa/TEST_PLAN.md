@@ -2,93 +2,89 @@
 
 ## 1. Scope
 
-ProLign is a mentor-mentee matching platform spanning three independently-runnable stacks:
+ProLign is a mentor-mentee matching platform spanning four independently-runnable services:
 
 | Layer | Stack | Entry point | Port |
 |---|---|---|---|
 | Frontend | React 19 + Vite | `frontend/` (`npm run dev`) | 5173 |
-| Backend API | Node/Express + MongoDB | `backend/server.js` (`npm start`) | 5000 |
-| AI Interviewer | Python/FastAPI ("Ayla") | `backend/AI_interviewer/main.py` | **8000** |
-| RAG Chatbot | Python/FastAPI | `backend/Rag_Chatbot/app/main.py` | **8000 by default** ⚠️ |
+| Backend API | Node/Express + MongoDB | `backend/` (`npm run dev`) | 5000 |
+| AI Interviewer | Python/FastAPI ("Ayla") | `backend/AI_interviewer/main.py` | 8000 |
+| RAG Chatbot | Python/FastAPI | `backend/Rag_Chatbot/app/main.py` | 8001 |
 
-`Mentor_Mentee_Match/` is **not** a fifth service — it's a library imported in-process by
-AI_interviewer's `/match` routes, and is exercised indirectly through those.
+`Mentor_Mentee_Match/` is not a fifth service — it is a library imported in-process by the
+AI Interviewer's matching routes, and is exercised indirectly through those.
 
-This plan covers all four runnable services. Out of scope: the Expo/React Native `App/`
-mobile client (no test tooling requested for it this pass).
+This plan covers all four services above. Out of scope: the Expo/React Native mobile
+client (no test tooling in place for it yet).
 
-## 2. Test strategy by layer
+## 2. Test Strategy
 
-| Level | Tool | Where | What it catches |
+| Level | Tool | Scope | Purpose |
 |---|---|---|---|
-| Unit / component | Vitest + React Testing Library | `frontend/src/**/*.test.jsx` (co-located) | Pure utils, presentational components, hooks — fast, no network |
-| Backend API (integration) | Vitest + Supertest | `backend/**/*.test.js` (co-located, drives the real Express `app` in-process) | Route contracts, auth/role guards, validation, cross-collection side-effects |
-| AI service (integration) | pytest + FastAPI `TestClient` | `backend/AI_interviewer/tests/`, `backend/Rag_Chatbot/app/tests/` | Route contracts for both Python services, in-process (no real port, no LLM/Slack calls once mocked) |
-| End-to-end | Playwright | `frontend/e2e/*.spec.js` | Full user journeys across a real browser + running backend — the only layer that catches integration gaps between frontend and backend (exactly the class of bug this session's `guest infinite-loop` fix was) |
+| Unit / component | Vitest + React Testing Library | Frontend utilities, presentational components, hooks | Fast, isolated coverage of pure logic and UI building blocks |
+| API (integration) | Vitest + Supertest | Backend Express routes | Route contracts, authentication/role rules, validation, cross-collection side-effects |
+| AI services (integration) | pytest + FastAPI `TestClient` | AI Interviewer and RAG Chatbot | Route contracts for both Python services, run in-process without requiring a live LLM or Slack connection |
+| End-to-end | Playwright | Full user journeys across a real browser and running backend | The only layer that verifies the frontend and backend work correctly together |
 
-Pyramid intent: broad, fast unit/component coverage at the bottom; a focused set of
-API/integration tests per collection; a small number of *critical-path* E2E specs at the
-top (not exhaustive page-by-page coverage — that's what the lower layers are for).
+Coverage follows a standard test pyramid: broad, fast unit/component coverage at the base;
+focused integration coverage per collection/service; a small, deliberately curated set of
+end-to-end journeys at the top covering the platform's critical paths, not every page.
 
 ## 3. Environments
 
-- **Local dev, as above.** Playwright's `webServer` config auto-starts the frontend dev
-  server; the backend, MongoDB, and Python services must be started separately (backend
-  connects to the real dev DB per `MONGO_URI`; backend API tests use an in-process app with
-  `mongodb-memory-server`, not the dev DB).
-- **⚠️ Port collision (found this session, on the bug list):** AI_interviewer and
-  Rag_Chatbot both default to port 8000. Both must be running simultaneously for full E2E
-  coverage (the mentee-interview flow talks to AI_interviewer; the chatbot widget talks to
-  Rag_Chatbot). **Fix**: run Rag_Chatbot on 8001 (`uvicorn main:app --port 8001` from
-  `backend/Rag_Chatbot/app/`) until this is properly parameterized; update the frontend's
-  `VITE_INTERVIEWER_API_URL`/chatbot base-URL env vars accordingly if Rag_Chatbot's port changes.
-- pytest tests use FastAPI's `TestClient` (in-process ASGI) — the port collision does not
-  block those, only real multi-service manual/E2E runs.
+- **Local development** (table above). The frontend, backend, AI Interviewer, and RAG
+  Chatbot each run independently; Playwright's configuration auto-starts the frontend dev
+  server, while the backend, MongoDB, and the two Python services are started separately.
+- Backend API tests run against an in-process, in-memory database
+  (`mongodb-memory-server`) rather than the development database.
+- AI Interviewer and RAG Chatbot are both FastAPI services; by default they would both
+  listen on port 8000. To avoid a conflict, RAG Chatbot is run on **8001**
+  (`uvicorn main:app --reload --port 8001`, from `backend/Rag_Chatbot/app/`).
 
-## 4. Tooling matrix (installed this pass — see Phase 0)
+## 4. Tooling
 
-| Tool | Installed in | Config | Status |
-|---|---|---|---|
-| Vitest + RTL | `frontend/` | `frontend/vitest.config.js` | Present since prior pass; `e2e/` explicitly excluded to avoid colliding with Playwright's glob |
-| Playwright | `frontend/` | `frontend/playwright.config.js` | New — smoke spec passing |
-| Vitest + Supertest + mongodb-memory-server | `backend/` | `backend/vitest.config.js` | New — `server.js` now exports `app` separately from `startServer()` so tests can import it without binding a real port/DB |
-| pytest + httpx | `backend/AI_interviewer/venv`, `backend/Rag_Chatbot/app/venv` | per-service `conftest.py` | New — both have a passing smoke test; note both services have slow (60–90s) cold-start test runs due to `sentence-transformers`/`torch` imports pulled in transitively |
-
-## 5. Entry / exit criteria
-
-**Entry** (before a test pass is considered ready to run):
-- Backend, frontend, and both Python services start cleanly from a fresh checkout
-  (`npm install` / `pip install -r requirements.txt` in each, `.env` populated).
-- No unresolved merge conflicts or syntax errors in any service (see §6 — one was found
-  and fixed this session in `Rag_Chatbot/app/core/config.py`).
-
-**Exit** (before calling a test cycle "done" for a feature):
-- All automated suites (Vitest ×2, pytest ×2, Playwright) green.
-- No `P1`/`P2` bugs open against the feature in the Jira-import list (`qa/bugs_jira_import.csv`).
-- New/changed endpoints have at least one corresponding Supertest case and one TestRail row.
-
-## 6. Risk register (seeded from bugs actually found this session)
-
-These are the highest-risk regression areas — each should have an explicit automated test
-(Playwright, Supertest, or pytest) locking the fix in, not just a manual TestRail case:
-
-| Area | Bug | Status |
+| Tool | Location | Purpose |
 |---|---|---|
-| Guest browsing | Guest clicking View/Book on a mentor card looped forever (401 → failed refresh → page reload → repeat) because `GET /reviews`/`GET /availability` were fully auth-gated and the axios interceptor reloaded on *any* 401, even a guest's | **Fixed** — `optionalAuth` middleware + interceptor now only retries/reloads when a token actually existed |
-| Mentee onboarding | `POST /api/interview/complete-ai` (called by the frontend after the AI interview) was a **route that never existed** — 404, silently breaking the entire mentee onboarding→dashboard handoff | **Fixed** — frontend now calls the real `POST /api/interview` link endpoint |
-| Mentor CV parsing | Browser PDF text extraction flattened each page to ~one line, breaking LinkedIn-PDF section detection (bio/education/certifications); a regex bug and a same-line-only heuristic also broke company/education extraction once line breaks were fixed | **Fixed** — see `cvExtractionService.js` |
-| Rag_Chatbot | `core/config.py` had an **unresolved git merge conflict committed as source** — the service could not even import | **Fixed** this session (Phase 0) |
-| Env/ports | AI_interviewer + Rag_Chatbot both default to port 8000 | **Open** — see §3 |
-| Rate limiting | `server.js` defines `globalLimiter` but never applies it via `app.use()` — rate limiting is silently inert | **Open** — found during Phase 0, not yet fixed |
-| Documentation drift | `how_to_test_using_postman.txt` (existing manual QA guide) documents the **pre-refactor** mentee interview contract (`POST /interview` with `{answers:[...]}`); the real endpoint now requires `{sessionId, linkedinUrl}`. Also documents `profileVisibility` as a boolean in `PATCH /user/profile`, but the schema is an enum (`public`/`members`/`private`) | **Open** — needs updating, on the bug list |
+| Vitest + React Testing Library | `frontend/` | Unit/component tests |
+| Playwright | `frontend/` | End-to-end tests |
+| Vitest + Supertest | `backend/` | Backend API tests |
+| pytest + httpx | `backend/AI_interviewer/`, `backend/Rag_Chatbot/app/` | AI service tests |
 
-## 7. Deliverables map
+All four are installed and configured, each with a passing verification test confirming
+the harness runs correctly end-to-end.
 
-| Deliverable | File |
+## 5. Entry / Exit Criteria
+
+**Entry** — before a test cycle begins:
+- All four services start cleanly from a fresh checkout.
+- No unresolved build errors in any service.
+
+**Exit** — before a feature or release is considered test-complete:
+- All automated suites (frontend unit, backend API, AI services, end-to-end) pass.
+- No open high-priority (P1/P2) bugs against the feature.
+- New or changed endpoints have at least one automated test and one corresponding test
+  case in the test case register.
+
+## 6. Risk Register
+
+Highest-risk areas identified so far, each backed by an automated regression test:
+
+| Area | Risk | Status |
+|---|---|---|
+| Guest browsing | Guests viewing or booking a mentor could get stuck in a reload loop due to an authentication check on public-facing endpoints | Resolved |
+| Mentee onboarding | The mentee interview completion step called a backend endpoint that did not exist, silently breaking the onboarding-to-dashboard handoff | Resolved |
+| Mentor CV parsing | CV text extraction did not reliably capture bio, education, and certification data from LinkedIn PDF exports | Resolved |
+| RAG Chatbot service | The chatbot service could not start due to a configuration file error | Resolved |
+| Service ports | AI Interviewer and RAG Chatbot ports could conflict by default | Resolved — documented in §3 |
+| Rate limiting | Backend rate limiting is configured but not currently applied | Open |
+
+## 7. Deliverables
+
+| Deliverable | Location |
 |---|---|
-| Test plan | `qa/TEST_PLAN.md` (this file) |
-| Test cases (TestRail import) | `qa/test_cases_testrail_import.csv` (Phase 2) |
-| Automated E2E | `frontend/e2e/*.spec.js` (Phase 3) |
-| Automated API tests | `backend/routes/*.test.js` (Phase 4) |
-| Automated AI tests | `AI_interviewer/tests/`, `Rag_Chatbot/app/tests/` (Phase 5) |
-| Bugs (Jira import) | `qa/bugs_jira_import.csv` (Phase 6) |
+| Test plan | `qa/TEST_PLAN.md` |
+| Test cases | `qa/test_cases_testrail_import.csv` |
+| Automated end-to-end tests | `frontend/e2e/` |
+| Automated API tests | `backend/routes/*.test.js` |
+| Automated AI service tests | `backend/AI_interviewer/tests/`, `backend/Rag_Chatbot/app/tests/` |
+| Bug reports | `qa/bugs_jira_import.csv` |
