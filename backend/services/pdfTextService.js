@@ -1,7 +1,12 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export async function extractTextFromPdf(buffer) {
-  const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+  // pdfjs-dist explicitly rejects Node Buffer instances (even though Buffer
+  // extends Uint8Array) — it wants a plain Uint8Array. multer's
+  // memoryStorage() always hands this a real Buffer, so without this
+  // conversion every upload through this path throws.
+  const data = new Uint8Array(buffer);
+  const doc = await pdfjsLib.getDocument({ data }).promise;
   let fullText = '';
 
   for (let i = 1; i <= doc.numPages; i++) {

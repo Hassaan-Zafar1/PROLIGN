@@ -54,6 +54,7 @@ ehthumbs.db
 .nyc_output/
 coverage/
 .jest/
+reports/
 
 # Runtime
 tmp/

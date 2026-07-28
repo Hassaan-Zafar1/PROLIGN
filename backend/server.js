@@ -10,6 +10,7 @@ import { connectDB, disconnectDB } from "./config/database.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import "./config/passport.js";
 import { extractClientInfo } from "./middleware/auth.js";
+import testHelperRoutes from "./routes/testHelpers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +115,16 @@ app.use("/api/mentee-profiles", menteeProfileRoutes);
 import cvRoutes from "./routes/cvRoutes.js";
 app.use("/api/mentors", cvRoutes); // adds POST /api/mentors/:mentorId/cv
 app.use("/uploads/cvs", express.static(path.join(__dirname, "uploads", "cvs")));
+
+// ─── Dev/Test-only helpers (E2E OTP retrieval, data seeding) ──────────────────
+// Never mounted in production — see routes/testHelpers.js and otpService.js's
+// devOtpStore (process-memory only, never persisted) for why this is safe.
+// Must be registered here, synchronously, before notFound/errorHandler below —
+// an async (dynamic-import) mount would race and land after them, making the
+// routes unreachable regardless of the NODE_ENV guard.
+if (env.NODE_ENV !== "production") {
+  app.use("/api/test", testHelperRoutes);
+}
 
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);

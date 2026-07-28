@@ -4,14 +4,24 @@ import { defineConfig, devices } from '@playwright/test';
 // against the running app (frontend + backend + Mongo, and for AI-dependent
 // flows the Python services too), unlike Vitest's jsdom unit/component tests.
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './e2e/tests',
+  globalSetup: './e2e/global-setup.js',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  reporter: 'html',
+  // 1 retry in CI only — matches qa/TEST_PLAN.md's retry policy. A test that
+  // fails once then passes on retry is flagged as potentially flaky (see the
+  // HTML/JUnit report's retry annotations), not silently treated as green.
+  retries: process.env.CI ? 1 : 0,
+  reporter: [
+    ['html', { outputFolder: './reports/e2e-html', open: 'never' }],
+    ['junit', { outputFile: './reports/e2e-junit.xml' }],
+    ['list'],
+  ],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

@@ -1,8 +1,21 @@
-# ProLign — Test Plan
+# ProLign — QA Test Strategy and Automation Plan
 
-## 1. Scope
+## 1. Purpose
 
-ProLign is a mentor-mentee matching platform spanning four independently-runnable services:
+This document defines the testing strategy, automation architecture, reporting, coverage,
+and CI/CD plan for ProLign. It establishes:
+
+- What gets tested at which level, and with which tool
+- How results are reported for each test level, independently
+- The metrics used to call a test run "passed"
+- Enforced code coverage thresholds and what blocks a build
+- The Playwright automation architecture (structure, retries, failure handling)
+- The intended CI/CD trigger schedule
+- How Claude Code is guided to generate and classify tests consistently
+
+## 2. Scope
+
+ProLign spans four independently-runnable services:
 
 | Layer | Stack | Entry point | Port |
 |---|---|---|---|
@@ -14,71 +27,281 @@ ProLign is a mentor-mentee matching platform spanning four independently-runnabl
 `Mentor_Mentee_Match/` is not a fifth service — it is a library imported in-process by the
 AI Interviewer's matching routes, and is exercised indirectly through those.
 
-This plan covers all four services above. Out of scope: the Expo/React Native mobile
-client (no test tooling in place for it yet).
+**Out of scope:** the Expo/React Native mobile client (no test tooling in place for it yet).
 
-## 2. Test Strategy
+## 3. Test Strategy
 
-| Level | Tool | Scope | Purpose |
+```
+              ┌───────────────────────┐
+              │   End-to-End (E2E)    │   Playwright — small, critical journeys only
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │  API / AI Integration │   Supertest (Node) + pytest/TestClient (Python)
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │   Unit / Component    │   Vitest + React Testing Library
+              └───────────────────────┘
+```
+
+Most tests should exist at the Unit and Integration levels — they are faster, more
+isolated, and cheaper to maintain. E2E is reserved for full user journeys where the thing
+actually being verified is that the frontend and backend work correctly *together*
+(exactly the class of bug the guest-browsing fix in §12 was) — not for re-testing
+validation rules or component rendering already covered lower down.
+
+| Level | Tool | Where | Purpose |
 |---|---|---|---|
-| Unit / component | Vitest + React Testing Library | Frontend utilities, presentational components, hooks | Fast, isolated coverage of pure logic and UI building blocks |
-| API (integration) | Vitest + Supertest | Backend Express routes | Route contracts, authentication/role rules, validation, cross-collection side-effects |
-| AI services (integration) | pytest + FastAPI `TestClient` | AI Interviewer and RAG Chatbot | Route contracts for both Python services, run in-process without requiring a live LLM or Slack connection |
-| End-to-end | Playwright | Full user journeys across a real browser and running backend | The only layer that verifies the frontend and backend work correctly together |
+| Unit / component | Vitest + React Testing Library | `frontend/src/**/*.test.jsx` (co-located) | Pure utilities, hooks, presentational components |
+| Backend API | Vitest + Supertest | `backend/**/*.test.js` (co-located) | Route contracts, auth/role rules, validation, cross-collection effects |
+| AI services | pytest + FastAPI `TestClient` | `backend/AI_interviewer/tests/`, `backend/Rag_Chatbot/app/tests/` | Route contracts for both Python services, without live LLM/Slack calls |
+| End-to-end | Playwright | `frontend/e2e/tests/` | Full user journeys across a real browser and running backend |
 
-Coverage follows a standard test pyramid: broad, fast unit/component coverage at the base;
-focused integration coverage per collection/service; a small, deliberately curated set of
-end-to-end journeys at the top covering the platform's critical paths, not every page.
+### Test classification rule
 
-## 3. Environments
+A scenario is tested at the **lowest level that can actually exercise it**:
 
-- **Local development** (table above). The frontend, backend, AI Interviewer, and RAG
-  Chatbot each run independently; Playwright's configuration auto-starts the frontend dev
-  server, while the backend, MongoDB, and the two Python services are started separately.
+| Scenario needs... | Level |
+|---|---|
+| Nothing but inputs/outputs — no DB, no HTTP, no browser | Unit |
+| A real Express route/middleware or cross-collection DB effect | Backend API |
+| A FastAPI route on AI Interviewer or RAG Chatbot | AI service |
+| A complete journey across a real browser + running backend | E2E |
+
+The same scenario is not duplicated across every level. This rule, plus the current tool
+locations, is captured for Claude Code in `.claude/skills/testing-strategy/SKILL.md` (§10).
+
+## 4. Environments
+
+- **Local development** — table in §2. Playwright auto-starts the frontend dev server;
+  the backend, MongoDB, and both Python services are started separately.
 - Backend API tests run against an in-process, in-memory database
-  (`mongodb-memory-server`) rather than the development database.
-- AI Interviewer and RAG Chatbot are both FastAPI services; by default they would both
-  listen on port 8000. To avoid a conflict, RAG Chatbot is run on **8001**
-  (`uvicorn main:app --reload --port 8001`, from `backend/Rag_Chatbot/app/`).
+  (`mongodb-memory-server`) — never the development database.
+- AI Interviewer and RAG Chatbot are both FastAPI services; RAG Chatbot runs on 8001 to
+  avoid the port conflict both would have by default on 8000.
 
-## 4. Tooling
+## 5. Test Automation Architecture
 
-| Tool | Location | Purpose |
+### 5.1 Frontend unit/component — Vitest + React Testing Library
+Co-located `*.test.jsx` files. Config: `frontend/vitest.config.js`. Details and mocking
+conventions: `.claude/skills/vitest/SKILL.md`.
+
+### 5.2 Backend API — Vitest + Supertest
+Co-located `*.test.js` files next to each route file, driving the real Express `app`
+in-process (`backend/server.js` exports `app` separately from starting the server).
+Config: `backend/vitest.config.js`. Details: `.claude/skills/supertest/SKILL.md`.
+
+### 5.3 AI services — pytest + FastAPI TestClient
+`tests/test_*.py` per service, in-process (no real port — the 8000/8001 split doesn't
+affect these). Config: each service's `pytest.ini` + `.coveragerc`. Details:
+`.claude/skills/pytest/SKILL.md`.
+
+### 5.4 End-to-end — Playwright
+
+Structure (implemented, not aspirational):
+
+```
+frontend/e2e/
+├── tests/       *.spec.js — scenario, test data, assertions
+├── pages/       Page Object classes — locators + page-specific actions only
+├── fixtures/    base.js extends Playwright's `test` with custom fixtures
+├── data/        deterministic, collision-safe test data generators
+└── reports/     generated — HTML + JUnit + screenshots/video/traces on failure
+```
+
+- **Page Object Model**: one class per page, holding locators and actions only. Tests
+  import `{ test, expect }` from `fixtures/base.js` (never `@playwright/test` directly),
+  which wires in one fixture per page object.
+- **Data-driven**: `data/*.js` exports generators (e.g. `uniqueEmail()`), not static
+  fixtures reused across runs, so repeated runs against a real dev database never collide.
+- Config: `frontend/playwright.config.js`. Details: `.claude/skills/playwright/SKILL.md`.
+
+## 6. Reporting
+
+Each test level produces its own independent report — none are merged silently, so a
+failure in one layer is never hidden by success in another.
+
+| Level | Format | Location |
 |---|---|---|
-| Vitest + React Testing Library | `frontend/` | Unit/component tests |
-| Playwright | `frontend/` | End-to-end tests |
-| Vitest + Supertest | `backend/` | Backend API tests |
-| pytest + httpx | `backend/AI_interviewer/`, `backend/Rag_Chatbot/app/` | AI service tests |
+| Frontend unit | Console + JUnit XML + coverage (HTML/lcov) | `frontend/reports/` |
+| Backend API | Console + JUnit XML + coverage (HTML/lcov) | `backend/reports/` |
+| AI services | Console + JUnit XML + coverage (HTML/XML) | `backend/AI_interviewer/reports/`, `backend/Rag_Chatbot/app/reports/` |
+| E2E | HTML report + JUnit XML + screenshots/video/traces on failure | `frontend/e2e/reports/` (previously `frontend/reports/e2e-*`) |
 
-All four are installed and configured, each with a passing verification test confirming
-the harness runs correctly end-to-end.
+Each report includes, at minimum: total tests, passed/failed/skipped counts, pass rate,
+duration, and — for coverage-enabled runs — statement/branch/function/line percentages
+against the threshold. JUnit XML from every level is what a future CI pipeline consumes to
+render its own summary (§10); nothing here depends on a specific CI vendor.
 
-## 5. Entry / Exit Criteria
+A **consolidated summary** combining all four reports is a natural addition once CI is
+active (a single "did everything pass" view for a release decision) — not yet built, since
+there is no CI run to consolidate from today. Format only, not real data:
 
-**Entry** — before a test cycle begins:
-- All four services start cleanly from a fresh checkout.
-- No unresolved build errors in any service.
+```
+ProLign QA Summary  (illustrative format — populated once CI is running)
+─────────────────────────────────────────
+Frontend unit      <pass/fail>   <n>/<n>
+Backend API        <pass/fail>   <n>/<n>
+AI services         <pass/fail>   <n>/<n>
+E2E                 <pass/fail>   <n>/<n>
+Coverage: frontend <n>% · backend <n>% · AI services <n>%
+Open P1/P2 bugs: <n>
+Release decision: <PASS/BLOCKED>
+```
 
-**Exit** — before a feature or release is considered test-complete:
-- All automated suites (frontend unit, backend API, AI services, end-to-end) pass.
-- No open high-priority (P1/P2) bugs against the feature.
-- New or changed endpoints have at least one automated test and one corresponding test
-  case in the test case register.
+## 7. Pass/Fail Metrics and Quality Gates
 
-## 6. Risk Register
+**Pass rate** — the standard metric reported at every level:
 
-Highest-risk areas identified so far, each backed by an automated regression test:
+```
+Pass Rate = Passed / (Passed + Failed) × 100
+```
+
+Skipped tests are excluded from the denominator — they count as neither pass nor fail, and
+a growing skip count is itself a signal worth investigating.
+
+**Mandatory quality gate** — a build/PR must satisfy all of the following, or it is
+blocked:
+
+- All unit tests pass (0 failures — no partial-credit threshold for this level).
+- All backend API and AI-service tests pass.
+- All critical-path E2E tests pass.
+- Code coverage meets the threshold (below).
+- No open P1/P2 defect against the changed area.
+
+A high pass **percentage** is not sufficient — one failing mandatory test blocks the
+build regardless of how many others passed. This is enforced today by each tool's own
+exit code (a threshold miss or a failed assertion both produce a non-zero exit), and will
+be enforced at the CI-pipeline level once §10 is activated.
+
+## 8. Code Coverage Strategy
+
+| Layer | Tool | Config |
+|---|---|---|
+| Frontend | Vitest (`@vitest/coverage-v8`) | `frontend/vitest.config.js` → `test.coverage` |
+| Backend | Vitest (`@vitest/coverage-v8`) | `backend/vitest.config.js` → `test.coverage` |
+| AI Interviewer | pytest-cov | `backend/AI_interviewer/pytest.ini` + `.coveragerc` |
+| RAG Chatbot | pytest-cov | `backend/Rag_Chatbot/app/pytest.ini` + `.coveragerc` |
+
+**Threshold (enforced, not aspirational): 80% statements/lines/functions, 70% branches.**
+Every config above already fails its run when coverage drops below this — this is real,
+verified behavior, not a documented intention. `npm run test:coverage` in `frontend/` or
+`backend/`, and plain `pytest` in either Python service's root, all currently **fail** for
+exactly this reason:
+
+| Service | Current coverage (measured) | Gate result |
+|---|---|---|
+| Frontend | 0% (no test files exist yet) | FAIL — no tests found |
+| Backend | 17.6% statements / 3.0% branches | FAIL |
+| AI Interviewer | 28.6% | FAIL |
+| RAG Chatbot | 50.6% | FAIL |
+
+This is the honest current state, not a placeholder — coverage will rise as the test
+suites in each service's `tests/`/`*.test.js` locations are built out. **A coverage
+exception (lowering a threshold, or excluding a file) requires explicit review** — the
+`testing-strategy` skill instructs Claude Code never to pad coverage with meaningless
+assertions to hit the number.
+
+## 9. Retry and Flaky Test Policy
+
+| Environment | Retries |
+|---|---|
+| Local development | 0 |
+| CI | 1 |
+
+Configured today in `frontend/playwright.config.js` (`retries: process.env.CI ? 1 : 0`).
+A test that fails once and passes on retry is flagged in the HTML/JUnit report as
+**potentially flaky** — retries surface flakiness for investigation, they do not silently
+mask it. A test failing 3+ times intermittently within a week should be marked flaky,
+assigned an owner, and tracked as a defect — not left on permanent retry.
+
+## 10. Failure and Fallback Strategy
+
+```
+Test failure
+    → Retry once (CI only)
+        → Pass  → flagged as potentially flaky, investigate
+        → Fail  → capture artifacts (screenshot, video, trace, logs)
+                → block the PR/build
+```
+
+If a test cannot execute at all because a required service (backend, database, an AI
+service) is unavailable, that is reported as an **environment/infrastructure failure**,
+distinct from a functional test failure — it must never be silently recorded as a pass.
+
+**Playwright failure artifacts** (configured in `playwright.config.js`): screenshot on
+failure, video retained on failure, trace on first retry — all land in
+`frontend/e2e/reports/e2e-html/`.
+
+## 11. CI/CD Strategy
+
+No CI pipeline is active yet — `.github/workflows/ci.yml` is a **scaffold**, ready to
+enable once repository secrets (`MONGO_URI`, `JWT_SECRET`, `GROQ_API_KEY`, etc.) are
+configured in GitHub. It defines four jobs (frontend unit, backend API, AI services ×2,
+E2E) and the intended trigger schedule:
+
+| Trigger | Runs |
+|---|---|
+| Pull request into `main` | Frontend unit + backend API + AI services + coverage gates + E2E |
+| Push to `main` | Same full suite, post-merge |
+| Nightly (02:00 UTC) | Same full suite, independent of whether anything changed |
+
+Every job uploads its reports (§6) as CI artifacts regardless of pass/fail, so a failure
+is always debuggable from the CI run itself.
+
+## 12. Risk Register
+
+The authoritative, full bug list (38 items: 8 resolved, 30 open) lives in
+**`qa/bugs_jira_import.csv`** — import via Jira Settings → System → External
+System Import → CSV. It was compiled from bugs found and fixed while writing
+Phases 3–5 (E2E/API/AI test suites) plus a dedicated 3-angle code-review pass
+(frontend, backend API, database/schema) across the whole codebase. This
+table summarizes it; see the CSV for full repro steps on every row.
+
+**Four Critical-severity findings need attention before the others:**
 
 | Area | Risk | Status |
 |---|---|---|
-| Guest browsing | Guests viewing or booking a mentor could get stuck in a reload loop due to an authentication check on public-facing endpoints | Resolved |
-| Mentee onboarding | The mentee interview completion step called a backend endpoint that did not exist, silently breaking the onboarding-to-dashboard handoff | Resolved |
-| Mentor CV parsing | CV text extraction did not reliably capture bio, education, and certification data from LinkedIn PDF exports | Resolved |
-| RAG Chatbot service | The chatbot service could not start due to a configuration file error | Resolved |
-| Service ports | AI Interviewer and RAG Chatbot ports could conflict by default | Resolved — documented in §3 |
+| Secrets | Real production MongoDB Atlas credentials are hardcoded as a fallback default in `AI_interviewer/core/config.py` and committed to git history | Open |
+| Payments | `POST /api/payments` accepts a client-supplied amount and status with no verification, letting any mentee record a fake "captured" payment without Stripe ever being involved | Open |
+| Payments | `POST /api/sessions` accepts a client-supplied `priceCharged` that overrides the mentor's real price (including 0 or negative) — this value later drives the actual Stripe charge | Open |
+| Mentee data | `POST /api/interview/complete-ai` writes to field names that don't exist on the `Mentee_Profiles` schema — Mongoose silently drops them, discarding most of the submitted interview data | Open |
+
+**High-severity (10) and Medium/Low (16) findings** span all three categories
+the QA deliverable calls for — UI (e.g. Analytics page crash, broken dashboard
+date math), API (e.g. Google login 500 for OAuth-only accounts, a double-
+booking race condition), and database (e.g. conflicting Node/Python index
+definitions on the same collection, no cascade cleanup on user deletion) —
+full detail in the CSV.
+
+**Already resolved this session** (for traceability): guest infinite reload
+loop, broken mentee interview→dashboard link, CV-parsing multi-line/education
+corruption, dead title/industry mapping, RAG Chatbot config merge-conflict
+startup failure, AI/RAG Chatbot port-8000 collision, CV upload 500 (pdfjs-dist
+`Buffer`/`Uint8Array`), AI_interviewer CSV export crash.
+
+| Area | Risk | Status |
+|---|---|---|
 | Rate limiting | Backend rate limiting is configured but not currently applied | Open |
 
-## 7. Deliverables
+Every resolved regression above should have (or already has) an automated test locking
+the fix in at the level where it manifested, not just a manual test case.
+
+## 13. Claude Code Testing Skills
+
+Project-specific guidance so test generation stays consistent regardless of who (or what)
+writes the next test:
+
+| Skill | Covers |
+|---|---|
+| `.claude/skills/testing-strategy/SKILL.md` | Classification rule, where to check for existing specs/cases before writing a new test |
+| `.claude/skills/vitest/SKILL.md` | Frontend + backend unit conventions, mocking, coverage |
+| `.claude/skills/supertest/SKILL.md` | Backend API test setup, auth, test database, negative-case checklist |
+| `.claude/skills/playwright/SKILL.md` | POM, fixtures, data-driven data, retry/artifact conventions |
+| `.claude/skills/pytest/SKILL.md` | AI service TestClient setup, mocking Groq/Mongo/Slack, coverage |
+
+## 14. Deliverables
 
 | Deliverable | Location |
 |---|---|
@@ -88,3 +311,13 @@ Highest-risk areas identified so far, each backed by an automated regression tes
 | Automated API tests | `backend/routes/*.test.js` |
 | Automated AI service tests | `backend/AI_interviewer/tests/`, `backend/Rag_Chatbot/app/tests/` |
 | Bug reports | `qa/bugs_jira_import.csv` |
+| CI/CD scaffold | `.github/workflows/ci.yml` |
+| Claude Code testing skills | `.claude/skills/` |
+
+## 15. Future Improvements
+
+- Activate the CI scaffold (configure secrets, confirm the pipeline runs green end-to-end).
+- Consolidated QA dashboard once CI produces real, repeated data to summarize.
+- Automatic TestRail/Jira sync (currently manual CSV import).
+- Visual regression, API contract, and load/performance testing.
+- Mobile app test automation.

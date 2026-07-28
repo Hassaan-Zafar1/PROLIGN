@@ -18,5 +18,27 @@ export default defineConfig({
             '**/.{idea,git,cache,output,temp}/**',
             '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
         ],
+        // Console summary always; JUnit XML additionally for CI to consume.
+        reporters: ['default', 'junit'],
+        outputFile: { junit: './reports/unit-junit.xml' },
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html', 'lcov', 'json-summary'],
+            reportsDirectory: './reports/coverage',
+            exclude: [
+                'node_modules/**', 'e2e/**', 'src/**/*.test.{js,jsx}',
+                'src/main.jsx', 'src/config/**', 'vite.config.js', 'vitest.config.js',
+                'playwright.config.js',
+            ],
+            // Gate: a build/PR should not proceed if coverage falls below this.
+            // Starting target — see qa/TEST_PLAN.md §6 for current actual status
+            // (this gate will fail until the Phase 2+ test suites are written).
+            thresholds: {
+                statements: 80,
+                branches: 70,
+                functions: 80,
+                lines: 80,
+            },
+        },
     },
 });
