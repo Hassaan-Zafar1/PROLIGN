@@ -13,7 +13,8 @@ bugs -> Jira, API test collections -> TestRail).
   Test cases covering all features     Done     qa/test_cases_testrail_import.csv
                                                  (130 cases, 117 automated = 90%)
   Automated end-to-end test cases      Done     frontend/e2e/tests/*.spec.js (11 tests)
-  Bugs reported (Jira-ready)           Done     qa/bugs_jira_import.csv (38 bugs)
+  Bugs filed in Jira                   Done     Live in project PRO — PRO-2..PRO-39 (38 bugs).
+                                                 Source CSV: qa/bugs_jira_import.csv
   API testing (TestRail-ready)         Done     backend/*.test.js (122 tests) +
                                                  the same test_cases CSV, importable
                                                  into TestRail directly (no separate
@@ -24,10 +25,16 @@ bugs -> Jira, API test collections -> TestRail).
                                                  how_to_test_using_postman.txt /
                                                  Apis_test_result.txt remain useful
                                                  for ad-hoc manual/exploratory checks)
+  Frontend unit tests (bonus - not in   Done     frontend/src/**/*.test.{js,jsx}
+  the original 5 asks, added after a             (133 tests, 18 files)
+  follow-up question about what counts
+  as a true "unit" test on the frontend)
 
-No Jira or TestRail account is connected to this session, so both of those
-deliverables are CSV files you import yourself. Section 8 below walks through
-the Jira import step by step, assuming zero prior Jira experience.
+No TestRail account is connected to this session, so that deliverable is a CSV
+you import yourself. Jira, however, IS connected — you provided a site URL,
+project key, email, and API token, so all 38 bugs were created directly via
+Jira's REST API this session (no manual CSV import needed). Section 8 below
+covers where to find them and how the CSV maps to what's now live.
 
 
 2. THE OVERALL FLOW (for your presentation)
@@ -70,8 +77,19 @@ The work was split into 6 phases, each building on the last:
     3-5. Result: 38 bugs total, 8 already fixed this pass, 30 still open
     (4 Critical, 10 High, 15 Medium, 1 Low) - see Section 7.
 
+  Phase 7 - Frontend unit tests (added after a follow-up question about
+  what genuinely counts as a "unit" test on the frontend)
+    18 test files, 133 tests, covering every pure utility function
+    (mentorLevel, profileCompletion, flattenProfile, routeConfig,
+    errorHandler, tokenManager) and every reusable UI primitive (Button,
+    Card, Modal, Input, Toggle, etc.) in complete isolation - no network,
+    no router, no backend. This closes the gap flagged earlier in this
+    document. Coverage on the files actually under test: 90% statements /
+    89% branches / 98% functions / 92% lines - comfortably over the 80/70/
+    80/80 gate.
+
 Presentation narrative in one sentence: "We went from zero automated tests
-to 196 automated tests across three layers of the testing pyramid (unit,
+to 329 automated tests across three layers of the testing pyramid (unit,
 integration, end-to-end), covering 90% of our documented test case catalog,
 and a systematic code review surfaced 38 real bugs including 4 critical
 ones we can now track and fix with evidence instead of guesswork."
@@ -100,6 +118,8 @@ ones we can now track and fix with evidence instead of guesswork."
 
     Layer          Where                                    Count
     -------------- ---------------------------------------- -----
+    Unit           Frontend (pure utils + UI components,
+                   18 files - see below)                      133
     Unit           Rag_Chatbot (pure Groq-response parsing,
                    HTTP retry logic, API-key rotation logic)   21
     Integration    Backend Node (14 route files)              122
@@ -107,13 +127,42 @@ ones we can now track and fix with evidence instead of guesswork."
     Integration    Rag_Chatbot (Python, 3 routes)               17
     E2E            Frontend (Playwright, 7 spec files)          11
     -------------- ---------------------------------------- -----
-    TOTAL                                                     196
+    TOTAL                                                     329
 
-  Honest gaps (not written this session - flagged, not hidden):
-    - Frontend unit tests (Vitest + React Testing Library, testing a single
-      component in isolation): the tooling is configured and ready
-      (frontend/vitest.config.js) but zero component test files exist yet.
-      Frontend is currently covered only by E2E, not unit tests.
+  Frontend unit tests, broken down (all in src/, co-located next to the
+  file they test, e.g. mentorLevel.js + mentorLevel.test.js side by side):
+
+    Pure functions (no rendering at all):
+      utils/mentorLevel.test.js         12 tests
+      utils/profileCompletion.test.js    6 tests
+      utils/flattenProfile.test.js      16 tests
+      routes/routeConfig.test.js        18 tests
+      utils/errorHandler.test.js        13 tests  (mocks react-toastify -
+                                                    the only side effect)
+      utils/tokenManager.test.js         6 tests  (real jsdom localStorage,
+                                                    no mocking needed)
+    UI components (React Testing Library, render in isolation, no network,
+    no router, no real backend):
+      components/common/Avatar.test.jsx       7 tests
+      components/common/Badge.test.jsx        5 tests
+      components/common/Button.test.jsx       7 tests
+      components/common/Card.test.jsx         4 tests
+      components/common/EmptyState.test.jsx   5 tests
+      components/common/ErrorBoundary.test.jsx 4 tests
+      components/common/Input.test.jsx        5 tests
+      components/common/KpiCard.test.jsx      6 tests
+      components/common/Modal.test.jsx        5 tests
+      components/common/Select.test.jsx       5 tests
+      components/common/Textarea.test.jsx     5 tests
+      components/common/Toggle.test.jsx       4 tests
+
+  Honest gaps still remaining (flagged, not hidden):
+    - Only the pure utils and the 12 shared UI primitives (common/) have
+      unit tests. The actual page components (MentorDashboard, Booking,
+      AdminDashboard, etc.) are covered by E2E, not unit tests - they call
+      real APIs and compose many child components, so a "unit" test of a
+      whole page would really be an integration test anyway (see the
+      definitions in this section).
     - Backend Node unit tests: all 122 backend tests go through the real
       Express app (Supertest), so they are integration tests, not isolated
       unit tests of a single function. This is intentional (it's what
@@ -124,6 +173,10 @@ ones we can now track and fix with evidence instead of guesswork."
       Stripe payment code and Google OAuth, which need real/mocked external
       services that weren't wired up. This was a deliberate scope decision,
       not an oversight - see qa/TEST_PLAN.md section 8.
+    - The frontend coverage percentage in Section 1 (90%/89%/98%/92%) is
+      scoped to the 13 source files that actually have unit tests, not the
+      whole frontend codebase - most page components have zero unit-level
+      coverage (again, by design - they're covered by E2E instead).
 
 
 4. HOW TO RUN EACH TYPE OF TEST MANUALLY (commands)
@@ -198,17 +251,64 @@ All commands below assume PowerShell, starting from the project root
   since the E2E tests talk to the real API.
 
   ---------------------------------------------------------------
-  D) FRONTEND UNIT TESTS (Vitest — harness ready, no tests written yet)
+  D) FRONTEND UNIT TESTS (Vitest + React Testing Library)
   ---------------------------------------------------------------
   cd frontend
-  npx vitest run                       # currently reports "no test files
-                                        # found" — this is the honest gap
-                                        # from Section 3, not a bug in the
-                                        # command.
+
+  npx vitest run                       # run all 133 tests once, then exit
+  npx vitest run --coverage            # same, plus a coverage report
+  npx vitest run src/utils             # just the pure-function tests
+  npx vitest run src/components/common # just the UI component tests
+  npx vitest run src/utils/mentorLevel.test.js   # just one file
+
+  npm test                             # opens Vitest's interactive WATCH
+                                        # mode (same caveat as backend's -
+                                        # press "q" to quit)
+
+  Reports land in: frontend/reports/unit-junit.xml and
+  frontend/reports/coverage/index.html (open in a browser).
 
 
 5. WHAT EACH NEW FILE / FOLDER IS FOR
 =================================================
+
+  --- frontend/src/test/  (shared unit-test infrastructure) ---
+  test/setup.js               Wires up two things every unit test needs:
+                             jest-dom's extra matchers (toBeInTheDocument,
+                             toHaveClass, toBeDisabled, ...) and automatic
+                             DOM cleanup between tests (without this,
+                             components from an earlier test in the same
+                             file stay in the page and the next test finds
+                             duplicates).
+  vitest.config.js            Updated to point at that setup file and to
+                             use jsdom (a fake browser environment) so
+                             component tests can run without a real browser.
+
+  --- frontend/src/utils/*.test.js, routes/routeConfig.test.js  (pure-logic
+      unit tests - no rendering, no network, fastest tests in the repo) ---
+  mentorLevel.test.js          Tests the mentor-experience-level calculation
+                             (junior/intermediate/senior by registration date).
+  profileCompletion.test.js    Tests the "profile X% complete" calculation.
+  flattenProfile.test.js       Tests the mentor/mentee data-reshaping logic
+                             that bridges the backend's nested profile shape
+                             to the flat shape the dashboards expect.
+  errorHandler.test.js         Tests which user-facing message gets shown
+                             for each kind of API error (mocks the toast
+                             library so no real UI popup happens in tests).
+  tokenManager.test.js          Tests the login-token storage wrapper.
+  routeConfig.test.js           Tests the page-key <-> URL-path translation
+                             layer described in Section 2/6.
+
+  --- frontend/src/components/common/*.test.jsx  (component unit tests -
+      React Testing Library renders each component alone, no network,
+      no router, no other components involved) ---
+  One test file per shared UI building block used across the whole app:
+  Avatar, Badge, Button, Card, EmptyState, ErrorBoundary, Input, KpiCard,
+  Modal, Select, Textarea, Toggle. Each file checks that component's own
+  behavior in isolation (e.g. Button.test.jsx checks that clicking calls
+  onClick, that "loading" disables it and shows a spinner, etc.) - if one
+  of these breaks, every page that uses that component would be affected,
+  so this is a highly leveraged place to have tests.
 
   --- frontend/e2e/  (Playwright E2E suite) ---
   playwright.config.js       Playwright's main config: reporters, retries,
@@ -279,7 +379,8 @@ All commands below assume PowerShell, starting from the project root
   --- qa/  (the actual deliverables) ---
   TEST_PLAN.md                 The test plan document (Section 1).
   test_cases_testrail_import.csv   130 test cases, import into TestRail.
-  bugs_jira_import.csv         38 bugs, import into Jira (see Section 8).
+  bugs_jira_import.csv         38 bugs — source CSV, already created live in
+                              Jira via API this session (see Section 8).
 
   --- .claude/skills/  (not test files - guidance for future test-writing) ---
   testing-strategy, vitest, supertest, playwright, pytest / SKILL.md
@@ -357,97 +458,58 @@ Full detail (repro steps, expected vs actual) is in the CSV. Summary:
   fields, deleting a user leaves orphaned records behind).
 
 
-8. HOW JIRA WORKS - FROM ZERO (no account, never used it before)
+8. JIRA - ALL 38 BUGS ARE ALREADY LIVE (created via API this session)
 =================================================
-Jira is a ticket-tracking tool: each bug/task becomes one "issue" with a
-title, description, priority, status (To Do / In Progress / Done), and
-whoever it's assigned to. Here's the full path from nothing to having all
-38 bugs sitting in front of you as tickets.
+You supplied your site URL, project key, email, and an API token, so instead
+of the CSV-import wizard, all 38 tickets were created directly via Jira's
+REST API (POST /rest/api/3/issue) — no manual import step was needed.
 
-  STEP 1 - Create a free account
+  WHERE TO LOOK
   -------------------------------
-  1. Go to https://www.atlassian.com/software/jira
-  2. Click "Get it free" (or "Try it free").
-  3. Sign up with your email (or Google account) - no credit card needed
-     for the free tier.
-  4. You'll be asked to name your "site" - this becomes a URL like
-     yourcompany.atlassian.net. Pick anything (e.g. "prolign-qa").
+  Site: https://prolign.atlassian.net   Project: PRO ("ProLign")
+  Tickets: PRO-2 through PRO-39 (38 issues, type "Bug")
+  Board: https://prolign.atlassian.net/jira/software/projects/PRO/boards
+  All 38 at once (JQL): project = PRO AND labels = "qa-bulk-import-2026-07"
 
-  STEP 2 - Create a project
+  HOW EACH FIELD WAS MAPPED
   -------------------------------
-  1. After signup, Jira will prompt "Create a project" - if it doesn't,
-     click the "Projects" menu at the top, then "Create project."
-  2. Pick a template. For this use case, choose "Bug tracking" if offered,
-     otherwise "Kanban board" (simplest, works fine for tracking bugs).
-  3. Give it a name (e.g. "ProLign") and a short project key (Jira
-     suggests one automatically, e.g. "PRO") - you'll see this key
-     prefixed on every ticket (PRO-1, PRO-2, ...).
-  4. Click Create. You now have an empty board.
+    title                          -> Summary
+    description + steps_to_reproduce
+      + expected + actual          -> Description (one field, broken into
+                                        labelled sub-sections: the write-up,
+                                        then "Steps to Reproduce", "Expected",
+                                        "Actual")
+    severity (Critical/High/Medium/Low)
+                                    -> Priority (Highest/High/Medium/Low —
+                                        Jira's default scheme has no
+                                        "Critical," so Critical maps to
+                                        Highest)
+    component (Frontend/Backend-API/AI-Service/Database)
+                                    -> a Label (this project's Bug issue
+                                        type doesn't have a Components field
+                                        enabled, so labels carry it instead,
+                                        e.g. "backend-api", "ai-service")
+    status                         -> the 8 rows marked Resolved in the CSV
+                                        were created, then immediately
+                                        transitioned to the "Done" workflow
+                                        status via a follow-up API call
+                                        (PRO-2 through PRO-9). The other 30
+                                        stayed in the default "To Do" status.
+  Every ticket also carries a "qa-bulk-import-2026-07" label and a severity
+  label (e.g. "critical", "medium") for easy filtering.
 
-  STEP 3 - Import the 38 bugs from the CSV
+  USEFUL FILTERS (paste into Jira's search bar, top of the page)
   -------------------------------
-  1. Click the gear/settings icon in the top-right corner.
-  2. Go to "System" (in the left sidebar of the settings page).
-  3. Scroll to the "Import and export" section, click
-     "External system import."
-  4. Choose "CSV" as the import source.
-  5. Upload qa/bugs_jira_import.csv (from this project's qa/ folder).
-  6. Jira will show you a field-mapping screen - this is the only fiddly
-     part. Map columns like this:
-       title              -> Summary
-       description        -> Description   (this is the most important
-                                              one - it has the full write-
-                                              up for each bug)
-       severity           -> Priority
-       component          -> Component/s  (or "Labels" if Component/s
-                                             isn't offered)
-       status             -> Labels        (Jira's CSV importer usually
-                                             can't set the actual workflow
-                                             Status column directly on
-                                             import - every ticket will
-                                             land in "To Do" regardless.
-                                             Mapping "status" to a Label
-                                             instead just tags the 8
-                                             already-fixed ones so you can
-                                             filter them, then you can
-                                             manually drag those 8 to
-                                             "Done" afterward.)
-       steps_to_reproduce, expected, actual
-                          -> leave unmapped for now (Jira's default issue
-                             type only has one free-text Description
-                             field; these 3 extra columns have the full
-                             detail if you want to add custom fields for
-                             them later, but that's optional setup you can
-                             skip for a first pass)
-  7. Click through the wizard and confirm the import. Jira will create
-     all 38 tickets in one shot - this takes under a minute.
+    project = PRO AND priority = Highest          -> the 4 Critical bugs
+    project = PRO AND status = Done               -> the 8 already-fixed ones
+    project = PRO AND status != Done               -> the 30 still open
+    project = PRO AND labels = "backend-api"      -> just the backend bugs
 
-  STEP 4 - After import
-  -------------------------------
-  - You'll see 38 new issues on your board, all in "To Do."
-  - Click any issue to see its full write-up (title, description,
-    priority).
-  - Filter/sort by Priority to see the 4 Critical ones first (top-right
-    "Filter" or search bar, type "priority = Critical" if using Jira's
-    query language, or just click the Priority column header to sort).
-  - Drag the 8 already-fixed ones to "Done" (or bulk-select them and use
-    the "..." menu -> Edit -> change Status).
-
-  IF YOU'D RATHER SKIP THE CSV STEP ENTIRELY
-  -------------------------------
-  Two other options exist if the manual CSV import above feels like too
-  much manual work later on:
-  (a) Give me a Jira API token (Jira Settings -> your account -> Security
-      -> API tokens -> Create) plus your site URL and project key. I can
-      then create all 38 tickets for you directly via Jira's API, no CSV
-      import screen needed at all.
-  (b) Authorize the Jira/Atlassian connector for this AI assistant
-      (through Claude's connector settings, or by typing /mcp in an
-      interactive session) - once authorized, in a future session I could
-      create/update tickets directly, live, one at a time, the same way
-      you'd do it by hand but automated.
-  Both need a one-time setup step from you; the CSV import above needs
-  nothing extra and works today.
+  qa/bugs_jira_import.csv remains the source-of-truth file in the repo (and
+  still works with the manual CSV-import wizard — Settings -> System ->
+  External system import -> CSV — if you ever need to re-import into a
+  different Jira site or hand it to another tool), but for THIS Jira project
+  the tickets already exist; there's nothing left to import.
 
 
 9. QUICK COMMAND CHEAT-SHEET
@@ -473,6 +535,14 @@ whoever it's assigned to. Here's the full path from nothing to having all
     cd backend\Rag_Chatbot\app
     venv\Scripts\Activate.ps1
     pytest
+
+  Frontend unit tests:
+    cd frontend
+    npx vitest run
+
+  Frontend unit + coverage:
+    cd frontend
+    npx vitest run --coverage
 
   E2E tests (headless):
     cd frontend

@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
     test: {
         environment: "jsdom",
+        setupFiles: ['./src/test/setup.js'],
         // Vitest's default include glob (**/*.spec.js) would otherwise also
         // pick up frontend/e2e/*.spec.js — those are Playwright specs (a
         // different test runner, driving a real browser via playwright.config.js),
