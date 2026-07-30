@@ -1,0 +1,62 @@
+{
+  "tests": {
+    "frontend/e2e/tests/admin.spec.js::admin can view a mentor's detail and delete them": {
+      "layer": "e2e",
+      "occurrences": [
+        {
+          "date": "2026-07-29",
+          "runType": "local",
+          "errorType": "Error (Test timeout of 30000ms exceeded)",
+          "errorMessage": "expect(page).toHaveURL(/\\/admin/) failed, stuck on /login, Timeout: 5000ms",
+          "classification": "bug",
+          "isolatedRerun": "failed 2/2 (repeat-each=2) — same file, mentee sub-test also failed 2/2"
+        },
+        {
+          "date": "2026-07-29",
+          "runType": "local",
+          "errorType": "Error (Test timeout of 30000ms exceeded)",
+          "errorMessage": "expect(memberRow).toHaveCount(0) failed — row still present 5s after delete click",
+          "classification": "bug",
+          "isolatedRerun": "not run this occurrence — new symptom, root cause candidate logged on PRO-39 (empty avatar src reload storm) instead"
+        }
+      ],
+      "jiraTicket": "PRO-41"
+    },
+    "frontend/e2e/tests/admin.spec.js::admin can view a mentee's detail and delete them": {
+      "layer": "e2e",
+      "occurrences": [
+        {
+          "date": "2026-07-29",
+          "runType": "local",
+          "errorType": "Error (Test timeout of 30000ms exceeded)",
+          "errorMessage": "memberRow(...).toBeVisible({timeout: 10000}) failed; DOM snapshot at final timeout shows the row WAS present, rendered late",
+          "classification": "bug",
+          "isolatedRerun": "failed 2/2 (repeat-each=2) — same file, mentor sub-test also failed 2/2"
+        },
+        {
+          "date": "2026-07-29",
+          "runType": "local",
+          "errorType": "Error (Test timeout of 30000ms exceeded)",
+          "errorMessage": "expect(page).toHaveURL(/\\/admin/) failed, stuck on /login, Timeout: 5000ms",
+          "classification": "bug",
+          "isolatedRerun": "not run this occurrence — same signature as prior occurrence, already tracked under PRO-41"
+        }
+      ],
+      "jiraTicket": "PRO-41"
+    },
+    "frontend/e2e/tests/booking.spec.js::mentee can browse a mentor's availability and book a session": {
+      "layer": "e2e",
+      "occurrences": [
+        {
+          "date": "2026-07-29",
+          "runType": "local",
+          "errorType": "Error (Test timeout of 30000ms exceeded)",
+          "errorMessage": "Never progressed past registerAndVerify/slot setup; page snapshot shows the pristine, untouched landing page",
+          "classification": "flaky",
+          "isolatedRerun": "not run — matches PRO-41's documented blocking-SMTP/register contention, logged there rather than isolated separately"
+        }
+      ],
+      "jiraTicket": "PRO-41"
+    }
+  }
+}

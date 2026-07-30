@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "bddgen && playwright test",
+    "test:triage": "node ../qa/scripts/run_tests_and_triage.mjs unit npx vitest run",
+    "test:e2e:triage": "node ../qa/scripts/run_tests_and_triage.mjs e2e npm run test:e2e"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.8.0",
@@ -39,6 +41,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
+    "playwright-bdd": "^9.2.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "vite": "^8.0.12",

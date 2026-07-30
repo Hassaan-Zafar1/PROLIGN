@@ -55,6 +55,7 @@ ehthumbs.db
 coverage/
 .jest/
 reports/
+e2e/.features-gen/
 
 # Runtime
 tmp/

@@ -2,7 +2,13 @@
 // imports from here instead of '@playwright/test' directly. One fixture per
 // page object; specs destructure whichever they need instead of constructing
 // page objects themselves.
-import { test as base, expect } from '@playwright/test';
+//
+// `test` is built on playwright-bdd's wrapper (not '@playwright/test' directly)
+// so that `createBdd(test)` below can generate Given/When/Then bound to these
+// same fixtures — step definitions destructure fixtures exactly like the old
+// test bodies did. `expect` is untouched, still straight from '@playwright/test'.
+import { test as base, createBdd } from 'playwright-bdd';
+import { expect } from '@playwright/test';
 import { LandingPage } from '../pages/LandingPage.js';
 import { LoginPage } from '../pages/LoginPage.js';
 import { MenteeRegistrationPage } from '../pages/MenteeRegistrationPage.js';
@@ -31,6 +37,14 @@ export const test = base.extend({
   mentorDashboardPage: async ({ page }, use) => { await use(new MentorDashboardPage(page)); },
   testUsers: async ({}, use) => { await use(testUsers); },
   api: async ({}, use) => { await use(api); },
+  // Per-scenario scratch space for BDD step definitions to pass state between
+  // Given/When/Then (e.g. the account a "Given a verified mentor account
+  // exists" step just created). A plain module-level variable would be shared
+  // — and racy — across concurrently-running scenarios under fullyParallel;
+  // a fixture is re-created fresh per test, giving each scenario the same
+  // isolation the original tests got for free from their local `const` closures.
+  world: async ({}, use) => { await use({}); },
 });
 
+export const { Given, When, Then } = createBdd(test);
 export { expect };
