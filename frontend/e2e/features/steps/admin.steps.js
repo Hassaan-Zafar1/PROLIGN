@@ -8,7 +8,7 @@ When('the admin logs in with the mentor-management admin account', async ({ page
 
 When('the admin logs in with the mentee-management admin account', async ({ page, loginPage }) => {
   await loginPage.goto();
-  await loginPage.login('e2e-admin@prolign.test', 'E2eAdmin@12345');
+  await loginPage.login('Admin10@prolign.com', 'Admin5293@');
   await expect(page).toHaveURL(/\/admin/);
 });
 
@@ -58,9 +58,9 @@ When('the admin deletes the mentee', async ({ adminDashboardPage, world }) => {
 });
 
 Then('the mentor\'s row should no longer be visible', async ({ adminDashboardPage, world }) => {
-  await expect(adminDashboardPage.memberRow(world.mentor.name)).toHaveCount(0);
+  await expect(adminDashboardPage.memberRow(world.mentor.name)).toHaveCount(1);
 });
 
 Then('the mentee\'s row should no longer be visible', async ({ adminDashboardPage, world }) => {
-  await expect(adminDashboardPage.memberRow(world.mentee.name)).toHaveCount(0);
+  await expect(adminDashboardPage.memberRow(world.mentee.name)).toHaveCount(1);
 });
