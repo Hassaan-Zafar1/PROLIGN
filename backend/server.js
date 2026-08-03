@@ -11,6 +11,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import "./config/passport.js";
 import { extractClientInfo } from "./middleware/auth.js";
 import testHelperRoutes from "./routes/testHelpers.js";
+import { initCronJobs } from "./services/cronService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,6 +101,10 @@ import sessionRoutes from "./routes/sessions.js";
 app.use("/api/sessions", sessionRoutes);
 import paymentRoutes from "./routes/payments.js";
 app.use("/api/payments", paymentRoutes);
+import escrowRoutes from "./routes/escrow.js";
+app.use("/api", escrowRoutes);
+import walletRoutes from "./routes/wallet.js";
+app.use("/api", walletRoutes);
 import reviewRoutes from "./routes/reviews.js";
 app.use("/api/reviews", reviewRoutes);
 import notificationRoutes from "./routes/notifications.js";
@@ -133,6 +138,7 @@ app.use(errorHandler);
 // ─── Start Server ─────────────────────────────────────────────────────────────
 async function startServer() {
   await connectDB();
+  initCronJobs();
 
   const server = app.listen(env.PORT, () => {
     console.log(` Server running on http://localhost:${env.PORT}`);

@@ -24,6 +24,7 @@ import { reviewService } from '../services/reviewService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
+import MentorWallet from './MentorWallet';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -482,6 +483,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     { id: 'sessions', icon: 'event_available', label: 'My Sessions' },
     { id: 'availability', icon: 'calendar_month', label: 'Availability' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
+    { id: 'mentor-wallet', icon: 'account_balance_wallet', label: 'Wallet' },
     { id: 'ratings', icon: 'star', label: 'Ratings' },
     { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
@@ -1000,6 +1002,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     switch (activeView) {
       case 'dashboard': return renderDashboard();
       case 'earnings': return renderEarnings();
+      case 'mentor-wallet': return <MentorWallet navigateTo={navigateTo} />;
       case 'ratings': return renderRatings();
       case 'settings': return renderSettings();
       case 'availability': return <AvailabilityScheduler mentorId={user?.id} />;
