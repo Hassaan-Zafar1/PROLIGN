@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, restrictTo } from "../middleware/auth.js";
+import { protect, optionalAuth, restrictTo } from "../middleware/auth.js";
 import { validateObjectId } from "../middleware/validateObjectId.js";
 import {
   listAvailability,
@@ -10,15 +10,17 @@ import {
 } from "../controllers/availabilityController.js";
 
 const router = express.Router();
-router.use(protect);
 
+// Reads are public (browsing a mentor's slots via ?mentorId= needs no login;
+// optionalAuth still attaches req.user when present, for a mentor's own
+// dashboard management view). Writes require a real session.
 router.route("/")
-  .get(listAvailability)
-  .post(restrictTo("mentor", "admin"), createAvailability);
+  .get(optionalAuth, listAvailability)
+  .post(protect, restrictTo("mentor", "admin"), createAvailability);
 
 router.route("/:id")
-  .get(validateObjectId, getAvailability)
-  .patch(validateObjectId, restrictTo("mentor", "admin"), updateAvailability)
-  .delete(validateObjectId, restrictTo("mentor", "admin"), deleteAvailability);
+  .get(validateObjectId, optionalAuth, getAvailability)
+  .patch(validateObjectId, protect, restrictTo("mentor", "admin"), updateAvailability)
+  .delete(validateObjectId, protect, restrictTo("mentor", "admin"), deleteAvailability);
 
 export default router;

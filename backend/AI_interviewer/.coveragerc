@@ -1,0 +1,13 @@
+[run]
+omit =
+    venv/*
+    tests/*
+    conftest.py
+    reports/*
+    __pycache__/*
+    # Legacy/dead code — superseded by services/interview_service.py +
+    # api/routes.py (confirmed unreachable from main.py's actual import
+    # chain), not part of the running FastAPI service this suite verifies.
+    api.py
+    interviewer.py
+    cli_runner.py

@@ -1,0 +1,557 @@
+ProLign QA Automation — Summary & Presentation Guide
+=====================================================
+Prepared for: weekly QA deliverables (test plan, test cases, automated E2E,
+bugs -> Jira, API test collections -> TestRail).
+
+
+1. WHAT WAS DELIVERED (map to your original ask)
+=================================================
+
+  Deliverable                          Status   Where
+  ------------------------------------ -------- --------------------------------
+  Test plan                            Done     qa/TEST_PLAN.md
+  Test cases covering all features     Done     qa/test_cases_testrail_import.csv
+                                                 (130 cases, 117 automated = 90%)
+  Automated end-to-end test cases      Done     frontend/e2e/tests/*.spec.js (11 tests)
+  Bugs filed in Jira                   Done     Live in project PRO — PRO-2..PRO-39 (38 bugs).
+                                                 Source CSV: qa/bugs_jira_import.csv
+  API testing (TestRail-ready)         Done     backend/*.test.js (122 tests) +
+                                                 the same test_cases CSV, importable
+                                                 into TestRail directly (no separate
+                                                 Postman collection was needed since
+                                                 the API layer is now covered by real
+                                                 automated tests, not manual Postman
+                                                 calls — your existing
+                                                 how_to_test_using_postman.txt /
+                                                 Apis_test_result.txt remain useful
+                                                 for ad-hoc manual/exploratory checks)
+  Frontend unit tests (bonus - not in   Done     frontend/src/**/*.test.{js,jsx}
+  the original 5 asks, added after a             (133 tests, 18 files)
+  follow-up question about what counts
+  as a true "unit" test on the frontend)
+
+No TestRail account is connected to this session, so that deliverable is a CSV
+you import yourself. Jira, however, IS connected — you provided a site URL,
+project key, email, and API token, so all 38 bugs were created directly via
+Jira's REST API this session (no manual CSV import needed). Section 8 below
+covers where to find them and how the CSV maps to what's now live.
+
+
+2. THE OVERALL FLOW (for your presentation)
+=================================================
+
+The work was split into 6 phases, each building on the last:
+
+  Phase 0 - Tooling setup
+    Installed and configured the 4 test frameworks the project needed:
+    Playwright (E2E), Vitest + Supertest (backend API), pytest (both Python
+    AI services). Before this, the repo had zero test tooling except an
+    unused frontend Vitest config.
+
+  Phase 1 - Test plan (qa/TEST_PLAN.md)
+    Scope, strategy per layer, environments, coverage gates, retry policy,
+    CI/CD strategy, risk register.
+
+  Phase 2 - Test case catalog (qa/test_cases_testrail_import.csv)
+    130 test cases across 17 feature areas (Auth, Mentor Discovery, CV
+    Parsing, Mentee Interview, Admin, Availability, Sessions/Booking,
+    Payments, Reviews, Notifications, Chat, Profile CRUD, AI Interviewer,
+    RAG Chatbot, Regression). This is your TestRail import file.
+
+  Phase 3 - Automated E2E tests (Playwright)
+    6 critical user journeys automated end-to-end against the real running
+    app in a real browser: guest browsing, login/logout (all 3 roles),
+    admin CRUD, booking, mentor signup, mentee signup.
+
+  Phase 4 - Automated API tests (Vitest + Supertest, Node backend)
+    122 tests across all 14 backend route files. Found and fixed a real
+    bug along the way (CV upload was crashing on every request).
+
+  Phase 5 - Automated AI-service tests (pytest, the two Python services)
+    63 tests across AI_interviewer (the interview chatbot) and Rag_Chatbot
+    (the support chatbot). Found and fixed a real bug (CSV export crash).
+
+  Phase 6 - Bug hunt -> Jira import file
+    A dedicated code-review pass (3 parallel reviews: frontend, backend
+    API, database/schema) on top of everything found while writing Phases
+    3-5. Result: 38 bugs total, 8 already fixed this pass, 30 still open
+    (4 Critical, 10 High, 15 Medium, 1 Low) - see Section 7.
+
+  Phase 7 - Frontend unit tests (added after a follow-up question about
+  what genuinely counts as a "unit" test on the frontend)
+    18 test files, 133 tests, covering every pure utility function
+    (mentorLevel, profileCompletion, flattenProfile, routeConfig,
+    errorHandler, tokenManager) and every reusable UI primitive (Button,
+    Card, Modal, Input, Toggle, etc.) in complete isolation - no network,
+    no router, no backend. This closes the gap flagged earlier in this
+    document. Coverage on the files actually under test: 90% statements /
+    89% branches / 98% functions / 92% lines - comfortably over the 80/70/
+    80/80 gate.
+
+Presentation narrative in one sentence: "We went from zero automated tests
+to 329 automated tests across three layers of the testing pyramid (unit,
+integration, end-to-end), covering 90% of our documented test case catalog,
+and a systematic code review surfaced 38 real bugs including 4 critical
+ones we can now track and fix with evidence instead of guesswork."
+
+
+3. THE TESTING PYRAMID — WHAT "UNIT / INTEGRATION / E2E" MEANS HERE
+=====================================================================
+
+  UNIT TESTS
+    Test one small piece of pure logic in complete isolation - no network,
+    no database, no other files involved. Fastest, most precise.
+
+  INTEGRATION TESTS
+    Test a full request going through the real app: route -> controller ->
+    service -> database, but the "database" is a fake in-memory one and
+    external services (Groq AI, Stripe, Slack) are mocked. Confirms the
+    pieces work together correctly, without needing the real servers/keys.
+
+  END-TO-END (E2E) TESTS
+    Drive the actual app the way a real user would: a real Chrome browser,
+    against the real frontend dev server and the real backend, clicking
+    real buttons. Slowest, but the closest thing to "does this actually
+    work for a user."
+
+  Exact counts written this session:
+
+    Layer          Where                                    Count
+    -------------- ---------------------------------------- -----
+    Unit           Frontend (pure utils + UI components,
+                   18 files - see below)                      133
+    Unit           Rag_Chatbot (pure Groq-response parsing,
+                   HTTP retry logic, API-key rotation logic)   21
+    Integration    Backend Node (14 route files)              122
+    Integration    AI_interviewer (Python, 10 routes)          25
+    Integration    Rag_Chatbot (Python, 3 routes)               17
+    E2E            Frontend (Playwright, 7 spec files)          11
+    -------------- ---------------------------------------- -----
+    TOTAL                                                     329
+
+  Frontend unit tests, broken down (all in src/, co-located next to the
+  file they test, e.g. mentorLevel.js + mentorLevel.test.js side by side):
+
+    Pure functions (no rendering at all):
+      utils/mentorLevel.test.js         12 tests
+      utils/profileCompletion.test.js    6 tests
+      utils/flattenProfile.test.js      16 tests
+      routes/routeConfig.test.js        18 tests
+      utils/errorHandler.test.js        13 tests  (mocks react-toastify -
+                                                    the only side effect)
+      utils/tokenManager.test.js         6 tests  (real jsdom localStorage,
+                                                    no mocking needed)
+    UI components (React Testing Library, render in isolation, no network,
+    no router, no real backend):
+      components/common/Avatar.test.jsx       7 tests
+      components/common/Badge.test.jsx        5 tests
+      components/common/Button.test.jsx       7 tests
+      components/common/Card.test.jsx         4 tests
+      components/common/EmptyState.test.jsx   5 tests
+      components/common/ErrorBoundary.test.jsx 4 tests
+      components/common/Input.test.jsx        5 tests
+      components/common/KpiCard.test.jsx      6 tests
+      components/common/Modal.test.jsx        5 tests
+      components/common/Select.test.jsx       5 tests
+      components/common/Textarea.test.jsx     5 tests
+      components/common/Toggle.test.jsx       4 tests
+
+  Honest gaps still remaining (flagged, not hidden):
+    - Only the pure utils and the 12 shared UI primitives (common/) have
+      unit tests. The actual page components (MentorDashboard, Booking,
+      AdminDashboard, etc.) are covered by E2E, not unit tests - they call
+      real APIs and compose many child components, so a "unit" test of a
+      whole page would really be an integration test anyway (see the
+      definitions in this section).
+    - Backend Node unit tests: all 122 backend tests go through the real
+      Express app (Supertest), so they are integration tests, not isolated
+      unit tests of a single function. This is intentional (it's what
+      actually matters for an API), but if asked "how many pure unit
+      tests does the Node backend have," the honest answer is zero.
+    - Backend coverage gate (80% statements/lines, 70% branches) is not
+      fully met yet - currently ~73%/58%/79%/79%. The shortfall is mostly
+      Stripe payment code and Google OAuth, which need real/mocked external
+      services that weren't wired up. This was a deliberate scope decision,
+      not an oversight - see qa/TEST_PLAN.md section 8.
+    - The frontend coverage percentage in Section 1 (90%/89%/98%/92%) is
+      scoped to the 13 source files that actually have unit tests, not the
+      whole frontend codebase - most page components have zero unit-level
+      coverage (again, by design - they're covered by E2E instead).
+
+
+4. HOW TO RUN EACH TYPE OF TEST MANUALLY (commands)
+=================================================
+
+All commands below assume PowerShell, starting from the project root
+(C:\Users\user\Desktop\PROLIGN) unless a "cd" is shown.
+
+  ---------------------------------------------------------------
+  A) BACKEND INTEGRATION TESTS (Node, Vitest + Supertest)
+  ---------------------------------------------------------------
+  cd backend
+
+  npx vitest run                       # run all 122 tests once, then exit
+  npx vitest run --coverage            # same, plus a coverage report
+  npx vitest run auth.test.js          # run just one file
+  npx vitest run -t "TC-AUTH-011"      # run just one test by name
+
+  npm test                             # opens Vitest's interactive WATCH mode
+                                        # (stays running, re-runs tests as you
+                                        # edit files - press "q" to quit).
+                                        # Use "npx vitest run" instead for a
+                                        # single pass that exits on its own.
+  npm run test:coverage                # same as "npx vitest run --coverage"
+
+  Reports land in: backend/reports/ (JUnit XML) and
+  backend/reports/coverage/index.html (open this in a browser for a
+  clickable, line-by-line coverage report - good for a demo).
+
+  ---------------------------------------------------------------
+  B) AI-SERVICE INTEGRATION + UNIT TESTS (Python, pytest)
+  ---------------------------------------------------------------
+  Each Python service has its own virtual environment - activate it first.
+
+  AI_interviewer (25 tests):
+    cd backend\AI_interviewer
+    venv\Scripts\Activate.ps1
+    pytest                              # runs everything, with coverage
+    pytest tests\test_routes.py -v      # just the route tests, verbose
+    pytest -k "TC_AI_001"               # run a test by name pattern
+    deactivate                          # when done
+
+  Rag_Chatbot (38 tests):
+    cd backend\Rag_Chatbot\app
+    venv\Scripts\Activate.ps1
+    pytest                              # runs everything, with coverage
+    pytest tests\test_routes.py -v
+    pytest tests\test_http_client_and_key_pool.py -v   # just the unit tests
+    deactivate
+
+  Reports land in: reports/junit.xml and reports/coverage/index.html
+  inside each service's own folder.
+
+  ---------------------------------------------------------------
+  C) FRONTEND E2E TESTS (Playwright, real browser)
+  ---------------------------------------------------------------
+  cd frontend
+
+  npx playwright test                  # run all 11 tests, headless, parallel
+  npx playwright test --workers=1      # run serially (steadier, slower)
+  npx playwright test --headed         # SHOW the browser while it runs -
+                                        # best option for a live demo
+  npx playwright test --debug          # step through one action at a time
+  npx playwright test e2e\tests\login.spec.js   # just one file
+
+  npx playwright show-report           # opens the last HTML report in
+                                        # your browser (screenshots/video
+                                        # on failure, full trace viewer)
+
+  Note: Playwright auto-starts the frontend dev server for you. The
+  backend must already be running separately (npm run dev in backend/)
+  since the E2E tests talk to the real API.
+
+  ---------------------------------------------------------------
+  D) FRONTEND UNIT TESTS (Vitest + React Testing Library)
+  ---------------------------------------------------------------
+  cd frontend
+
+  npx vitest run                       # run all 133 tests once, then exit
+  npx vitest run --coverage            # same, plus a coverage report
+  npx vitest run src/utils             # just the pure-function tests
+  npx vitest run src/components/common # just the UI component tests
+  npx vitest run src/utils/mentorLevel.test.js   # just one file
+
+  npm test                             # opens Vitest's interactive WATCH
+                                        # mode (same caveat as backend's -
+                                        # press "q" to quit)
+
+  Reports land in: frontend/reports/unit-junit.xml and
+  frontend/reports/coverage/index.html (open in a browser).
+
+
+5. WHAT EACH NEW FILE / FOLDER IS FOR
+=================================================
+
+  --- frontend/src/test/  (shared unit-test infrastructure) ---
+  test/setup.js               Wires up two things every unit test needs:
+                             jest-dom's extra matchers (toBeInTheDocument,
+                             toHaveClass, toBeDisabled, ...) and automatic
+                             DOM cleanup between tests (without this,
+                             components from an earlier test in the same
+                             file stay in the page and the next test finds
+                             duplicates).
+  vitest.config.js            Updated to point at that setup file and to
+                             use jsdom (a fake browser environment) so
+                             component tests can run without a real browser.
+
+  --- frontend/src/utils/*.test.js, routes/routeConfig.test.js  (pure-logic
+      unit tests - no rendering, no network, fastest tests in the repo) ---
+  mentorLevel.test.js          Tests the mentor-experience-level calculation
+                             (junior/intermediate/senior by registration date).
+  profileCompletion.test.js    Tests the "profile X% complete" calculation.
+  flattenProfile.test.js       Tests the mentor/mentee data-reshaping logic
+                             that bridges the backend's nested profile shape
+                             to the flat shape the dashboards expect.
+  errorHandler.test.js         Tests which user-facing message gets shown
+                             for each kind of API error (mocks the toast
+                             library so no real UI popup happens in tests).
+  tokenManager.test.js          Tests the login-token storage wrapper.
+  routeConfig.test.js           Tests the page-key <-> URL-path translation
+                             layer described in Section 2/6.
+
+  --- frontend/src/components/common/*.test.jsx  (component unit tests -
+      React Testing Library renders each component alone, no network,
+      no router, no other components involved) ---
+  One test file per shared UI building block used across the whole app:
+  Avatar, Badge, Button, Card, EmptyState, ErrorBoundary, Input, KpiCard,
+  Modal, Select, Textarea, Toggle. Each file checks that component's own
+  behavior in isolation (e.g. Button.test.jsx checks that clicking calls
+  onClick, that "loading" disables it and shows a spinner, etc.) - if one
+  of these breaks, every page that uses that component would be affected,
+  so this is a highly leveraged place to have tests.
+
+  --- frontend/e2e/  (Playwright E2E suite) ---
+  playwright.config.js       Playwright's main config: reporters, retries,
+                             screenshots/video on failure, auto-starts the
+                             dev server.
+  e2e/global-setup.js        Runs once before the whole suite: makes sure a
+                             known admin test account exists.
+  e2e/pages/*.js  (11 files) "Page Objects" - one file per app screen
+                             (LoginPage, BookingPage, AdminDashboardPage,
+                             etc). Each wraps that screen's buttons/inputs
+                             so tests read like plain English instead of
+                             raw CSS selectors.
+  e2e/fixtures/base.js       Wires all the page objects together so every
+                             test can just ask for the ones it needs.
+  e2e/fixtures/apiHelpers.js Direct backend API calls used for fast test
+                             SETUP (e.g. "create a verified mentor
+                             account") so tests don't waste time clicking
+                             through registration when that's not what's
+                             being tested.
+  e2e/data/users.js          Generates unique fake user data per test run
+                             (unique email/name each time, so tests never
+                             collide with each other's leftover data).
+  e2e/data/sampleCv.js       Builds a tiny valid PDF file in memory, used
+                             to test CV upload without needing a real file
+                             on disk.
+  e2e/tests/*.spec.js (7)    The actual tests. 6 are the real user
+                             journeys (guest-browsing, login, admin,
+                             booking, mentor-signup, mentee-signup); smoke.
+                             spec.js is a minimal "does the app load at
+                             all" sanity check from Phase 0.
+
+  --- backend/test/  (shared test infrastructure, not tests themselves) ---
+  test/globalSetup.js        Starts one fake in-memory MongoDB for the
+                              whole test run (so tests never touch your
+                              real database).
+  test/setup.js               Connects each test file to that fake database
+                              and wipes it clean between tests; also makes
+                              sure no test ever sends a real email.
+  test/helpers.js             Shortcuts for common setup ("create a
+                              verified mentee/mentor/admin account and log
+                              them in") reused across all 14 test files.
+  test/sampleCv.js             Same PDF-generator idea as the frontend one,
+                              for backend CV-upload tests.
+  backend/*.test.js (14 files) One file per API area (auth, admin, sessions,
+                              payments, reviews, etc.) - 122 tests total.
+  backend/vitest.config.js    Vitest's config: coverage thresholds, JUnit
+                              reporting, runs test files one at a time
+                              (needed since they share the one fake
+                              database).
+
+  --- backend/AI_interviewer/ and backend/Rag_Chatbot/app/ (Python) ---
+  conftest.py (root)          Makes the fake in-memory MongoDB swap-in
+                              happen BEFORE the app code ever loads (has to
+                              happen this early or it's too late).
+  tests/conftest.py            Wipes the fake database clean between tests.
+  tests/test_health.py         Original Phase 0 smoke test ("does the
+                              service start at all").
+  tests/test_routes.py         The real per-route test suite (24 tests for
+                              AI_interviewer, 16 for Rag_Chatbot).
+  tests/test_http_client_and_key_pool.py,
+  tests/test_groq_client_parsing.py
+                              (Rag_Chatbot only) Pure unit tests for the
+                              retry/rate-limit/API-key-rotation logic and
+                              the AI-response parsing logic.
+  pytest.ini / .coveragerc     Pytest config: coverage thresholds, report
+                              locations, which folders to ignore.
+
+  --- qa/  (the actual deliverables) ---
+  TEST_PLAN.md                 The test plan document (Section 1).
+  test_cases_testrail_import.csv   130 test cases, import into TestRail.
+  bugs_jira_import.csv         38 bugs — source CSV, already created live in
+                              Jira via API this session (see Section 8).
+
+  --- .claude/skills/  (not test files - guidance for future test-writing) ---
+  testing-strategy, vitest, supertest, playwright, pytest / SKILL.md
+                              Short reference docs so that future test
+                              writing (by you, a teammate, or an AI
+                              assistant) follows the same conventions
+                              already established here, instead of
+                              reinventing the pattern each time.
+
+  --- .github/workflows/ci.yml ---
+  A GitHub Actions pipeline scaffold that would run all of the above
+  automatically on every pull request (frontend tests, backend tests, both
+  AI services, E2E). Not yet turned on - needs repo secrets configured
+  first.
+
+
+6. REAL BUGS FOUND AND FIXED WHILE BUILDING THIS (not just theoretical)
+=================================================
+These were caught by the automated tests actually running against real
+code, not found by reading code alone:
+
+  1. Mentor CV upload crashed with a 500 error on every single real
+     request (a PDF-library incompatibility). Fixed in
+     backend/services/pdfTextService.js.
+  2. The AI interview service's mentee CSV export crashed every time any
+     completed profile existed. Fixed in
+     backend/AI_interviewer/services/interview_service.py.
+  3. The backend's login rate-limiter had no separate dev/production
+     setting, so normal testing activity was getting blocked with 429
+     errors. Fixed in backend/routes/auth.js.
+  4. A Playwright test flakiness bug: a booking test occasionally failed
+     because it never explicitly clicked a time slot before continuing -
+     fixed the test itself, not the app, but worth mentioning as a real
+     "test correctness" catch.
+
+These four are why "writing tests" caught real, shippable problems - not
+just busywork.
+
+
+7. THE 38 BUGS FOUND (qa/bugs_jira_import.csv)
+=================================================
+Full detail (repro steps, expected vs actual) is in the CSV. Summary:
+
+  Status     Severity   Count
+  ---------- ---------- -----
+  Resolved   (mixed)      8
+  Open       Critical      4
+  Open       High         10
+  Open       Medium       15
+  Open       Low           1
+  ---------- ---------- -----
+  TOTAL                  38
+
+  The 4 CRITICAL open bugs (recommend fixing before/alongside filing them,
+  not just tracking them):
+
+  1. Real production database password is hardcoded as a fallback value
+     in source code that's committed to git. Recommend rotating that
+     database password regardless of when the Jira ticket gets worked.
+  2. The "record a payment" API endpoint trusts whatever amount and status
+     the client sends - a user could record a fake "paid" transaction
+     without any real Stripe payment happening.
+  3. The "book a session" API endpoint trusts whatever price the client
+     sends instead of using the mentor's real listed price - someone
+     could book a session for $0.
+  4. The AI interview completion endpoint saves data under field names
+     that don't exist in the database schema, so most of what a mentee
+     enters during their interview is silently thrown away.
+
+  The other 34 (10 High, 15 Medium, 1 Low) span frontend UI bugs
+  (e.g. a whole Analytics page that crashes for mentors/admins), backend
+  API bugs (e.g. logging in with a Google-only account crashes instead of
+  showing an error), and database bugs (e.g. two services disagreeing on
+  whether a field should be unique, missing indexes on frequently-searched
+  fields, deleting a user leaves orphaned records behind).
+
+
+8. JIRA - ALL 38 BUGS ARE ALREADY LIVE (created via API this session)
+=================================================
+You supplied your site URL, project key, email, and an API token, so instead
+of the CSV-import wizard, all 38 tickets were created directly via Jira's
+REST API (POST /rest/api/3/issue) — no manual import step was needed.
+
+  WHERE TO LOOK
+  -------------------------------
+  Site: https://prolign.atlassian.net   Project: PRO ("ProLign")
+  Tickets: PRO-2 through PRO-39 (38 issues, type "Bug")
+  Board: https://prolign.atlassian.net/jira/software/projects/PRO/boards
+  All 38 at once (JQL): project = PRO AND labels = "qa-bulk-import-2026-07"
+
+  HOW EACH FIELD WAS MAPPED
+  -------------------------------
+    title                          -> Summary
+    description + steps_to_reproduce
+      + expected + actual          -> Description (one field, broken into
+                                        labelled sub-sections: the write-up,
+                                        then "Steps to Reproduce", "Expected",
+                                        "Actual")
+    severity (Critical/High/Medium/Low)
+                                    -> Priority (Highest/High/Medium/Low —
+                                        Jira's default scheme has no
+                                        "Critical," so Critical maps to
+                                        Highest)
+    component (Frontend/Backend-API/AI-Service/Database)
+                                    -> a Label (this project's Bug issue
+                                        type doesn't have a Components field
+                                        enabled, so labels carry it instead,
+                                        e.g. "backend-api", "ai-service")
+    status                         -> the 8 rows marked Resolved in the CSV
+                                        were created, then immediately
+                                        transitioned to the "Done" workflow
+                                        status via a follow-up API call
+                                        (PRO-2 through PRO-9). The other 30
+                                        stayed in the default "To Do" status.
+  Every ticket also carries a "qa-bulk-import-2026-07" label and a severity
+  label (e.g. "critical", "medium") for easy filtering.
+
+  USEFUL FILTERS (paste into Jira's search bar, top of the page)
+  -------------------------------
+    project = PRO AND priority = Highest          -> the 4 Critical bugs
+    project = PRO AND status = Done               -> the 8 already-fixed ones
+    project = PRO AND status != Done               -> the 30 still open
+    project = PRO AND labels = "backend-api"      -> just the backend bugs
+
+  qa/bugs_jira_import.csv remains the source-of-truth file in the repo (and
+  still works with the manual CSV-import wizard — Settings -> System ->
+  External system import -> CSV — if you ever need to re-import into a
+  different Jira site or hand it to another tool), but for THIS Jira project
+  the tickets already exist; there's nothing left to import.
+
+
+9. QUICK COMMAND CHEAT-SHEET
+=================================================
+  (Windows PowerShell doesn't support "&&" for chaining commands the way
+  Mac/Linux terminals do - run each line separately, or join with ";"
+  instead, e.g.  cd backend; npx vitest run)
+
+  Backend API tests:
+    cd backend
+    npx vitest run
+
+  Backend + coverage:
+    cd backend
+    npx vitest run --coverage
+
+  AI_interviewer tests:
+    cd backend\AI_interviewer
+    venv\Scripts\Activate.ps1
+    pytest
+
+  Rag_Chatbot tests:
+    cd backend\Rag_Chatbot\app
+    venv\Scripts\Activate.ps1
+    pytest
+
+  Frontend unit tests:
+    cd frontend
+    npx vitest run
+
+  Frontend unit + coverage:
+    cd frontend
+    npx vitest run --coverage
+
+  E2E tests (headless):
+    cd frontend
+    npx playwright test
+
+  E2E tests (watch it run):
+    cd frontend
+    npx playwright test --headed
+
+  E2E last report:
+    cd frontend
+    npx playwright show-report

@@ -59,6 +59,10 @@ temp/
 .nyc_output/
 coverage/
 .mocha_output/
+reports/
+.pytest_cache/
+htmlcov/
+.coverage
 
 # Misc
 .venv

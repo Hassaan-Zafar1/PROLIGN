@@ -67,11 +67,20 @@ export async function createReview(menteeId, body) {
 export async function listReviews(query, user) {
   const { page, limit, skip } = parsePage(query);
 
+  // Public browse case first — doesn't touch `user` at all, so a guest can
+  // reach it. Everything below requires a real session.
   let filter;
-  if (query.mine === "true") filter = { menteeId: user._id };
-  else if (query.mentorId) filter = { mentorId: query.mentorId, isVisible: true, flagged: false };
-  else if (user.role === "admin") filter = {}; // admin can browse everything (incl. flagged)
-  else filter = { menteeId: user._id };
+  if (query.mentorId) {
+    filter = { mentorId: query.mentorId, isVisible: true, flagged: false };
+  } else if (!user) {
+    throw new ApiError(401, "Login required to view your reviews.");
+  } else if (query.mine === "true") {
+    filter = { menteeId: user._id };
+  } else if (user.role === "admin") {
+    filter = {}; // admin can browse everything (incl. flagged)
+  } else {
+    filter = { menteeId: user._id };
+  }
 
   const [rows, total] = await Promise.all([
     Review.find(filter).populate("menteeId", "name profilePic").sort({ createdAt: -1 }).skip(skip).limit(limit),

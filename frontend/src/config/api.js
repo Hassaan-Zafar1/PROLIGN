@@ -29,8 +29,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 Unauthorized and not already retried
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401 Unauthorized, not already retried, AND the request actually carried a
+    // token (i.e. this was a real session that expired, not a guest who never had
+    // one). A guest's 401 has nothing to refresh — the refresh call would just fail
+    // and reload the page, which re-fires the same request and loops forever. Let
+    // it fall through to the generic error handling below instead, so the caller's
+    // own .catch() handles it locally.
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.headers?.Authorization) {
       originalRequest._retry = true;
 
       try {

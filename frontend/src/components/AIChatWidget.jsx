@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext'; // adjust path if your AuthContext lives elsewhere
 
-const API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8000/chat';
+const API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8001/chat';
 const HISTORY_URL = API_URL.replace('/chat', '/history');
 
 function getSessionId() {

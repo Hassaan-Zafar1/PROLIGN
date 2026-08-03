@@ -42,7 +42,7 @@ const availabilitySlotSchema = new Schema(
 );
 
 // Indexes
-availabilitySlotSchema.index({ mentorId: 1, dayOfWeek: 1, startTime: 1 });
+// availabilitySlotSchema.index({ mentorId: 1, dayOfWeek: 1, startTime: 1 });
 availabilitySlotSchema.index({ mentorId: 1, date: 1, status: 1 });
 
 // Prevent double-booking on concrete dates
