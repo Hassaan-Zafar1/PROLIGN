@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { sessionService } from '../services/sessionService';
 import Button from '../components/common/Button';
@@ -47,6 +48,15 @@ export default function VideoInterview({ navigateTo, params }) {
         if (!isParticipant) {
           setError('You are not authorized to join this session.');
         } else {
+          const scheduledDate = new Date(data.scheduledDate);
+          const canJoinTime = new Date(scheduledDate.getTime() - 5 * 60 * 1000);
+          const diffMs = canJoinTime.getTime() - Date.now();
+          if (diffMs > 0) {
+            const diffMins = Math.ceil(diffMs / (60 * 1000));
+            toast.warn(`You can join this session starting 5 minutes before the scheduled time. Please wait ${diffMins} minute(s).`, { autoClose: 5000 });
+            navigateTo(user.role === 'mentor' ? 'mentor-dashboard' : 'mentee-dashboard');
+            return;
+          }
           setSession(data);
           calculateTimeRemaining(data);
         }

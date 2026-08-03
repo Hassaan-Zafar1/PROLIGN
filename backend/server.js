@@ -10,6 +10,8 @@ import { connectDB, disconnectDB } from "./config/database.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import "./config/passport.js";
 import { extractClientInfo } from "./middleware/auth.js";
+import testHelperRoutes from "./routes/testHelpers.js";
+import { initCronJobs } from "./services/cronService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +101,10 @@ import sessionRoutes from "./routes/sessions.js";
 app.use("/api/sessions", sessionRoutes);
 import paymentRoutes from "./routes/payments.js";
 app.use("/api/payments", paymentRoutes);
+import escrowRoutes from "./routes/escrow.js";
+app.use("/api", escrowRoutes);
+import walletRoutes from "./routes/wallet.js";
+app.use("/api", walletRoutes);
 import reviewRoutes from "./routes/reviews.js";
 app.use("/api/reviews", reviewRoutes);
 import notificationRoutes from "./routes/notifications.js";
@@ -115,6 +121,16 @@ import cvRoutes from "./routes/cvRoutes.js";
 app.use("/api/mentors", cvRoutes); // adds POST /api/mentors/:mentorId/cv
 app.use("/uploads/cvs", express.static(path.join(__dirname, "uploads", "cvs")));
 
+// ─── Dev/Test-only helpers (E2E OTP retrieval, data seeding) ──────────────────
+// Never mounted in production — see routes/testHelpers.js and otpService.js's
+// devOtpStore (process-memory only, never persisted) for why this is safe.
+// Must be registered here, synchronously, before notFound/errorHandler below —
+// an async (dynamic-import) mount would race and land after them, making the
+// routes unreachable regardless of the NODE_ENV guard.
+if (env.NODE_ENV !== "production") {
+  app.use("/api/test", testHelperRoutes);
+}
+
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
@@ -122,6 +138,7 @@ app.use(errorHandler);
 // ─── Start Server ─────────────────────────────────────────────────────────────
 async function startServer() {
   await connectDB();
+  initCronJobs();
 
   const server = app.listen(env.PORT, () => {
     console.log(` Server running on http://localhost:${env.PORT}`);
@@ -142,4 +159,13 @@ async function startServer() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-startServer();
+// Export `app` so Supertest can drive it directly (supertest binds its own
+// ephemeral port per test, no real network needed) without also connecting to
+// the real database or binding env.PORT. Only actually start the server (DB
+// connect + listen) when this file is run directly — not when imported by a
+// test file.
+export default app;
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
+}

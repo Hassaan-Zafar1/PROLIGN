@@ -2,6 +2,7 @@ import Payment from "../models/Payment.js";
 import Session from "../models/Session.js";
 import { ApiError } from "../middleware/errorHandler.js";
 import Stripe from "stripe";
+import { holdInEscrow } from "./escrowService.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
@@ -197,6 +198,8 @@ export async function handleStripeWebhook(signature, rawBody) {
         { _id: payment.sessionId },
         { $set: { status: "confirmed" } }
       );
+      // Hold mentor earnings in admin escrow wallet
+      await holdInEscrow(payment);
     }
   } else if (event.type === "payment_intent.payment_failed") {
     // Record payment failure

@@ -2,6 +2,17 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import { env } from "../config/env.js";
 
+// Dev/test-only side channel — NEVER persisted to the database (the DB only
+// ever stores the SHA-256 hash, by design). Lets E2E tests retrieve the
+// plaintext OTP for a userId without real email infrastructure, via the
+// dev-only routes/testHelpers.js route. Process memory only; wiped on
+// restart; never populated at all in production (see the guard below).
+const devOtpStore = new Map();
+
+export function getDevOTP(userId) {
+  return devOtpStore.get(String(userId)) || null;
+}
+
 export async function generateAndSaveOTP(userId) {
   const plainOTP = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOTP = crypto.createHash("sha256").update(plainOTP).digest("hex");
@@ -14,6 +25,10 @@ export async function generateAndSaveOTP(userId) {
     "otp.expiresAt": expiresAt,
     "otp.attempts": 0,
   });
+
+  if (env.NODE_ENV !== "production") {
+    devOtpStore.set(String(userId), plainOTP);
+  }
 
   return plainOTP;
 }

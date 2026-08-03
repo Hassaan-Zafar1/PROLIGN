@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
 import "../config/passport.js";
+import { env } from "../config/env.js";
 import { googleCallback } from "../controllers/authController.js";
 import {
   register,
@@ -18,10 +19,14 @@ import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Strict rate limiter for sensitive auth endpoints
+// Strict rate limiter for sensitive auth endpoints. 10/15min is right for
+// production, but far too low for active dev/E2E use — a handful of manual
+// logins or one Playwright run doing register+verify+login per test easily
+// exceeds it. Same dev/production split already used by the global limiter
+// in server.js.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: env.NODE_ENV === "production" ? 10 : 1000,
   message: { success: false, message: "Too many attempts. Try again in 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,

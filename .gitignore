@@ -3,11 +3,19 @@
 .env
 backend/.env
 **/.env
+**/.env.jira
 
 # Large archives
 *.zip
+
+# Generated Jira import results (contains ticket keys, not secrets, but is a run artifact)
+qa/jira_create_results.json
 
 # Environment files
 .env
 backend/.env
 **/.env
+
+# Python cache
+__pycache__/
+*.pyc

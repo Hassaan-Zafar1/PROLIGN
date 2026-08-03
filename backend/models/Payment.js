@@ -53,6 +53,16 @@ const paymentSchema = new Schema(
 
     // ── Webhook Event Log (for debugging, not for business logic) ──
     webhookEvents: { type: [webhookEventSchema], default: [] },
+
+    // ── Escrow Fields ──────────────────────────────────────────────
+    escrowStatus: {
+      type: String,
+      enum: ["held", "dispute_window", "disputed", "released", "refunded"],
+      default: "held",
+    },
+    escrowHeldAt: { type: Date, default: null },
+    disputeDeadline: { type: Date, default: null },
+    escrowReleasedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
