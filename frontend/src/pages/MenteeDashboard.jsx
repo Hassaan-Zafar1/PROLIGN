@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
@@ -363,6 +364,14 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
   const handleJoinSession = (session) => {
     if (!session) return;
+    const sessionDate = new Date(session.scheduledDate || session.dateTime || session.date || session.createdAt);
+    const canJoinTime = new Date(sessionDate.getTime() - 5 * 60 * 1000);
+    const diffMs = canJoinTime.getTime() - Date.now();
+    if (diffMs > 0) {
+      const diffMins = Math.ceil(diffMs / (60 * 1000));
+      toast.warn(`You can join this session starting 5 minutes before the scheduled time. Please wait ${diffMins} minute(s).`, { autoClose: 5000 });
+      return;
+    }
     navigateTo('video-interview', { sessionId: session.id });
   };
 
