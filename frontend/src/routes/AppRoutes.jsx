@@ -100,6 +100,14 @@ const EarningsRoute = () => {
     : <Navigate to="/dashboard" replace />;
 };
 
+const WalletRoute = () => {
+  const { user } = useAuth();
+  const navigateTo = useAppNavigate();
+  return user?.role === 'mentor'
+    ? <MentorDashboard navigateTo={navigateTo} initialView="mentor-wallet" />
+    : <Navigate to="/dashboard" replace />;
+};
+
 const RatingsRoute = () => {
   const { user } = useAuth();
   const navigateTo = useAppNavigate();
@@ -190,6 +198,7 @@ const AppRoutes = ({ openChatbot }) => {
         <Route path="/availability" element={<ProtectedRoute><AvailabilityRoute /></ProtectedRoute>} />
         <Route path="/earnings" element={<ProtectedRoute><EarningsRoute /></ProtectedRoute>} />
         <Route path="/ratings" element={<ProtectedRoute><RatingsRoute /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><WalletRoute /></ProtectedRoute>} />
         <Route path="/video-interview/:sessionId" element={<ProtectedRoute><VideoInterviewRoute /></ProtectedRoute>} />
 
         {/* ---------- Role-based ---------- */}
@@ -201,6 +210,7 @@ const AppRoutes = ({ openChatbot }) => {
         <Route path="/admin/mentees" element={<ProtectedRoute><AdminRoute initialView="mentees" /></ProtectedRoute>} />
         <Route path="/admin/applications" element={<ProtectedRoute><AdminRoute initialView="applications" /></ProtectedRoute>} />
         <Route path="/admin/earnings" element={<ProtectedRoute><AdminRoute initialView="earnings" /></ProtectedRoute>} />
+        <Route path="/admin/escrow" element={<ProtectedRoute><AdminRoute initialView="escrow" /></ProtectedRoute>} />
 
         {/* ---------- Fallback ---------- */}
         <Route path="*" element={<Navigate to="/" replace />} />

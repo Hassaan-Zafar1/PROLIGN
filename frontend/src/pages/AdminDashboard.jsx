@@ -22,6 +22,7 @@ import { getPublishedSiteContent, savePublishedSiteContent } from '../content/si
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
 import { useTheme } from '../hooks/useTheme';
+import api from '../config/api';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -84,6 +85,7 @@ const normalizeView = (view) => {
   if (view === 'admin-mentees') return 'mentees';
   if (view === 'admin-applications') return 'applications';
   if (view === 'admin-earnings') return 'earnings';
+  if (view === 'admin-escrow') return 'escrow';
   return view || 'dashboard';
 };
 
@@ -122,6 +124,20 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
   const [testimonialForm, setTestimonialForm] = useState({ name: '', role: '', company: '', quote: '', avatar: '' });
   const [testimonialSuccess, setTestimonialSuccess] = useState('');
   const [contentStatus, setContentStatus] = useState('');
+  const [escrowOverview, setEscrowOverview] = useState({ totalEscrow: 0, openDisputes: 0, pendingCashouts: 0 });
+  const [openDisputes, setOpenDisputes] = useState([]);
+  const [pendingCashouts, setPendingCashouts] = useState([]);
+  const [escrowLoading, setEscrowLoading] = useState(false);
+  const [escrowError, setEscrowError] = useState('');
+  const [escrowSuccess, setEscrowSuccess] = useState('');
+
+  const [activeDisputeModal, setActiveDisputeModal] = useState(null);
+  const [disputeDecisionType, setDisputeDecisionType] = useState('mentor');
+  const [disputeAdminNote, setDisputeAdminNote] = useState('');
+  
+  const [activeCashoutRejectModal, setActiveCashoutRejectModal] = useState(null);
+  const [cashoutRejectAdminNote, setCashoutRejectAdminNote] = useState('');
+
   const [loading, setLoading] = useState(true);
 
   const [contentEditor, setContentEditor] = useState({
@@ -167,6 +183,117 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
       setLoading(false);
     }
   };
+
+  const fetchEscrowState = async () => {
+    try {
+      setEscrowLoading(true);
+      setEscrowError('');
+      
+      // 1. Fetch admin wallet (Total in Escrow)
+      let totalEscrow = 0;
+      try {
+        const walletRes = await api.get('/wallet/me');
+        totalEscrow = walletRes.data.wallet?.escrowBalance || 0;
+      } catch (err) {
+        console.warn('Failed to load admin wallet:', err);
+      }
+
+      // 2. Fetch open disputes
+      let openDisputesList = [];
+      try {
+        const disputesRes = await api.get('/disputes?status=open');
+        openDisputesList = disputesRes.data.disputes || [];
+      } catch (err) {
+        console.warn('Failed to load disputes:', err);
+      }
+
+      // 3. Fetch pending cashouts
+      let pendingCashoutsList = [];
+      try {
+        const cashoutsRes = await api.get('/cashout?status=pending');
+        pendingCashoutsList = cashoutsRes.data.cashouts || [];
+      } catch (err) {
+        console.warn('Failed to load cashouts:', err);
+      }
+
+      setOpenDisputes(openDisputesList);
+      setPendingCashouts(pendingCashoutsList);
+      setEscrowOverview({
+        totalEscrow,
+        openDisputes: openDisputesList.length,
+        pendingCashouts: pendingCashoutsList.length,
+      });
+    } catch (err) {
+      setEscrowError('Failed to load escrow details.');
+    } finally {
+      setEscrowLoading(false);
+    }
+  };
+
+  const handleResolveDispute = async (e) => {
+    e.preventDefault();
+    if (!activeDisputeModal) return;
+    try {
+      setEscrowLoading(true);
+      setEscrowError('');
+      setEscrowSuccess('');
+      await api.patch(`/disputes/${activeDisputeModal._id}/resolve`, {
+        decision: disputeDecisionType,
+        adminNote: disputeAdminNote,
+      });
+      setEscrowSuccess(`Dispute resolved successfully in favor of the ${disputeDecisionType}.`);
+      setActiveDisputeModal(null);
+      setDisputeAdminNote('');
+      await fetchEscrowState();
+    } catch (err) {
+      setEscrowError(err.response?.data?.message || 'Failed to resolve dispute.');
+    } finally {
+      setEscrowLoading(false);
+    }
+  };
+
+  const handleApproveCashout = async (cashoutId) => {
+    if (!window.confirm('Are you sure you want to approve this cashout request?')) return;
+    try {
+      setEscrowLoading(true);
+      setEscrowError('');
+      setEscrowSuccess('');
+      await api.patch(`/cashout/${cashoutId}/approve`);
+      setEscrowSuccess('Cashout request approved successfully.');
+      await fetchEscrowState();
+    } catch (err) {
+      setEscrowError(err.response?.data?.message || 'Failed to approve cashout.');
+    } finally {
+      setEscrowLoading(false);
+    }
+  };
+
+  const handleRejectCashout = async (e) => {
+    e.preventDefault();
+    if (!activeCashoutRejectModal) return;
+    try {
+      setEscrowLoading(true);
+      setEscrowError('');
+      setEscrowSuccess('');
+      await api.patch(`/cashout/${activeCashoutRejectModal._id}/reject`, {
+        adminNote: cashoutRejectAdminNote,
+      });
+      setEscrowSuccess('Cashout request rejected.');
+      setActiveCashoutRejectModal(null);
+      setCashoutRejectAdminNote('');
+      await fetchEscrowState();
+    } catch (err) {
+      setEscrowError(err.response?.data?.message || 'Failed to reject cashout.');
+    } finally {
+      setEscrowLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'escrow') {
+      fetchEscrowState();
+    }
+  }, [activeView]);
 
   useEffect(() => {
     refreshData();
@@ -444,6 +571,7 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     { id: 'mentees', icon: 'person', label: 'Mentees' },
     { id: 'applications', icon: 'assignment', label: 'Applications' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
+    { id: 'escrow', icon: 'gavel', label: 'Escrow' },
     // { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
@@ -493,7 +621,8 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                 mentors: 'admin-mentors',
                 mentees: 'admin-mentees',
                 applications: 'admin-applications',
-                earnings: 'admin-earnings'
+                earnings: 'admin-earnings',
+                escrow: 'admin-escrow'
               };
               setView(routeMap[item.id] || item.id);
             }}
@@ -773,6 +902,348 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     </section>
   );
 
+  const renderEscrow = () => {
+    if (escrowLoading && !openDisputes.length && !pendingCashouts.length) {
+      return (
+        <div className="flex items-center justify-center p-12">
+          <div className="flex flex-col items-center gap-3">
+            <span className="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span>
+            <p className="text-sm text-on-surface-variant font-medium">Loading escrow details...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const methodLabels = {
+      bank_transfer: 'Bank Transfer',
+      jazzcash: 'JazzCash',
+      easypaisa: 'EasyPaisa',
+      paypal: 'PayPal',
+    };
+
+    return (
+      <div className="space-y-8 animate-[fadeIn_0.3s]">
+        {/* Alerts */}
+        {escrowError && (
+          <div className="rounded-lg bg-error/10 border border-error/20 p-3 text-xs font-bold text-error flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">error</span>
+            {escrowError}
+          </div>
+        )}
+        {escrowSuccess && (
+          <div className="rounded-lg bg-secondary/10 border border-secondary/20 p-3 text-xs font-bold text-secondary flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">check_circle</span>
+            {escrowSuccess}
+          </div>
+        )}
+
+        {/* Overview cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="relative overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface-container-low p-6 natural-shadow">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total in Escrow</p>
+                <h3 className="mt-2 text-3xl font-extrabold text-on-surface">${escrowOverview.totalEscrow.toFixed(2)}</h3>
+                <p className="mt-1 text-xs text-on-surface-variant/80">Across all completed pending sessions</p>
+              </div>
+              <span className="material-symbols-outlined text-primary text-3xl bg-primary/10 p-2.5 rounded-xl">account_balance_wallet</span>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-error/10 bg-error/5 p-6 natural-shadow">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold text-error uppercase tracking-wider">Open Disputes</p>
+                <h3 className="mt-2 text-3xl font-extrabold text-error">{escrowOverview.openDisputes}</h3>
+                <p className="mt-1 text-xs text-error/80">Arbitration queue</p>
+              </div>
+              <span className="material-symbols-outlined text-error text-3xl bg-error/10 p-2.5 rounded-xl">gavel</span>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-warning/10 bg-warning/5 p-6 natural-shadow">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold text-warning-variant uppercase tracking-wider">Pending Cashouts</p>
+                <h3 className="mt-2 text-3xl font-extrabold text-on-surface">{escrowOverview.pendingCashouts}</h3>
+                <p className="mt-1 text-xs text-on-surface-variant/80">Awaiting payout approvals</p>
+              </div>
+              <span className="material-symbols-outlined text-warning text-3xl bg-warning/10 p-2.5 rounded-xl">payments</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Disputes Section */}
+        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-6 natural-shadow">
+          <h3 className="text-lg font-bold text-on-surface mb-1 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">gavel</span>
+            Open Disputes
+          </h3>
+          <p className="text-xs text-on-surface-variant mb-6">Mentees filing dispute claims for session payments.</p>
+
+          {openDisputes.length > 0 ? (
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/10 text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                    <th className="px-6 py-3.5">Session Date</th>
+                    <th className="px-6 py-3.5">Mentee</th>
+                    <th className="px-6 py-3.5">Mentor</th>
+                    <th className="px-6 py-3.5">Amount</th>
+                    <th className="px-6 py-3.5">Reason</th>
+                    <th className="px-6 py-3.5">Filed At</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/5">
+                  {openDisputes.map((disp) => (
+                    <tr key={disp._id} className="hover:bg-surface-container-low/30 transition-colors">
+                      <td className="px-6 py-4 text-xs text-on-surface-variant font-medium">
+                        {disp.sessionId ? new Date(disp.sessionId.scheduledDate || disp.createdAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="block font-semibold text-on-surface">{disp.menteeId?.name || 'Mentee'}</span>
+                        <span className="block text-[10px] text-on-surface-variant">{disp.menteeId?.email || ''}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="block font-semibold text-on-surface">{disp.mentorId?.name || 'Mentor'}</span>
+                        <span className="block text-[10px] text-on-surface-variant">{disp.mentorId?.email || ''}</span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-on-surface">
+                        ${disp.paymentId?.mentorEarnings?.toFixed(2) || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-on-surface-variant max-w-[150px] truncate" title={disp.reason}>
+                        {disp.reason}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-on-surface-variant">
+                        {new Date(disp.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setActiveDisputeModal(disp);
+                              setDisputeDecisionType('mentor');
+                              setDisputeAdminNote('');
+                            }}
+                            className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-bold text-on-secondary hover:shadow-sm transition-all cursor-pointer"
+                          >
+                            Release to Mentor
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveDisputeModal(disp);
+                              setDisputeDecisionType('mentee');
+                              setDisputeAdminNote('');
+                            }}
+                            className="rounded-lg bg-error px-3 py-1.5 text-xs font-bold text-on-error hover:shadow-sm transition-all cursor-pointer"
+                          >
+                            Refund Mentee
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 text-center border border-dashed border-outline-variant/15 rounded-2xl bg-surface-container-low/20">
+              <span className="material-symbols-outlined text-4xl text-on-surface-variant/20 mb-2">gavel</span>
+              <p className="text-xs text-on-surface-variant font-semibold">No Open Disputes</p>
+              <p className="text-[10px] text-on-surface-variant/70 mt-1">There are currently no open disputes requiring arbitration.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Pending Cashouts Section */}
+        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-6 natural-shadow">
+          <h3 className="text-lg font-bold text-on-surface mb-1 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">payments</span>
+            Pending Cashout Requests
+          </h3>
+          <p className="text-xs text-on-surface-variant mb-6">Mentors requesting available balances cashouts.</p>
+
+          {pendingCashouts.length > 0 ? (
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/10 text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                    <th className="px-6 py-3.5">Mentor Name</th>
+                    <th className="px-6 py-3.5">Amount</th>
+                    <th className="px-6 py-3.5">Method</th>
+                    <th className="px-6 py-3.5">Payment Details</th>
+                    <th className="px-6 py-3.5">Requested At</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/5">
+                  {pendingCashouts.map((cash) => (
+                    <tr key={cash._id} className="hover:bg-surface-container-low/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="block font-semibold text-on-surface">{cash.mentorId?.name || 'Mentor'}</span>
+                        <span className="block text-[10px] text-on-surface-variant">{cash.mentorId?.email || ''}</span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-on-surface">${cash.amount.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-xs font-semibold text-on-surface-variant">
+                        {methodLabels[cash.paymentMethod] || cash.paymentMethod}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-on-surface-variant max-w-[200px] truncate" title={cash.paymentDetails}>
+                        {cash.paymentDetails}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-on-surface-variant">
+                        {new Date(cash.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleApproveCashout(cash._id)}
+                            className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-bold text-on-secondary hover:shadow-sm transition-all cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveCashoutRejectModal(cash);
+                              setCashoutRejectAdminNote('');
+                            }}
+                            className="rounded-lg bg-error px-3 py-1.5 text-xs font-bold text-on-error hover:shadow-sm transition-all cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 text-center border border-dashed border-outline-variant/15 rounded-2xl bg-surface-container-low/20">
+              <span className="material-symbols-outlined text-4xl text-on-surface-variant/20 mb-2">payments</span>
+              <p className="text-xs text-on-surface-variant font-semibold">No Pending Cashouts</p>
+              <p className="text-[10px] text-on-surface-variant/70 mt-1">There are currently no pending cashout requests to approve.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Dispute Resolution Modal */}
+        {activeDisputeModal && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <form onSubmit={handleResolveDispute} className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-6 natural-shadow">
+              <div className="mb-5 flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-on-surface">Arbitrate Dispute</h3>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Arbitration decision: <strong className="capitalize text-primary">{disputeDecisionType}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveDisputeModal(null)}
+                  className="rounded-full p-2 hover:bg-surface-variant cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-lg bg-surface-container-low p-4 text-xs space-y-2">
+                  <p className="text-on-surface-variant"><strong>Filed By:</strong> {activeDisputeModal.filedBy?.name || 'Mentee'}</p>
+                  <p className="text-on-surface-variant"><strong>Reason:</strong> {activeDisputeModal.reason}</p>
+                  <p className="text-on-surface-variant"><strong>Evidence:</strong> {activeDisputeModal.evidence || 'None provided'}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-on-surface mb-1.5 uppercase">Admin Resolution Note</label>
+                  <textarea
+                    required
+                    rows="3"
+                    value={disputeAdminNote}
+                    onChange={(e) => setDisputeAdminNote(e.target.value)}
+                    placeholder="Provide justification for this arbitration decision..."
+                    className="w-full rounded-xl border border-outline bg-surface px-4 py-3 text-sm text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/20 transition-all font-semibold resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveDisputeModal(null)}
+                    className="rounded-lg bg-surface px-4 py-2 font-bold text-on-surface-variant cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`rounded-lg px-4 py-2 font-bold text-white cursor-pointer ${
+                      disputeDecisionType === 'mentor' ? 'bg-secondary' : 'bg-error'
+                    }`}
+                  >
+                    Submit Arbitration
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Cashout Rejection Modal */}
+        {activeCashoutRejectModal && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <form onSubmit={handleRejectCashout} className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-6 natural-shadow">
+              <div className="mb-5 flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-on-surface">Reject Cashout</h3>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Reject request for ${activeCashoutRejectModal.amount.toFixed(2)} by {activeCashoutRejectModal.mentorId?.name || 'Mentor'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveCashoutRejectModal(null)}
+                  className="rounded-full p-2 hover:bg-surface-variant cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-on-surface mb-1.5 uppercase">Reason for Rejection</label>
+                  <textarea
+                    required
+                    rows="3"
+                    value={cashoutRejectAdminNote}
+                    onChange={(e) => setCashoutRejectAdminNote(e.target.value)}
+                    placeholder="Enter reason for rejecting this payout request..."
+                    className="w-full rounded-xl border border-outline bg-surface px-4 py-3 text-sm text-on-surface outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/20 transition-all font-semibold resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCashoutRejectModal(null)}
+                    className="rounded-lg bg-surface px-4 py-2 font-bold text-on-surface-variant cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-error px-4 py-2 font-bold text-on-error cursor-pointer"
+                  >
+                    Reject Request
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContentManager = () => (
     <section className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
       <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
@@ -809,6 +1280,7 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
       case 'mentees': return renderMemberList('mentee');
       case 'applications': return renderApplications();
       case 'earnings': return renderEarnings();
+      case 'escrow': return renderEscrow();
       // case 'settings': return <ProfileSettings compact onSaved={refreshData} user={user} onAccountClosed={() => { dbLogout(); tokenManager.clearTokens(); navigateTo('home'); }} />;
       default: return renderDashboard();
     }

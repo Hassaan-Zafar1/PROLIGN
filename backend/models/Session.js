@@ -82,6 +82,13 @@ const sessionSchema = new Schema(
     mentorNotes: { type: String, default: null }, // private mentor notes
     resources: { type: [resourceSchema], default: [] }, // mentor shared links
 
+    // ── Escrow/Completion Fields ───────────────────────────────────
+    completionConfirmedBy: {
+      type: [String],
+      enum: ["mentee", "mentor"],
+      default: [],
+    },
+
     // ── Reminder Tracking ──────────────────────────────────────────
     remindersSent: { type: [String], default: [] }, // ["24h", "1h", "15min"]
   },

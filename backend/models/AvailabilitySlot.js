@@ -20,10 +20,10 @@ const availabilitySlotSchema = new Schema(
     dayOfWeek: { type: Number, min: 0, max: 6 }, // 0=Sun … 6=Sat
 
     // ── Concrete Bookable Fields ───────────────────────────────────
-    date:      { type: Date },  // exact calendar date (UTC midnight, optional for templates)
+    date: { type: Date },  // exact calendar date (UTC midnight, optional for templates)
     startTime: { type: String, required: true },  // "10:00" (24hr, mentor local time)
-    endTime:   { type: String, required: true },  // "10:30"
-    timezone:  { type: String, default: "Asia/Karachi" },
+    endTime: { type: String, required: true },  // "10:30"
+    timezone: { type: String, default: "Asia/Karachi" },
 
     // ── Booking State ──────────────────────────────────────────────
     status: {
@@ -32,8 +32,8 @@ const availabilitySlotSchema = new Schema(
       default: "available",
     },
     sessionId: { type: Schema.Types.ObjectId, ref: "Session", default: null },
-    bookedBy:  { type: Schema.Types.ObjectId, ref: "User",    default: null },
-    bookedAt:  { type: Date, default: null },
+    bookedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    bookedAt: { type: Date, default: null },
 
     // ── Mentor Block Override ──────────────────────────────────────
     blockedReason: { type: String, default: null }, // "vacation" | "unavailable"
@@ -42,7 +42,7 @@ const availabilitySlotSchema = new Schema(
 );
 
 // Indexes
-availabilitySlotSchema.index({ mentorId: 1, dayOfWeek: 1, startTime: 1 });
+// availabilitySlotSchema.index({ mentorId: 1, dayOfWeek: 1, startTime: 1 });
 availabilitySlotSchema.index({ mentorId: 1, date: 1, status: 1 });
 
 // Prevent double-booking on concrete dates
@@ -54,7 +54,7 @@ availabilitySlotSchema.index(
 // Prevent duplicate templates for the same day of week and time
 availabilitySlotSchema.index(
   { mentorId: 1, dayOfWeek: 1, startTime: 1 },
-  { unique: true, partialFilterExpression: { date: { $exists: false } } }
+  { unique: true, partialFilterExpression: { date: null } }
 );
 
 export default mongoose.models.AvailabilitySlot ||

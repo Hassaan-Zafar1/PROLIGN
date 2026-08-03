@@ -182,7 +182,7 @@ def export_csv() -> str:
     writer.writeheader()
     for doc in all_profiles():
         profile = MenteeProfile(session_id=doc.get("session_id", ""), **{
-            k: v for k, v in doc.items() if k in MenteeProfile.__dataclass_fields__
+            k: v for k, v in doc.items() if k in MenteeProfile.__dataclass_fields__ and k != "session_id"
         })
         writer.writerow(profile.to_csv_row())
     return buf.getvalue()

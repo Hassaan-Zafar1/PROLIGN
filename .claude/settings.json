@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Bash(npx playwright test *)",
+      "Bash(npx vitest run *)",
+      "Bash(python -m pytest *)",
+      "Bash(node qa/scripts/attach_jira_files.mjs *)",
+      "Edit(qa/flaky_tests.json)",
+      "mcp__claude_ai_Atlassian__createJiraIssue",
+      "mcp__claude_ai_Atlassian__addCommentToJiraIssue",
+      "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
+      "mcp__claude_ai_Atlassian__getJiraIssue",
+      "mcp__claude_ai_Atlassian__getTransitionsForJiraIssue",
+      "mcp__claude_ai_Atlassian__transitionJiraIssue"
+    ]
+  }
+}

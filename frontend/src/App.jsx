@@ -43,6 +43,9 @@ function App() {
     'mentor-onboarding', 'mentorRegistration', 'menteeRegistration', 'auth-callback',
     'admindashboard', 'admin', 'video-interview', 'booking', 'verify-otp',
     'mentor-dashboard', 'mentee-dashboard', 'dashboard', 'waiting-approval',
+    'mentor-wallet',
+    'admin-mentors', 'admin-mentees', 'admin-applications', 'admin-earnings', 'admin-escrow',
+    'sessions', 'payments', 'availability', 'earnings', 'ratings', 'settings', 'analytics'
   ];
   const hideNavigation = hideNavPages.includes(currentPage) ||
     (user?.role === 'mentee' && ['sessions', 'settings', 'analytics'].includes(currentPage));

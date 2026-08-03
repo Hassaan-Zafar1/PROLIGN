@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import {
   getCurrentUser,
   logout as dbLogout,
@@ -24,6 +25,7 @@ import { reviewService } from '../services/reviewService';
 import { flattenUserProfile } from '../utils/flattenProfile';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
+import MentorWallet from './MentorWallet';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const allTimeSlots = [
@@ -115,6 +117,19 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     } catch (err) {
       console.error('Failed to add notification:', err);
     }
+  };
+
+  const handleStartSession = (session) => {
+    if (!session) return;
+    const sessionDate = new Date(session.dateTime || session.scheduledDate || session.date || session.createdAt);
+    const canJoinTime = new Date(sessionDate.getTime() - 5 * 60 * 1000);
+    const diffMs = canJoinTime.getTime() - Date.now();
+    if (diffMs > 0) {
+      const diffMins = Math.ceil(diffMs / (60 * 1000));
+      toast.warn(`You can join this session starting 5 minutes before the scheduled time. Please wait ${diffMins} minute(s).`, { autoClose: 5000 });
+      return;
+    }
+    navigateTo('video-interview', { sessionId: session.id });
   };
 
   const handleCancelSession = async (session) => {
@@ -482,6 +497,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     { id: 'sessions', icon: 'event_available', label: 'My Sessions' },
     { id: 'availability', icon: 'calendar_month', label: 'Availability' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
+    { id: 'mentor-wallet', icon: 'account_balance_wallet', label: 'Wallet' },
     { id: 'ratings', icon: 'star', label: 'Ratings' },
     { id: 'settings', icon: 'settings', label: 'Settings' },
   ];
@@ -755,7 +771,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {session.status === 'Confirmed' ? (
-                          <button onClick={() => navigateTo('video-interview', { sessionId: session.id })} className="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-sm text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm cursor-pointer">Start Session</button>
+                          <button onClick={() => handleStartSession(session)} className="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-sm text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm cursor-pointer">Start Session</button>
                         ) : (
                           <span className="inline-block px-3 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold uppercase tracking-wider">Pending</span>
                         )}
@@ -1000,6 +1016,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     switch (activeView) {
       case 'dashboard': return renderDashboard();
       case 'earnings': return renderEarnings();
+      case 'mentor-wallet': return <MentorWallet navigateTo={navigateTo} />;
       case 'ratings': return renderRatings();
       case 'settings': return renderSettings();
       case 'availability': return <AvailabilityScheduler mentorId={user?.id} />;
@@ -1072,7 +1089,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                 </div>
               </div>
               <div className="bg-on-primary/5 backdrop-blur-sm px-6 py-3 flex flex-wrap gap-2">
-                <button onClick={() => navigateTo('video-interview', { sessionId: nextSession.id })} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary text-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/90 transition-all shadow-sm">
+                <button onClick={() => handleStartSession(nextSession)} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary text-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/90 transition-all shadow-sm">
                   <span className="material-symbols-outlined text-[14px]">videocam</span>Join Session
                 </button>
                 <button onClick={() => setSelectedSession(nextSession)} className="inline-flex items-center gap-1.5 rounded-lg bg-on-primary/15 text-on-primary px-4 py-2 text-xs font-bold hover:bg-on-primary/25 transition-all">
@@ -1255,7 +1272,7 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                                 <span className="material-symbols-outlined text-[18px]">visibility</span>
                               </button>
                               {['Confirmed', 'scheduled'].includes(s.status) && (
-                                <button onClick={() => navigateTo('video-interview', { sessionId: s.id })} className="p-2 rounded-lg text-secondary hover:bg-secondary/10 transition-colors" title="Join">
+                                <button onClick={() => handleStartSession(s)} className="p-2 rounded-lg text-secondary hover:bg-secondary/10 transition-colors" title="Join">
                                   <span className="material-symbols-outlined text-[18px]">videocam</span>
                                 </button>
                               )}
