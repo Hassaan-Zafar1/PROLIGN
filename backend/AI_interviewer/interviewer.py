@@ -250,7 +250,7 @@ class MongoSessionStore:
     """
 
     def __init__(self, uri: Optional[str] = None, db_name: Optional[str] = None):
-        uri = uri or os.environ.get("MONGO_URI", "mongodb+srv://prolignco_db_user:7RBXEeGiVNQbg8r7@prolign.s3kf9zd.mongodb.net/?appName=Prolign")
+        uri = uri or os.environ.get("MONGO_URI", "mongodb://localhost:27017")
         db_name = db_name or os.environ.get("MONGO_DB_NAME", "Prolign")
         self.client = MongoClient(uri)
         self.db = self.client[db_name]

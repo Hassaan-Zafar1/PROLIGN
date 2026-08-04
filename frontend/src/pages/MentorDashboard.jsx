@@ -145,6 +145,15 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
       setLoading(false);
     }
   };
+  const handleConfirmCompletion = async (session) => {
+  try {
+    await sessionService.confirmCompletion(session.id);
+    toast.success('Marked as completed. Once the other party confirms too, payment will be released.');
+    loadData();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Could not confirm completion.');
+  }
+};
 
   const openRescheduleModal = (session) => {
     setRescheduleTarget(session);
@@ -1296,6 +1305,11 @@ const MentorDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                                   </button>
                                 </>
                               )}
+                              {s.status === 'Completed' && (
+                                <button onClick={() => handleConfirmCompletion(s)} className="p-2 rounded-lg text-secondary hover:bg-secondary/10 transition-colors" title="Confirm Completed">
+                                  <span className="material-symbols-outlined text-[18px]">task_alt</span>
+                                </button>
+              )}
                             </div>
                           </td>
                         </tr>

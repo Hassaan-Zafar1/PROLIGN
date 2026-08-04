@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   addTestimonial,
   addUser,
-  approveMentor,
+  // approveMentor,
   deleteNotification,
   deleteUser,
   getCurrentUser,
@@ -83,7 +83,7 @@ const normalizeView = (view) => {
   if (view === 'admin') return 'dashboard';
   if (view === 'admin-mentors') return 'mentors';
   if (view === 'admin-mentees') return 'mentees';
-  if (view === 'admin-applications') return 'applications';
+  // if (view === 'admin-applications') return 'applications';
   if (view === 'admin-earnings') return 'earnings';
   if (view === 'admin-escrow') return 'escrow';
   return view || 'dashboard';
@@ -569,7 +569,6 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
     { id: 'mentors', icon: 'groups', label: 'Mentors' },
     { id: 'mentees', icon: 'person', label: 'Mentees' },
-    { id: 'applications', icon: 'assignment', label: 'Applications' },
     { id: 'earnings', icon: 'payments', label: 'Earnings' },
     { id: 'escrow', icon: 'gavel', label: 'Escrow' },
     // { id: 'settings', icon: 'settings', label: 'Settings' },
@@ -662,7 +661,6 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
           : [
               ['school', 'Active Mentors', activeMentors.length],
               ['diversity_3', 'Total Mentees', mentees.length],
-              ['assignment', 'Pending Mentors', pendingMentors.length],
               ['person_add', 'User Signups', allMembers.length],
             ].map(([icon, label, value]) => (
               <div key={label} className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-5 transition-all hover:shadow-lg hover:scale-[1.01]">
@@ -766,7 +764,7 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-on-surface-variant">{member.title || member.industry || 'Profile pending'}</td>
+                  <td className="px-6 py-4 text-sm text-on-surface-variant">{member.title || member.industry || '-'}</td>
                   <td className="px-6 py-4 text-sm text-on-surface-variant">{new Date(member.createdAt).toLocaleDateString()}</td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
@@ -788,52 +786,52 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
     );
   };
 
-  const renderApplications = () => (
-    <section className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
-      <h3 className="mb-6 font-headline-md text-2xl font-bold text-on-surface">All Pending Approvals</h3>
-      {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex flex-col justify-between gap-4 rounded-xl bg-surface-container-low p-4 md:flex-row md:items-center">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-1">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-4 w-56" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-9 w-20 rounded-lg" />
-                <Skeleton className="h-9 w-20 rounded-lg" />
-                <Skeleton className="h-9 w-20 rounded-lg" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : pendingMentors.length === 0 ? (
-        <p className="text-sm text-on-surface-variant">No pending applications at this time.</p>
-      ) : (
-        <div className="space-y-4">
-          {pendingMentors.map((mentor) => (
-            <div key={mentor.id} className="flex flex-col justify-between gap-4 rounded-xl bg-surface-container-low p-4 md:flex-row md:items-center">
-              <div className="flex items-center gap-3">
-                <img className="h-12 w-12 rounded-full object-cover" src={mentor.avatar} alt={mentor.name} />
-                <div>
-                  <div className="font-bold text-on-surface">{mentor.name}</div>
-                  <div className="text-sm text-on-surface-variant">{mentor.industry} - {mentor.skills?.join(', ')}</div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setSelectedMember(mentor)} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface-variant">Preview</button>
-                <button onClick={() => setShowRejectModal(mentor.id)} className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container">Reject</button>
-                <button onClick={async () => { try { await adminService.approveMentor(mentor.id); } catch(err) { console.warn('Backend approve failed, falling back:', err.message); approveMentor(mentor.id); } if (user?.id === mentor.id) setUser({ ...user, status: 'approved' }); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+  // const renderApplications = () => (
+  //   <section className="rounded-2xl border border-outline-variant/15 bg-surface-container-lowest p-6">
+  //     <h3 className="mb-6 font-headline-md text-2xl font-bold text-on-surface">All Pending Approvals</h3>
+  //     {loading ? (
+  //       <div className="space-y-4">
+  //         {Array.from({ length: 3 }).map((_, i) => (
+  //           <div key={i} className="flex flex-col justify-between gap-4 rounded-xl bg-surface-container-low p-4 md:flex-row md:items-center">
+  //             <div className="flex items-center gap-3">
+  //               <Skeleton className="h-12 w-12 rounded-full" />
+  //               <div className="space-y-1">
+  //                 <Skeleton className="h-5 w-40" />
+  //                 <Skeleton className="h-4 w-56" />
+  //               </div>
+  //             </div>
+  //             <div className="flex gap-2">
+  //               <Skeleton className="h-9 w-20 rounded-lg" />
+  //               <Skeleton className="h-9 w-20 rounded-lg" />
+  //               <Skeleton className="h-9 w-20 rounded-lg" />
+  //             </div>
+  //           </div>
+  //         ))}
+  //       </div>
+  //     ) : pendingMentors.length === 0 ? (
+  //       <p className="text-sm text-on-surface-variant">No pending applications at this time.</p>
+  //     ) : (
+  //       <div className="space-y-4">
+  //         {pendingMentors.map((mentor) => (
+  //           <div key={mentor.id} className="flex flex-col justify-between gap-4 rounded-xl bg-surface-container-low p-4 md:flex-row md:items-center">
+  //             <div className="flex items-center gap-3">
+  //               <img className="h-12 w-12 rounded-full object-cover" src={mentor.avatar} alt={mentor.name} />
+  //               <div>
+  //                 <div className="font-bold text-on-surface">{mentor.name}</div>
+  //                 <div className="text-sm text-on-surface-variant">{mentor.industry} - {mentor.skills?.join(', ')}</div>
+  //               </div>
+  //             </div>
+  //             <div className="flex gap-2">
+  //               <button onClick={() => setSelectedMember(mentor)} className="rounded-lg bg-surface px-4 py-2 text-sm font-bold text-on-surface-variant">Preview</button>
+  //               <button onClick={() => setShowRejectModal(mentor.id)} className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container">Reject</button>
+  //               <button onClick={async () => { try { await adminService.approveMentor(mentor.id); } catch(err) { console.warn('Backend approve failed, falling back:', err.message); approveMentor(mentor.id); } if (user?.id === mentor.id) setUser({ ...user, status: 'approved' }); refreshData(); }} className="rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-on-secondary">Approve</button>
+  //             </div>
+  //           </div>
+  //         ))}
+  //       </div>
+  //     )}
+  //   </section>
+  // );
 
   const renderEarnings = () => (
     <section className="space-y-8">
@@ -1387,7 +1385,10 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
               <button onClick={() => setSelectedMember(null)} className="rounded-full p-2 hover:bg-surface-variant"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-              {['title', 'company', 'industry', 'status', 'hourlyRate', 'createdAt'].map((key) => (
+              {(selectedMember.role === 'mentor'
+  ? ['title', 'company', 'industry', 'status', 'hourlyRate', 'createdAt']
+  : ['title', 'status', 'createdAt']
+).map((key) => (
                 <div key={key} className="rounded-lg bg-surface-container-low p-3">
                   <div className="text-xs font-bold uppercase text-on-surface-variant">{key}</div>
                   <div className="font-semibold text-on-surface">{key === 'createdAt' ? new Date(selectedMember[key]).toLocaleString() : selectedMember[key] || 'Not set'}</div>
@@ -1418,25 +1419,7 @@ const AdminDashboard = ({ navigateTo, initialView = 'dashboard' }) => {
               </div>
             )}
             <p className="mt-4 rounded-lg bg-surface-container-low p-3 text-sm text-on-surface-variant">{selectedMember.bio || 'No bio has been added yet.'}</p>
-            {selectedMember.cv && selectedMember.cv.url && (
-              <div className="mt-4 rounded-lg bg-surface-container-low p-4">
-                <div className="text-xs font-bold uppercase text-on-surface-variant mb-2">CV / Resume</div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">description</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-on-surface truncate">{selectedMember.cv.filename || 'Resume'}</p>
-                  </div>
-                  <a
-                    href={selectedMember.cv.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:brightness-110 transition-all"
-                  >
-                    Read CV
-                  </a>
-                </div>
-              </div>
-            )}
+           
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setSelectedMember(null)} className="rounded-lg bg-surface px-4 py-2 font-bold text-on-surface-variant">Close</button>
               <button onClick={() => handleDeleteMember(selectedMember.id)} className="rounded-lg bg-error px-4 py-2 font-bold text-on-error">Delete User</button>

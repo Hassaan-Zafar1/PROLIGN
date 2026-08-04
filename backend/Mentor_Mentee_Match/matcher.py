@@ -131,7 +131,7 @@ def _load_mentor_df_from_mentorprofiles(db):
     source of truth for mentor data, same as menteeprofiles for mentees).
 
     Field mapping (mentorprofiles/users → matcher's expected flat columns):
-      _id                → mentor_id (stringified ObjectId)
+      userId                → mentor_id (stringified ObjectId)
       users.name         → full_name
       title (fallback: currentCompany.role) → current_role
       industry           → industry
@@ -161,7 +161,7 @@ def _load_mentor_df_from_mentorprofiles(db):
         current_company = doc.get("currentCompany") or {}
         user_doc = doc.get("user") or {}
         rows.append({
-            "mentor_id": str(doc.get("_id", "")),
+            "mentor_id": str(doc.get("userId", "")),
             "full_name": user_doc.get("name", "") or "",
             "profile_pic": user_doc.get("profilePic") or None,
             "hourly_rate": doc.get("hourlyRate") or doc.get("pricePerSession") or None,
@@ -232,6 +232,22 @@ class MentorMatcher:
             raise ValueError(f"No documents found in '{self._db_name}.{self._mentee_collection}' (Mentee_Profiles)")
         self._recover_mentee_fields()
         self._prepare_mentee_numeric_fields()
+
+    def refresh_mentors(self):
+       """
+       Reload mentor data from mentorprofiles and recompute their embeddings.
+       Call this before matching so admin-side mentor deletions/approvals/edits
+       are reflected immediately, instead of only picking up whatever mentor
+       pool existed when this long-lived MentorMatcher singleton was first built.
+       """
+       client = MongoClient(self._uri)
+       self.mentor_df = _load_mentor_df_from_mentorprofiles(client[self._db_name])
+       client.close()
+       if self.mentor_df.empty:
+          raise ValueError(f"No documents found in '{self._db_name}.{self._mentor_collection}' (mentorprofiles)")
+       self._recover_mentor_fields()
+       self._prepare_mentor_numeric_fields()
+       self._precompute_mentor_embeddings() 
 
     def _recover_mentor_fields(self):
         self.mentor_df["match_current_role"] = self.mentor_df.apply(

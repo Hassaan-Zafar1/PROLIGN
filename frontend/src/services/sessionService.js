@@ -6,6 +6,11 @@ export const sessionService = {
     return response.data;
   },
 
+  confirmCompletion: async (id) => {
+  const response = await api.patch(`/sessions/${id}/confirm-completion`, {});
+  return response.data;
+  },
+
   getSessionById: async (id) => {
     const response = await api.get(`/sessions/${id}`);
     return response.data.data;

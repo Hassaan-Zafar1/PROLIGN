@@ -27,4 +27,5 @@ def match_mentee(mentee_id: str, top_k: int = 5) -> dict:
     """mentee_id is the interview's session_id (also the key in mentee_profiles)."""
     matcher = _get_matcher()
     matcher.refresh_mentees()
+    matcher.refresh_mentors()
     return matcher.match_mentee(mentee_id, top_k=top_k)

@@ -96,6 +96,7 @@ jobs:
     # slowest job, so it only runs on PR/merge, not on every local push.
     runs-on: ubuntu-latest
     needs: [frontend-unit, backend-api]
+    if: github.event_name != 'schedule'
     services:
       mongo:
         image: mongo:7

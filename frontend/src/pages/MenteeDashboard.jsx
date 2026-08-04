@@ -4,9 +4,7 @@ import EmptyState from '../components/common/EmptyState';
 import ProfileSettings from '../components/ProfileSettings';
 import { tokenManager } from '../utils/tokenManager';
 import {
-  getBookingsForUser,
   getCurrentUser,
-  getUserById,
   logout as dbLogout,
   getNotifications,
   markNotificationRead,
@@ -65,7 +63,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   const [matchedMentors, setMatchedMentors] = useState([]);
   const [matchLoading, setMatchLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
-  const [bookings, setBookings] = useState([]);
   const [sessionTab, setSessionTab] = useState('upcoming');
   const [ratingSession, setRatingSession] = useState(null);
   const [ratingScore, setRatingScore] = useState(5);
@@ -198,12 +195,6 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         console.error('Failed to load sessions from backend:', err);
       }
 
-      setBookings(
-        getBookingsForUser(mergedUser.id).map((booking) => ({
-          ...booking,
-          mentor: getUserById(booking.mentorId),
-        }))
-      );
 
       setNotifications(getNotifications().filter((item) => !item.userId || item.userId === mergedUser.id));
     } catch (err) {
@@ -374,7 +365,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     }
     navigateTo('video-interview', { sessionId: session.id });
   };
-
+  
   const addNotification = (userId, message, type = 'info') => {
     try {
       const db = getDB();
@@ -409,6 +400,16 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
       setLoading(false);
     }
   };
+
+  const handleConfirmCompletion = async (session) => {
+  try {
+    await sessionService.confirmCompletion(session.id);
+    toast.success('Marked as completed. Once the other party confirms too, payment will be released.');
+    loadData();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Could not confirm completion.');
+  }
+};
 
   const handleAcceptNewTiming = (session) => {
     try {
@@ -764,18 +765,23 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
         </span>
         <div className="flex flex-wrap justify-start gap-2 md:justify-end">
           {isConfirmed && (
-            <>
-              <button onClick={() => handleJoinSession(session)} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
-                Join
-              </button>
-              <button onClick={() => openNotesModal(session)} className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}>
-                Notes
-              </button>
-              <button onClick={() => handleCancelSession(session)} className={`${buttonClass} text-error hover:bg-error/10`}>
-                Cancel
-              </button>
-            </>
-          )}
+  <>
+    {new Date(session.dateTime).getTime() < Date.now() && (
+      <button onClick={() => handleConfirmCompletion(session)} className={`${buttonClass} bg-secondary text-on-secondary hover:opacity-90`}>
+        Confirm Completed
+      </button>
+    )}
+    <button onClick={() => handleJoinSession(session)} className={`${buttonClass} bg-primary text-on-primary hover:opacity-90`}>
+      Join
+    </button>
+    <button onClick={() => openNotesModal(session)} className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}>
+      Notes
+    </button>
+    <button onClick={() => handleCancelSession(session)} className={`${buttonClass} text-error hover:bg-error/10`}>
+      Cancel
+    </button>
+  </>
+)}
           {isPending && (
             <>
               <button onClick={() => handleBookMentor(session.mentorId)} className={`${buttonClass} bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest`}>
@@ -880,7 +886,7 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h3 className="font-headline-md text-2xl font-bold text-on-background">Recommended Mentors</h3>
+          <h3 className="font-headline-md text-2xl font-bold text-on-background">Explore All Mentors</h3>
           <button onClick={() => handleBookMentor()} className="text-sm font-semibold text-secondary hover:underline">
             View All
           </button>
@@ -1549,16 +1555,16 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
   );
 
   const renderPayments = () => {
-    const paidBookings = bookings.filter((b) => b.paymentStatus === 'paid' || String(b.status).toLowerCase() === 'completed');
-    const pendingBookings = bookings.filter((b) => String(b.status).toLowerCase() === 'pending');
-    const totalSpent = paidBookings.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+    const paidBookings = sessions.filter((s) => ['completed', 'confirmed'].includes(String(s.status).toLowerCase()));
+    const pendingBookings = sessions.filter((s) => String(s.status).toLowerCase() === 'pending');
+    const totalSpent = paidBookings.reduce((sum, s) => sum + Number(s.amount || 0), 0);
     const sessionsPurchased = paidBookings.length;
 
     const monthlySpending = (() => {
       const rev = new Array(12).fill(0);
-      paidBookings.forEach((b) => {
-        const m = new Date(b.createdAt).getMonth();
-        rev[m] += Number(b.amount || 0);
+      paidBookings.forEach((s) => {
+        const m = new Date(s.dateTime).getMonth();
+        rev[m] += Number(s.amount || 0);
       });
       return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((name, i) => ({
         name, value: Math.round(rev[i]),
@@ -1566,9 +1572,9 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
     })();
     const maxSpending = Math.max(...monthlySpending.map((d) => d.value), 1);
 
-    const transactions = [...bookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const transactions = [...sessions].sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
 
-    if (bookings.length === 0) {
+    if (sessions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <span className="material-symbols-outlined mb-4 text-6xl text-on-surface/15">receipt_long</span>
@@ -1657,18 +1663,17 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
-                {transactions.map((booking) => {
-                  const status = String(booking.status).toLowerCase();
-                  const isPaid = booking.paymentStatus === 'paid' || status === 'completed';
+                {transactions.map((session) => {
+                  const status = String(session.status).toLowerCase();
+                  const isPaid = status === 'completed' || status === 'confirmed';
                   const isPending = status === 'pending';
-                  const mentor = mentors.find((m) => m.id === booking.mentorId);
                   return (
-                    <tr key={booking.id} className="transition-colors hover:bg-surface-container-low/50">
+                    <tr key={session.id} className="transition-colors hover:bg-surface-container-low/50">
                       <td className="px-6 py-4 text-sm font-semibold text-on-surface">
-                        {new Date(booking.createdAt).toLocaleDateString()}
+                        {new Date(session.dateTime).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 text-sm text-on-surface">{mentor?.name || 'Mentor'}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-primary">${Number(booking.amount || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-on-surface">{session.mentorName || 'Mentor'}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-primary">${Number(session.amount || 0).toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
                           isPaid ? 'bg-secondary-container text-on-secondary-container'
@@ -1699,32 +1704,30 @@ export default function MenteeDashboard({ navigateTo, initialView = 'dashboard' 
               <p className="mt-0.5 text-xs text-on-surface-variant">Sessions awaiting payment confirmation</p>
             </div>
             <div className="divide-y divide-outline-variant/10">
-              {pendingBookings.map((booking) => {
-                const mentor = mentors.find((m) => m.id === booking.mentorId);
-                return (
-                  <div key={booking.id} className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-surface-container-low/50">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10">
-                        <span className="material-symbols-outlined text-[20px] text-tertiary">schedule</span>
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-on-surface">Session with {mentor?.name || 'Mentor'}</p>
-                        <p className="text-xs text-on-surface-variant">{booking.date || 'Date TBD'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-on-surface">${Number(booking.amount || 0).toFixed(2)}</p>
-                      <p className="text-[11px] text-tertiary font-semibold">Pending</p>
+              {pendingBookings.map((session) => (
+                <div key={session.id} className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-surface-container-low/50">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10">
+                      <span className="material-symbols-outlined text-[20px] text-tertiary">schedule</span>
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-on-surface">Session with {session.mentorName || 'Mentor'}</p>
+                      <p className="text-xs text-on-surface-variant">{session.date || 'Date TBD'}</p>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-on-surface">${Number(session.amount || 0).toFixed(2)}</p>
+                    <p className="text-[11px] text-tertiary font-semibold">Pending</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </div>
     );
   };
+
 
   const renderSkeletonDashboard = () => (
     <div className="space-y-8">
