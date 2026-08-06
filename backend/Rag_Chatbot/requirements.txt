@@ -7,9 +7,6 @@ sentence-transformers==3.3.1
 motor==3.6.0
 pymongo>=4.9,<4.10
 
-# Testing
-pytest>=8.0.0
-pytest-cov>=5.0.0
-pytest-asyncio>=0.24.0
-mongomock-motor>=0.0.34
-respx>=0.21.0
+# Testing deps live in requirements-test.txt, not here — the runtime Docker
+# image (backend/Rag_Chatbot/Dockerfile) only installs this file, so pytest/
+# mongomock-motor/respx never ship in the deployed image.

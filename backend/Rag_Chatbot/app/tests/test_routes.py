@@ -7,13 +7,16 @@ embedder is mocked too, so no ML model ever loads in this suite.
 """
 from fastapi.testclient import TestClient
 
-from main import app
+from main import ROUTE_PREFIX, app
 from clients.groq_client import groq_client
 from clients.slack_client import slack_client
 from services import faq_service
 from repositories import conversation_repository
 
-client = TestClient(app)
+# base_url carries the router prefix so every request below can keep using bare
+# paths like "/chat": httpx joins a relative request path onto the base_url's
+# path, yielding /rag/chat.
+client = TestClient(app, base_url=f"http://testserver{ROUTE_PREFIX}")
 
 
 def groq_tool_response(tool_name):

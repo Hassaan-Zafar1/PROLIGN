@@ -1,8 +1,18 @@
+# User-uploaded CVs — ephemeral by design (cvController.js writes them to local
+# disk; they don't survive a container redeploy anyway), and these are test
+# uploads from manual/E2E testing, not source.
+uploads/cvs/*
+!uploads/cvs/.gitkeep
+
 # Dependencies
 node_modules/
 npm-debug.log
 yarn-error.log
-package-lock.json
+# package-lock.json is deliberately NOT ignored. Ignoring it broke two things:
+# CI's `npm ci` in the backend-api job could not run at all (no lockfile in the
+# repo), and the Docker build needs it for a reproducible, cache-friendly
+# `npm ci --omit=dev`. frontend/package-lock.json has always been tracked, which
+# is why only the backend job was failing.
 yarn.lock
 
 # Environment variables

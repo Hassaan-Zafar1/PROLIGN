@@ -1,0 +1,54 @@
+# Shared by two build contexts rooted at backend/: the Node API image
+# (backend/Dockerfile) and the AI interviewer image
+# (backend/AI_interviewer/Dockerfile, which needs Mentor_Mentee_Match as a
+# sibling and so must build from here). Keep exclusions valid for both.
+
+# 258 MB of Windows-native binaries (mongod.exe, *-win32-x64-msvc) that are
+# useless in a Linux image and would poison npm ci layer caching.
+node_modules/
+npm-debug.log*
+
+# Secrets are injected at runtime (SSM -> ECS task definition), never baked.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Python build/test artifacts. **/venv (not */venv) because Rag_Chatbot's is
+# two levels deep (Rag_Chatbot/app/venv) — a single */venv only matches one
+# path segment and silently let a multi-GB torch venv into the build context
+# (582MB -> 2.05GB on the Node image, caught via `docker history`).
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.coveragerc
+htmlcov/
+**/venv/
+**/.venv/
+
+# Tests never run inside the runtime image
+test/
+tests/
+conftest.py
+**/conftest.py
+pytest.ini
+reports/
+test-results/
+coverage/
+
+# Stale file-based session store, superseded by MongoDB
+AI_interviewer/sessions/
+
+# Referenced by zero code (no migrate_faqs_to_mongo.py exists in this repo)
+Rag_Chatbot/faqs_seed.json
+
+# Ephemeral in ECS anyway — CV uploads need S3/Cloudinary to survive a deploy
+uploads/
+
+# One-off maintenance/seed scripts, not part of the serving path
+scripts/
+
+.git/
+.gitignore
+*.md

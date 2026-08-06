@@ -11,11 +11,14 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from main import app
+from main import ROUTE_PREFIX, app
 from services import interview_service
 from mm_services import matching_service
 
-client = TestClient(app)
+# base_url carries the router prefix so every request below can keep using bare
+# paths like "/sessions": httpx joins a relative request path onto the
+# base_url's path, yielding /interviewer/sessions.
+client = TestClient(app, base_url=f"http://testserver{ROUTE_PREFIX}")
 
 
 def mock_reply(monkeypatch, text):

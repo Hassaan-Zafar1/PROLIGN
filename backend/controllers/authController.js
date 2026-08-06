@@ -3,11 +3,17 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { env } from "../config/env.js";
 
 // Response-layer concern: set the httpOnly refresh cookie.
+//
+// sameSite:"none" + secure:true (not conditional on NODE_ENV) because the
+// frontend (Vercel) and this API (behind CloudFront) are different origins —
+// browsers never send a sameSite:"strict"/"lax" cookie cross-origin at all,
+// and sameSite:"none" is rejected outright by browsers unless secure is also
+// true, so the two can't be set independently here.
 function setRefreshCookie(res, token) {
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: true,
+    sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }

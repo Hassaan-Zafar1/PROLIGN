@@ -1,0 +1,32 @@
+# Build context is backend/Rag_Chatbot/ (requirements.txt lives here, the
+# FastAPI app lives in app/).
+
+# app/.env holds live Atlas + Groq + Slack credentials. Injected at runtime.
+app/.env
+app/.env.*
+**/.env
+**/.env.*
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+app/.coveragerc
+htmlcov/
+# **/ (not a bare pattern) — already burned once by trusting bare-pattern
+# depth semantics in backend/.dockerignore (*/venv/ only matched one level
+# there); being explicit here instead of re-assuming.
+**/venv/
+**/.venv/
+
+app/tests/
+app/conftest.py
+app/pytest.ini
+reports/
+
+# Referenced by zero code — migrate_faqs_to_mongo.py does not exist in this
+# repo, so the faqs collection must already be seeded in Atlas.
+faqs_seed.json
+
+.git/
+*.md

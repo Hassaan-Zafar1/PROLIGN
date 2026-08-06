@@ -1,0 +1,90 @@
+# Local parity check for the 3 AWS-bound services (backend, AI_interviewer,
+# Rag_Chatbot) behind the same edge-routing topology the ECS task will use.
+# Run this BEFORE touching AWS: if it doesn't work here, it won't work in ECS,
+# and debugging it locally costs nothing.
+#
+#   cp deploy/.env.deploy.example deploy/.env.deploy   # then fill it in
+#   docker compose build
+#   docker compose up -d
+#   curl http://localhost:8080/api/health
+#
+# The frontend is NOT part of this stack — it deploys to Vercel
+# (https://prolign.vercel.app) directly from source, no Docker involved. For
+# local frontend testing, run `npm run dev` in frontend/ separately (defaults
+# to http://localhost:5173) with its VITE_* vars pointed at this stack's
+# :8080 — that's why FRONTEND_URL/FRONTEND_ORIGIN below are set to Vite's
+# default dev port rather than 8080 itself.
+#
+# MongoDB is intentionally NOT a service here — every service talks to the same
+# Atlas cluster in both environments, so adding a local Mongo would test a
+# topology that never ships.
+
+name: prolign
+
+services:
+  edge:
+    image: nginx:1.27-alpine
+    container_name: prolign-edge
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/edge.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_started
+      ai-interviewer:
+        condition: service_started
+      rag-chatbot:
+        condition: service_started
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    image: prolign/backend:local
+    container_name: prolign-backend
+    env_file:
+      - ./deploy/.env.deploy
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      # Must match the origin the browser actually uses, or the CORS origin
+      # function in server.js:27-44 rejects it (it accepts only ONE origin, no
+      # comma-separated list). This is Vite's default dev port, since that's
+      # where a separately-run `npm run dev` frontend will be — not :8080,
+      # which is edge/the backend services themselves, not the frontend.
+      FRONTEND_URL: http://localhost:5173
+      GOOGLE_CALLBACK_URL: http://localhost:8080/api/auth/google/callback
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  ai-interviewer:
+    build:
+      # Context is backend/, not backend/AI_interviewer/ — the service resolves
+      # Mentor_Mentee_Match as a sibling directory at import time.
+      context: ./backend
+      dockerfile: AI_interviewer/Dockerfile
+    image: prolign/ai-interviewer:local
+    container_name: prolign-ai-interviewer
+    env_file:
+      - ./deploy/.env.deploy
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  rag-chatbot:
+    build:
+      context: ./backend/Rag_Chatbot
+    image: prolign/rag-chatbot:local
+    container_name: prolign-rag-chatbot
+    env_file:
+      - ./deploy/.env.deploy
+    environment:
+      # Rag_Chatbot's own, separate CORS allowlist — the chat widget calls it
+      # directly, not through Node. Same reasoning as backend's FRONTEND_URL
+      # above.
+      FRONTEND_ORIGIN: http://localhost:5173
+    expose:
+      - "8001"
+    restart: unless-stopped

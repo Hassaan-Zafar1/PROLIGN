@@ -5,6 +5,23 @@ backend/.env
 **/.env
 **/.env.jira
 
+# Deployment secrets. "**/.env" above matches only files named exactly ".env",
+# so the suffixed deploy file needs its own rule. The .example template beside
+# it IS tracked on purpose.
+deploy/.env.deploy
+**/.env.*
+!**/.env.*.example
+!**/.env.example
+
+# Terraform state holds every secret it has ever written in plaintext.
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfvars
+!infra/terraform/*.tfvars.example
+infra/terraform/.terraform.lock.hcl
+crash.log
+
 # Large archives
 *.zip
 

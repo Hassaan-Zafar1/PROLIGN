@@ -101,10 +101,6 @@ import sessionRoutes from "./routes/sessions.js";
 app.use("/api/sessions", sessionRoutes);
 import paymentRoutes from "./routes/payments.js";
 app.use("/api/payments", paymentRoutes);
-import escrowRoutes from "./routes/escrow.js";
-app.use("/api", escrowRoutes);
-import walletRoutes from "./routes/wallet.js";
-app.use("/api", walletRoutes);
 import reviewRoutes from "./routes/reviews.js";
 app.use("/api/reviews", reviewRoutes);
 import notificationRoutes from "./routes/notifications.js";
@@ -130,6 +126,25 @@ app.use("/uploads/cvs", express.static(path.join(__dirname, "uploads", "cvs")));
 if (env.NODE_ENV !== "production") {
   app.use("/api/test", testHelperRoutes);
 }
+
+// ─── Escrow + Wallet (mounted at bare /api on purpose) ────────────────────────
+// These add flat paths like PATCH /api/sessions/:id/confirm-completion and
+// GET /api/wallet/me rather than living under their own /api/escrow prefix —
+// the frontend already calls them at those exact flat paths. Registered LAST
+// of every /api/* router, because both apply `router.use(protect)`
+// unconditionally (routes/escrow.js:13, routes/wallet.js:14): that middleware
+// runs for ANY request reaching this router, even ones matching no route
+// defined inside it. Mounted any earlier, they silently intercepted and 401'd
+// every request for a later-registered route that fell through without being
+// claimed first — including guest-facing GET /api/reviews (regressing a
+// previously-fixed bug) and the dev-only /api/test/* helpers (breaking every
+// test whose setup seeds an admin via that side channel). Being last means
+// every other /api/* router gets first chance to claim a request before these
+// two see it at all.
+import escrowRoutes from "./routes/escrow.js";
+app.use("/api", escrowRoutes);
+import walletRoutes from "./routes/wallet.js";
+app.use("/api", walletRoutes);
 
 // ─── 404 + Error Handler (must be last) ───────────────────────────────────────
 app.use(notFound);

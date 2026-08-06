@@ -1,0 +1,8 @@
+# Test-only deps, split out of requirements.txt so the runtime Docker image
+# doesn't install them. Install alongside requirements.txt for local test runs
+# or CI: pip install -r requirements.txt -r requirements-test.txt
+pytest>=8.0.0
+pytest-cov>=5.0.0
+pytest-asyncio>=0.24.0
+mongomock-motor>=0.0.34
+respx>=0.21.0
